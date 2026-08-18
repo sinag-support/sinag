@@ -18,7 +18,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { 
    LogOut, ShoppingCart, Heart, Bell, Search, 
-   UserCircle, Package
+   UserCircle, Package, Home
 } from 'lucide-react'
 
 export default function Header() {
@@ -77,10 +77,18 @@ export default function Header() {
       return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
    }
 
+   const navLinks = [
+      { href: '/products', label: 'Products' },
+      { href: '/about', label: 'About' },
+      { href: '/contact', label: 'Contact' },
+      { href: '/blog', label: 'Blog' },
+   ]
+
    if (loading) {
       return (
          <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-            <div className="px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between gap-4">
+            {/* Desktop skeleton */}
+            <div className="hidden md:flex px-4 sm:px-6 lg:px-8 h-16 items-center justify-between gap-4">
                <Link href="/" className="text-xl font-bold shrink-0">SINAG</Link>
                <div className="hidden flex-1 max-w-md mx-4 md:flex relative">
                   <div className="w-full h-9 rounded-md bg-muted animate-pulse" />
@@ -91,120 +99,196 @@ export default function Header() {
                   <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
                </div>
             </div>
+            {/* Mobile skeleton */}
+            <div className="md:hidden px-4 py-2 flex items-center gap-3">
+               <div className="flex-1 h-9 rounded-md bg-muted animate-pulse" />
+               <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
+            </div>
          </header>
       )
    }
 
    return (
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-         <div className="px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between gap-4">
-            <Link href="/" className="text-xl font-bold shrink-0">
-               SINAG
-            </Link>
+      <>
+         <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
+            {/* Desktop Header */}
+            <div className="hidden md:flex px-4 sm:px-6 lg:px-8 h-16 items-center justify-between gap-4">
+               <Link href="/" className="text-xl font-bold shrink-0">
+                  SINAG
+               </Link>
 
-            <div className="hidden flex-1 max-w-md mx-4 md:flex relative">
-               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-               <Input
-                  type="search"
-                  placeholder="Search products..."
-                  className="pl-9 w-full"
-                  onKeyDown={(e) => {
-                     if (e.key === 'Enter') {
-                        const target = e.target as HTMLInputElement
-                        if (target.value.trim()) {
-                           router.push(`/products?search=${encodeURIComponent(target.value.trim())}`)
+               <nav className="flex items-center gap-6 text-sm">
+                  {navLinks.map((link) => (
+                     <Link
+                        key={link.href}
+                        href={link.href}
+                        className={`transition-colors hover:text-primary ${
+                           pathname === link.href ? 'text-primary font-medium' : 'text-muted-foreground'
+                        }`}
+                     >
+                        {link.label}
+                     </Link>
+                  ))}
+               </nav>
+
+               <div className="flex flex-1 max-w-sm mx-4 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                     type="search"
+                     placeholder="Search products..."
+                     className="pl-9 w-full"
+                     onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                           const target = e.target as HTMLInputElement
+                           if (target.value.trim()) {
+                              router.push(`/products?search=${encodeURIComponent(target.value.trim())}`)
+                           }
                         }
-                     }
-                  }}
-               />
+                     }}
+                  />
+               </div>
+
+               <div className="flex items-center gap-2 sm:gap-4">
+                  <ThemeToggle />
+                  <Button variant="outline" size="icon" className="relative h-9 w-9">
+                     <Bell className="h-5 w-5" />
+                     <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
+                        0
+                     </span>
+                  </Button>
+                  <Link href="/cart">
+                     <Button variant="outline" size="icon" className="h-9 w-9">
+                        <ShoppingCart className="h-5 w-5" />
+                     </Button>
+                  </Link>
+                  {user ? (
+                     <DropdownMenu>
+                        <DropdownMenuTrigger>
+                           <div className="cursor-pointer rounded-full h-9 w-9 bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors">
+                              <Avatar className="h-9 w-9">
+                                 <AvatarFallback className="bg-transparent text-primary">
+                                    {getInitials(user.user_metadata?.name || user.email || '')}
+                                 </AvatarFallback>
+                              </Avatar>
+                           </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56" align="end">
+                           <div className="flex flex-col space-y-1 px-4 py-2">
+                              <p className="text-sm font-medium leading-none">
+                                 {user.user_metadata?.name || user.email}
+                              </p>
+                              <p className="text-xs leading-none text-muted-foreground">
+                                 {user.email}
+                              </p>
+                           </div>
+                           <DropdownMenuSeparator />
+                           <DropdownMenuGroup>
+                              <DropdownMenuItem onClick={() => router.push('/profile')}>
+                                 <UserCircle className="mr-2 h-4 w-4" />
+                                 Profile
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => router.push('/orders')}>
+                                 <Package className="mr-2 h-4 w-4" />
+                                 My Orders
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => router.push('/wishlist')}>
+                                 <Heart className="mr-2 h-4 w-4" />
+                                 Wishlist
+                              </DropdownMenuItem>
+                           </DropdownMenuGroup>
+                           <DropdownMenuSeparator />
+                           <DropdownMenuItem onClick={handleLogout} className="text-red-500">
+                              <LogOut className="mr-2 h-4 w-4" />
+                              Logout
+                           </DropdownMenuItem>
+                        </DropdownMenuContent>
+                     </DropdownMenu>
+                  ) : (
+                     <Link href="/login">
+                        <Button variant="default" size="sm">
+                           Login
+                        </Button>
+                     </Link>
+                  )}
+               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-4">
-               <ThemeToggle />
-
-               <Button variant="ghost" size="icon" className="relative h-9 w-9">
+            {/* Mobile Header – only search + notification */}
+            <div className="md:hidden px-4 py-2 flex items-center gap-3">
+               <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                     type="search"
+                     placeholder="Search products..."
+                     className="pl-9 w-full"
+                     onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                           const target = e.target as HTMLInputElement
+                           if (target.value.trim()) {
+                              router.push(`/products?search=${encodeURIComponent(target.value.trim())}`)
+                           }
+                        }
+                     }}
+                  />
+               </div>
+               <Button variant="outline" size="icon" className="relative h-9 w-9 shrink-0">
                   <Bell className="h-5 w-5" />
                   <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
                      0
                   </span>
                </Button>
+            </div>
+         </header>
 
-               <Link href="/cart">
-                  <Button variant="ghost" size="icon" className="h-9 w-9">
-                     <ShoppingCart className="h-5 w-5" />
-                  </Button>
+         {/* Mobile Bottom Navigation */}
+         <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background">
+            <nav className="flex items-center justify-around h-16">
+               <Link
+                  href="/"
+                  className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
+                     pathname === '/' ? 'text-primary' : 'text-muted-foreground'
+                  }`}
+               >
+                  <Home className="h-5 w-5" />
+                  <span>Home</span>
                </Link>
-
-               {user ? (
-                  <DropdownMenu>
-                     <DropdownMenuTrigger>
-                        <div className="cursor-pointer rounded-full h-9 w-9 bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors">
-                           <Avatar className="h-9 w-9">
-                              <AvatarFallback className="bg-transparent text-primary">
-                                 {getInitials(user.user_metadata?.name || user.email || '')}
-                              </AvatarFallback>
-                           </Avatar>
-                        </div>
-                     </DropdownMenuTrigger>
-                     <DropdownMenuContent className="w-56" align="end">
-                        <div className="flex flex-col space-y-1 px-4 py-2">
-                           <p className="text-sm font-medium leading-none">
-                              {user.user_metadata?.name || user.email}
-                           </p>
-                           <p className="text-xs leading-none text-muted-foreground">
-                              {user.email}
-                           </p>
-                        </div>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuGroup>
-                           <DropdownMenuItem onClick={() => router.push('/profile')}>
-                              <UserCircle className="mr-2 h-4 w-4" />
-                              Profile
-                           </DropdownMenuItem>
-                           <DropdownMenuItem onClick={() => router.push('/orders')}>
-                              <Package className="mr-2 h-4 w-4" />
-                              My Orders
-                           </DropdownMenuItem>
-                           <DropdownMenuItem onClick={() => router.push('/wishlist')}>
-                              <Heart className="mr-2 h-4 w-4" />
-                              Wishlist
-                           </DropdownMenuItem>
-                        </DropdownMenuGroup>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleLogout} className="text-red-500">
-                           <LogOut className="mr-2 h-4 w-4" />
-                           Logout
-                        </DropdownMenuItem>
-                     </DropdownMenuContent>
-                  </DropdownMenu>
-               ) : (
-                  <Link href="/login">
-                     <Button variant="default" size="sm">
-                        Login
-                     </Button>
-                  </Link>
-               )}
-            </div>
+               <Link
+                  href="/products"
+                  className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
+                     pathname?.startsWith('/products') ? 'text-primary' : 'text-muted-foreground'
+                  }`}
+               >
+                  <Package className="h-5 w-5" />
+                  <span>Products</span>
+               </Link>
+               <Link
+                  href="/cart"
+                  className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
+                     pathname === '/cart' ? 'text-primary' : 'text-muted-foreground'
+                  }`}
+               >
+                  <ShoppingCart className="h-5 w-5" />
+                  <span>Cart</span>
+               </Link>
+               <Link
+                  href={user ? '/profile' : '/login'}
+                  className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
+                     pathname?.startsWith('/profile') ? 'text-primary' : 'text-muted-foreground'
+                  }`}
+               >
+                  {user ? (
+                     <Avatar className="h-6 w-6 border-2 border-primary/20">
+                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                           {getInitials(user.user_metadata?.name || user.email || '')}
+                        </AvatarFallback>
+                     </Avatar>
+                  ) : (
+                     <UserCircle className="h-5 w-5" />
+                  )}
+                  <span>{user ? 'Profile' : 'Login'}</span>
+               </Link>
+            </nav>
          </div>
-
-         <div className="md:hidden border-t px-4 py-2">
-            <div className="relative">
-               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-               <Input
-                  type="search"
-                  placeholder="Search products..."
-                  className="pl-9 w-full"
-                  onKeyDown={(e) => {
-                     if (e.key === 'Enter') {
-                        const target = e.target as HTMLInputElement
-                        if (target.value.trim()) {
-                           router.push(`/products?search=${encodeURIComponent(target.value.trim())}`)
-                        }
-                     }
-                  }}
-               />
-            </div>
-         </div>
-      </header>
+      </>
    )
 }
