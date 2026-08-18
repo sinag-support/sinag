@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Heart, ShoppingCart, Minus, Plus, Star } from 'lucide-react'
 
 interface Product {
-   id: number
+   id: string
    name: string
    price: number
    image: string
@@ -20,10 +20,10 @@ interface ProductGridProps {
 }
 
 export function ProductGrid({ products }: ProductGridProps) {
-   const [wishlist, setWishlist] = useState<Set<number>>(new Set())
-   const [quantities, setQuantities] = useState<Record<number, number>>({})
+   const [wishlist, setWishlist] = useState<Set<string>>(new Set())
+   const [quantities, setQuantities] = useState<Record<string, number>>({})
 
-   const toggleWishlist = (productId: number) => {
+   const toggleWishlist = (productId: string) => {
       setWishlist((prev) => {
          const newSet = new Set(prev)
          if (newSet.has(productId)) {
@@ -35,7 +35,7 @@ export function ProductGrid({ products }: ProductGridProps) {
       })
    }
 
-   const updateQuantity = (productId: number, delta: number) => {
+   const updateQuantity = (productId: string, delta: number) => {
       setQuantities((prev) => {
          const current = prev[productId] || 0
          const newQuantity = Math.max(0, current + delta)
@@ -47,7 +47,7 @@ export function ProductGrid({ products }: ProductGridProps) {
       })
    }
 
-   const addToCart = (productId: number) => {
+   const addToCart = (productId: string) => {
       setQuantities((prev) => ({
          ...prev,
          [productId]: (prev[productId] || 0) + 1,
@@ -62,7 +62,6 @@ export function ProductGrid({ products }: ProductGridProps) {
 
             return (
                <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow relative">
-                  {/* Wishlist Button */}
                   <button
                      onClick={() => toggleWishlist(product.id)}
                      className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/80 hover:bg-white dark:bg-black/50 dark:hover:bg-black/70 transition-colors"
@@ -81,6 +80,7 @@ export function ProductGrid({ products }: ProductGridProps) {
                            src={product.image}
                            alt={product.name}
                            fill
+                           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                            className="object-cover hover:scale-105 transition-transform"
                         />
                      </div>
@@ -98,7 +98,6 @@ export function ProductGrid({ products }: ProductGridProps) {
                         <span className="text-xs font-medium">{product.rating}</span>
                      </div>
 
-                     {/* Price + Cart Button */}
                      <div className="flex items-center justify-between pt-0.5">
                         <span className="font-bold text-sm sm:text-base">
                            ₱{product.price.toFixed(2)}
@@ -114,7 +113,6 @@ export function ProductGrid({ products }: ProductGridProps) {
                         </Button>
                      </div>
 
-                     {/* Quantity Controls - Always Visible */}
                      <div className="flex items-center gap-2 pt-0.5">
                         <Button
                            size="icon"

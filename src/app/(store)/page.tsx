@@ -32,42 +32,42 @@ const banners = [
 
 const products = [
    {
-      id: 1,
+      id: '1', // ✅ string
       name: 'Wireless Headphones',
       price: 1299,
       image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop',
       rating: 4.5,
    },
    {
-      id: 2,
+      id: '2', // ✅ string
       name: 'Smart Watch',
       price: 2499,
       image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&h=300&fit=crop',
       rating: 4.8,
    },
    {
-      id: 3,
+      id: '3', // ✅ string
       name: 'Laptop Backpack',
       price: 899,
       image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=300&h=300&fit=crop',
       rating: 4.2,
    },
    {
-      id: 4,
+      id: '4', // ✅ string
       name: 'Bluetooth Speaker',
       price: 599,
       image: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=300&h=300&fit=crop',
       rating: 4.3,
    },
    {
-      id: 5,
+      id: '5', // ✅ string
       name: 'Running Shoes',
       price: 1899,
       image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&h=300&fit=crop',
       rating: 4.7,
    },
    {
-      id: 6,
+      id: '6', // ✅ string
       name: 'Coffee Mug',
       price: 299,
       image: 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=300&h=300&fit=crop',

@@ -90,16 +90,16 @@ export default async function ProductsPage({
       getCategories(),
    ])
 
-   // Infer the type of a product from the getProducts return type
+   // Infer the product type (no need to import from Prisma)
    type ProductWithRelations = Awaited<ReturnType<typeof getProducts>>[number]
 
-   // ✅ Fully typed mapping – p is now correctly typed
+   // Format products to match ProductGrid expectation (id stays as string)
    const formattedProducts = products.map((p: ProductWithRelations) => ({
-      id: p.id,
+      id: p.id,          // string, matches ProductGrid
       name: p.title,
       price: p.price,
       image: p.images?.[0] || '',
-      rating: 4.0, // placeholder – replace with real data later
+      rating: 4.0, // placeholder – replace with real rating later
    }))
 
    const hasFilters = Object.values(params).some(
@@ -149,7 +149,9 @@ export default async function ProductsPage({
                {params.category && (
                   <span className="inline-flex items-center gap-1 bg-background px-2 py-1 rounded text-xs border">
                      Category:{' '}
-                     {categories.find((c: { id: string; title: string }) => c.id === params.category)?.title}
+                     {categories.find(
+                        (c: { id: string; title: string }) => c.id === params.category
+                     )?.title}
                      <Link href={removeFilter('category')} className="hover:text-destructive">
                         <X className="h-3 w-3" />
                      </Link>
