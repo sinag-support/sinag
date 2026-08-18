@@ -8,17 +8,18 @@ export const metadata = {
    title: 'SINAG',
    description: 'Your trusted online store',
    manifest: '/manifest.json',
-   themeColor: '#0a0a0a',
    appleWebApp: {
       capable: true,
       statusBarStyle: 'default',
       title: 'SINAG',
    },
-   viewport: {
-      width: 'device-width',
-      initialScale: 1,
-      maximumScale: 1,
-   },
+}
+
+export const viewport = {
+   width: 'device-width',
+   initialScale: 1,
+   maximumScale: 1,
+   themeColor: '#0a0a0a',
 }
 
 export default function RootLayout({

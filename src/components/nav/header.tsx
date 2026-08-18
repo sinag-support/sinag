@@ -54,7 +54,6 @@ export default function Header() {
             setLoading(false)
          }
       )
-
       return () => subscription?.unsubscribe()
    }, [])
 
@@ -84,39 +83,50 @@ export default function Header() {
       { href: '/blog', label: 'Blog' },
    ]
 
+   // Loading skeleton
    if (loading) {
       return (
-         <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-            {/* Desktop skeleton */}
-            <div className="hidden md:flex px-4 sm:px-6 lg:px-8 h-16 items-center justify-between gap-4">
-               <Link href="/" className="text-xl font-bold shrink-0">SINAG</Link>
-               <div className="hidden flex-1 max-w-md mx-4 md:flex relative">
-                  <div className="w-full h-9 rounded-md bg-muted animate-pulse" />
+         <>
+            <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
+               <div className="hidden md:flex px-4 sm:px-6 lg:px-8 h-16 items-center justify-between gap-4">
+                  <div className="text-xl font-bold shrink-0">SINAG</div>
+                  <div className="hidden flex-1 max-w-md mx-4 md:flex relative">
+                     <div className="w-full h-9 rounded-md bg-muted animate-pulse" />
+                  </div>
+                  <div className="flex items-center gap-2 sm:gap-4">
+                     <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
+                     <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
+                     <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
+                  </div>
                </div>
-               <div className="flex items-center gap-2 sm:gap-4">
+               <div className="md:hidden px-4 py-2 flex items-center gap-3">
+                  <div className="flex-1 h-9 rounded-md bg-muted animate-pulse" />
                   <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
                   <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
-                  <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
                </div>
+            </header>
+            {/* Mobile bottom nav skeleton */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background">
+               <nav className="flex items-center justify-around h-16">
+                  {[1, 2, 3, 4].map((i) => (
+                     <div key={i} className="flex flex-col items-center gap-0.5 text-xs">
+                        <div className="w-5 h-5 rounded-full bg-muted animate-pulse" />
+                        <div className="w-10 h-3 rounded-md bg-muted animate-pulse" />
+                     </div>
+                  ))}
+               </nav>
             </div>
-            {/* Mobile skeleton */}
-            <div className="md:hidden px-4 py-2 flex items-center gap-3">
-               <div className="flex-1 h-9 rounded-md bg-muted animate-pulse" />
-               <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
-            </div>
-         </header>
+         </>
       )
    }
 
+   // ---- Actual header ----
    return (
       <>
          <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-            {/* Desktop Header */}
+            {/* Desktop */}
             <div className="hidden md:flex px-4 sm:px-6 lg:px-8 h-16 items-center justify-between gap-4">
-               <Link href="/" className="text-xl font-bold shrink-0">
-                  SINAG
-               </Link>
-
+               <Link href="/" className="text-xl font-bold shrink-0">SINAG</Link>
                <nav className="flex items-center gap-6 text-sm">
                   {navLinks.map((link) => (
                      <Link
@@ -130,7 +140,6 @@ export default function Header() {
                      </Link>
                   ))}
                </nav>
-
                <div className="flex flex-1 max-w-sm mx-4 relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -147,14 +156,11 @@ export default function Header() {
                      }}
                   />
                </div>
-
                <div className="flex items-center gap-2 sm:gap-4">
                   <ThemeToggle />
                   <Button variant="outline" size="icon" className="relative h-9 w-9">
                      <Bell className="h-5 w-5" />
-                     <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
-                        0
-                     </span>
+                     <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">0</span>
                   </Button>
                   <Link href="/cart">
                      <Button variant="outline" size="icon" className="h-9 w-9">
@@ -184,36 +190,30 @@ export default function Header() {
                            <DropdownMenuSeparator />
                            <DropdownMenuGroup>
                               <DropdownMenuItem onClick={() => router.push('/profile')}>
-                                 <UserCircle className="mr-2 h-4 w-4" />
-                                 Profile
+                                 <UserCircle className="mr-2 h-4 w-4" /> Profile
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => router.push('/orders')}>
-                                 <Package className="mr-2 h-4 w-4" />
-                                 My Orders
+                                 <Package className="mr-2 h-4 w-4" /> My Orders
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => router.push('/wishlist')}>
-                                 <Heart className="mr-2 h-4 w-4" />
-                                 Wishlist
+                                 <Heart className="mr-2 h-4 w-4" /> Wishlist
                               </DropdownMenuItem>
                            </DropdownMenuGroup>
                            <DropdownMenuSeparator />
                            <DropdownMenuItem onClick={handleLogout} className="text-red-500">
-                              <LogOut className="mr-2 h-4 w-4" />
-                              Logout
+                              <LogOut className="mr-2 h-4 w-4" /> Logout
                            </DropdownMenuItem>
                         </DropdownMenuContent>
                      </DropdownMenu>
                   ) : (
                      <Link href="/login">
-                        <Button variant="default" size="sm">
-                           Login
-                        </Button>
+                        <Button variant="default" size="sm">Login</Button>
                      </Link>
                   )}
                </div>
             </div>
 
-            {/* Mobile Header – search + notification + theme toggle */}
+            {/* Mobile */}
             <div className="md:hidden px-4 py-2 flex items-center gap-3">
                <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -233,9 +233,7 @@ export default function Header() {
                </div>
                <Button variant="outline" size="icon" className="relative h-9 w-9 shrink-0">
                   <Bell className="h-5 w-5" />
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
-                     0
-                  </span>
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">0</span>
                </Button>
                <ThemeToggle />
             </div>

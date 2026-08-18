@@ -104,38 +104,34 @@ const blogPosts = [
 
 export default function HomePage() {
    return (
-      <>
-         <Header />
-         <main className="min-h-screen">
-            <section className="w-full">
-               <BannerCarousel banners={banners} />
-            </section>
+      <main className="min-h-screen">
+         <section className="w-full -mt-[1px]">
+            <BannerCarousel banners={banners} />
+         </section>
 
-            <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-               <div className="flex items-center justify-between mb-6 sm:mb-8">
-                  <h2 className="text-xl sm:text-2xl font-bold">Featured Products</h2>
-                  <Link href="/products">
-                     <Button variant="outline" size="sm">
-                        View All →
-                     </Button>
-                  </Link>
-               </div>
-               <ProductGrid products={products} />
-            </section>
+         <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+            <div className="flex items-center justify-between mb-6 sm:mb-8">
+               <h2 className="text-xl sm:text-2xl font-bold">Featured Products</h2>
+               <Link href="/products">
+                  <Button variant="outline" size="sm">
+                     View All →
+                  </Button>
+               </Link>
+            </div>
+            <ProductGrid products={products} />
+         </section>
 
-            <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border-t">
-               <div className="flex items-center justify-between mb-6 sm:mb-8">
-                  <h2 className="text-xl sm:text-2xl font-bold">Latest from Our Blog</h2>
-                  <Link href="/blog">
-                     <Button variant="outline" size="sm">
-                        Read All →
-                     </Button>
-                  </Link>
-               </div>
-               <BlogSection posts={blogPosts} />
-            </section>
-         </main>
-         <Footer />
-      </>
+         <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border-t">
+            <div className="flex items-center justify-between mb-6 sm:mb-8">
+               <h2 className="text-xl sm:text-2xl font-bold">Latest from Our Blog</h2>
+               <Link href="/blog">
+                  <Button variant="outline" size="sm">
+                     Read All →
+                  </Button>
+               </Link>
+            </div>
+            <BlogSection posts={blogPosts} />
+         </section>
+      </main>
    )
 }

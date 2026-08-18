@@ -1,3 +1,6 @@
+import Header from '@/components/nav/header'
+import { Footer } from '@/components/home/footer'
+
 export default function StoreLayout({
    children,
 }: {
@@ -5,9 +8,11 @@ export default function StoreLayout({
 }) {
    return (
       <>
+         <Header />
          <main className="min-h-screen">
             {children}
          </main>
+         <Footer />
       </>
    )
 }
