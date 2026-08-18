@@ -90,6 +90,18 @@ export default async function ProductsPage({
       getCategories(),
    ])
 
+   // Infer the type of a product from the getProducts return type
+   type ProductWithRelations = Awaited<ReturnType<typeof getProducts>>[number]
+
+   // ✅ Fully typed mapping – p is now correctly typed
+   const formattedProducts = products.map((p: ProductWithRelations) => ({
+      id: p.id,
+      name: p.title,
+      price: p.price,
+      image: p.images?.[0] || '',
+      rating: 4.0, // placeholder – replace with real data later
+   }))
+
    const hasFilters = Object.values(params).some(
       (value) => value && value !== ''
    )
@@ -110,7 +122,7 @@ export default async function ProductsPage({
             <div className="hidden md:block">
                <h1 className="text-2xl sm:text-3xl font-bold">All Products</h1>
                <p className="text-sm text-muted-foreground mt-0.5">
-                  {products.length} products found
+                  {formattedProducts.length} products found
                </p>
             </div>
 
@@ -122,7 +134,7 @@ export default async function ProductsPage({
             </div>
          </div>
 
-         {/* Active filters bar (unchanged) */}
+         {/* Active filters bar */}
          {hasFilters && (
             <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-muted/30 rounded-lg">
                <span className="text-sm font-medium">Active filters:</span>
@@ -136,7 +148,8 @@ export default async function ProductsPage({
                )}
                {params.category && (
                   <span className="inline-flex items-center gap-1 bg-background px-2 py-1 rounded text-xs border">
-                     Category: {categories.find((c: { id: string; title: string }) => c.id === params.category)?.title}
+                     Category:{' '}
+                     {categories.find((c: { id: string; title: string }) => c.id === params.category)?.title}
                      <Link href={removeFilter('category')} className="hover:text-destructive">
                         <X className="h-3 w-3" />
                      </Link>
@@ -173,7 +186,7 @@ export default async function ProductsPage({
             </aside>
 
             <div className="flex-1">
-               {products.length === 0 ? (
+               {formattedProducts.length === 0 ? (
                   <div className="text-center py-12">
                      <div className="text-4xl mb-4">🛍️</div>
                      <h3 className="text-lg font-medium">No products found</h3>
@@ -188,7 +201,7 @@ export default async function ProductsPage({
                   </div>
                ) : (
                   <Suspense fallback={<div>Loading...</div>}>
-                     <ProductGrid products={products} />
+                     <ProductGrid products={formattedProducts} />
                   </Suspense>
                )}
             </div>
