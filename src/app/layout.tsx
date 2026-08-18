@@ -7,6 +7,18 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata = {
    title: 'SINAG',
    description: 'Your trusted online store',
+   manifest: '/manifest.json',
+   themeColor: '#0a0a0a',
+   appleWebApp: {
+      capable: true,
+      statusBarStyle: 'default',
+      title: 'SINAG',
+   },
+   viewport: {
+      width: 'device-width',
+      initialScale: 1,
+      maximumScale: 1,
+   },
 }
 
 export default function RootLayout({
@@ -16,13 +28,14 @@ export default function RootLayout({
 }) {
    return (
       <html lang="en" suppressHydrationWarning>
-         <body className={inter.className} suppressHydrationWarning>
-            <ThemeProvider
-               attribute="class"
-               defaultTheme="system"
-               enableSystem
-               disableTransitionOnChange
-            >
+         <head>
+            <link rel="apple-touch-icon" href="/sinag.png" />
+            <meta name="apple-mobile-web-app-capable" content="yes" />
+            <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+            <meta name="format-detection" content="telephone=no" />
+         </head>
+         <body className={inter.className}>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
                {children}
             </ThemeProvider>
          </body>
