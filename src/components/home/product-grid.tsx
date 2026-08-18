@@ -13,6 +13,7 @@ interface Product {
    price: number
    image: string
    rating: number
+   discount?: number // optional
 }
 
 interface ProductGridProps {
@@ -54,14 +55,32 @@ export function ProductGrid({ products }: ProductGridProps) {
       }))
    }
 
+   // Helper: get final price after discount
+   const getFinalPrice = (product: Product) => {
+      if (product.discount && product.discount > 0) {
+         return product.price - (product.price * product.discount / 100)
+      }
+      return product.price
+   }
+
    return (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
          {products.map((product) => {
             const isWishlisted = wishlist.has(product.id)
             const quantity = quantities[product.id] || 0
+            const hasDiscount = product.discount && product.discount > 0
+            const finalPrice = getFinalPrice(product)
 
             return (
                <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow relative">
+                  {/* Discount Badge */}
+                  {hasDiscount && (
+                     <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">
+                        -{product.discount}%
+                     </div>
+                  )}
+
+                  {/* Wishlist Button */}
                   <button
                      onClick={() => toggleWishlist(product.id)}
                      className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/80 hover:bg-white dark:bg-black/50 dark:hover:bg-black/70 transition-colors"
@@ -99,9 +118,22 @@ export function ProductGrid({ products }: ProductGridProps) {
                      </div>
 
                      <div className="flex items-center justify-between pt-0.5">
-                        <span className="font-bold text-sm sm:text-base">
-                           ₱{product.price.toFixed(2)}
-                        </span>
+                        <div>
+                           {hasDiscount ? (
+                              <div className="flex items-center gap-2">
+                                 <span className="font-bold text-sm sm:text-base">
+                                    ₱{finalPrice.toFixed(2)}
+                                 </span>
+                                 <span className="text-xs text-muted-foreground line-through">
+                                    ₱{product.price.toFixed(2)}
+                                 </span>
+                              </div>
+                           ) : (
+                              <span className="font-bold text-sm sm:text-base">
+                                 ₱{product.price.toFixed(2)}
+                              </span>
+                           )}
+                        </div>
                         <Button
                            size="icon"
                            variant={quantity > 0 ? 'default' : 'outline'}

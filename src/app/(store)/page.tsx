@@ -1,8 +1,7 @@
-import Header from '@/components/nav/header'
+import prisma from '@/lib/prisma'
 import { BannerCarousel } from '@/components/home/banner-carousel'
 import { ProductGrid } from '@/components/home/product-grid'
 import { BlogSection } from '@/components/home/blog-section'
-import { Footer } from '@/components/home/footer'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
@@ -27,51 +26,6 @@ const banners = [
       title: 'Free Shipping',
       description: 'On orders over ₱1,000',
       link: '/products?shipping=free',
-   },
-]
-
-const products = [
-   {
-      id: '1', // ✅ string
-      name: 'Wireless Headphones',
-      price: 1299,
-      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop',
-      rating: 4.5,
-   },
-   {
-      id: '2', // ✅ string
-      name: 'Smart Watch',
-      price: 2499,
-      image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&h=300&fit=crop',
-      rating: 4.8,
-   },
-   {
-      id: '3', // ✅ string
-      name: 'Laptop Backpack',
-      price: 899,
-      image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=300&h=300&fit=crop',
-      rating: 4.2,
-   },
-   {
-      id: '4', // ✅ string
-      name: 'Bluetooth Speaker',
-      price: 599,
-      image: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=300&h=300&fit=crop',
-      rating: 4.3,
-   },
-   {
-      id: '5', // ✅ string
-      name: 'Running Shoes',
-      price: 1899,
-      image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&h=300&fit=crop',
-      rating: 4.7,
-   },
-   {
-      id: '6', // ✅ string
-      name: 'Coffee Mug',
-      price: 299,
-      image: 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=300&h=300&fit=crop',
-      rating: 4.0,
    },
 ]
 
@@ -102,7 +56,34 @@ const blogPosts = [
    },
 ]
 
-export default function HomePage() {
+export default async function HomePage() {
+   // Fetch featured products from database
+   const dbProducts = await prisma.product.findMany({
+      where: {
+         isFeatured: true,
+         isAvailable: true,
+      },
+      take: 6,
+      orderBy: { createdAt: 'desc' },
+      select: {
+         id: true,
+         title: true,
+         price: true,
+         discount: true,
+         images: true,
+      },
+   })
+
+   // ✅ Explicitly type the map callback to avoid implicit any
+   const products = dbProducts.map((p: { id: string; title: string; price: number; discount: number; images: string[] }) => ({
+      id: p.id,
+      name: p.title,
+      price: p.price,
+      discount: p.discount,
+      image: p.images?.[0] || '',
+      rating: 4.0, // placeholder
+   }))
+
    return (
       <main className="min-h-screen">
          <section className="w-full -mt-[1px]">

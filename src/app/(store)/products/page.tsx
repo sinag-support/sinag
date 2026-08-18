@@ -56,7 +56,6 @@ async function getProducts(searchParams: SearchParams) {
          where,
          orderBy,
          include: {
-            brand: true,
             category: true,
          },
       })
@@ -90,16 +89,16 @@ export default async function ProductsPage({
       getCategories(),
    ])
 
-   // Infer the product type (no need to import from Prisma)
    type ProductWithRelations = Awaited<ReturnType<typeof getProducts>>[number]
 
-   // Format products to match ProductGrid expectation (id stays as string)
+   // Format products with discount
    const formattedProducts = products.map((p: ProductWithRelations) => ({
-      id: p.id,          // string, matches ProductGrid
+      id: p.id,
       name: p.title,
       price: p.price,
+      discount: p.discount,
       image: p.images?.[0] || '',
-      rating: 4.0, // placeholder – replace with real rating later
+      rating: 4.0, // placeholder
    }))
 
    const hasFilters = Object.values(params).some(

@@ -87,6 +87,11 @@ export default function Header() {
       return null
    }
 
+   // Hide header on mobile for blog pages (listing + detail)
+   if (isMobile && pathname?.startsWith('/blog')) {
+      return null
+   }
+
    const getInitials = (name: string) => {
       if (!name) return 'U'
       return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
