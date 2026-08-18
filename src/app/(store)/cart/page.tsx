@@ -37,6 +37,8 @@ const initialCartItems = [
    },
 ]
 
+export const dynamic = 'force-dynamic'
+
 export default function CartPage() {
    const [cartItems, setCartItems] = useState(initialCartItems)
 

@@ -78,6 +78,8 @@ async function getCategories() {
    }
 }
 
+export const dynamic = 'force-dynamic'
+
 export default async function ProductsPage({
    searchParams,
 }: {

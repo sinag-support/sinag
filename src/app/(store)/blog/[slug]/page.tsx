@@ -62,7 +62,8 @@ export async function generateStaticParams() {
    return Object.keys(posts).map((slug) => ({ slug }))
 }
 
-// ✅ Fix: make the component async and await params
+export const dynamic = 'force-dynamic'
+
 export default async function BlogPostPage({
    params,
 }: {

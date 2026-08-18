@@ -35,6 +35,8 @@ export const metadata = {
    description: 'Read the latest articles and updates from SINAG.',
 }
 
+export const dynamic = 'force-dynamic'
+
 export default function BlogPage() {
    return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 max-w-6xl">
