@@ -13,6 +13,7 @@ import {
    DropdownMenuTrigger,
    DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu'
+import { NotificationsDropdown } from '@/components/notifications/notifications-dropdown'
 import { supabase } from '@/lib/supabase'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -26,6 +27,15 @@ export default function Header() {
    const pathname = usePathname()
    const [user, setUser] = useState<any>(null)
    const [loading, setLoading] = useState(true)
+   const [isMobile, setIsMobile] = useState(false)
+
+   // Detect mobile
+   useEffect(() => {
+      const checkMobile = () => setIsMobile(window.innerWidth < 768)
+      checkMobile()
+      window.addEventListener('resize', checkMobile)
+      return () => window.removeEventListener('resize', checkMobile)
+   }, [])
 
    const fetchUser = async () => {
       try {
@@ -67,7 +77,13 @@ export default function Header() {
       }
    }
 
+   // Hide on admin pages
    if (pathname?.startsWith('/admin')) {
+      return null
+   }
+
+   // Hide on mobile cart page
+   if (isMobile && pathname === '/cart') {
       return null
    }
 
@@ -105,7 +121,6 @@ export default function Header() {
                   <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
                </div>
             </header>
-            {/* Mobile bottom nav skeleton */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background">
                <nav className="flex items-center justify-around h-16">
                   {[1, 2, 3, 4].map((i) => (
@@ -120,7 +135,6 @@ export default function Header() {
       )
    }
 
-   // ---- Actual header ----
    return (
       <>
          <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
@@ -158,10 +172,7 @@ export default function Header() {
                </div>
                <div className="flex items-center gap-2 sm:gap-4">
                   <ThemeToggle />
-                  <Button variant="outline" size="icon" className="relative h-9 w-9">
-                     <Bell className="h-5 w-5" />
-                     <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">0</span>
-                  </Button>
+                  <NotificationsDropdown />
                   <Link href="/cart">
                      <Button variant="outline" size="icon" className="h-9 w-9">
                         <ShoppingCart className="h-5 w-5" />
@@ -213,7 +224,7 @@ export default function Header() {
                </div>
             </div>
 
-            {/* Mobile */}
+            {/* Mobile – search + theme + cart */}
             <div className="md:hidden px-4 py-2 flex items-center gap-3">
                <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -231,11 +242,12 @@ export default function Header() {
                      }}
                   />
                </div>
-               <Button variant="outline" size="icon" className="relative h-9 w-9 shrink-0">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">0</span>
-               </Button>
                <ThemeToggle />
+               <Link href="/cart">
+                  <Button variant="outline" size="icon" className="h-9 w-9 shrink-0">
+                     <ShoppingCart className="h-5 w-5" />
+                  </Button>
+               </Link>
             </div>
          </header>
 
@@ -261,13 +273,18 @@ export default function Header() {
                   <span>Products</span>
                </Link>
                <Link
-                  href="/cart"
-                  className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
-                     pathname === '/cart' ? 'text-primary' : 'text-muted-foreground'
+                  href="/notifications"
+                  className={`relative flex flex-col items-center gap-0.5 text-xs transition-colors ${
+                     pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground'
                   }`}
                >
-                  <ShoppingCart className="h-5 w-5" />
-                  <span>Cart</span>
+                  <div className="relative">
+                     <Bell className="h-5 w-5" />
+                     <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
+                        0
+                     </span>
+                  </div>
+                  <span>Notifications</span>
                </Link>
                <Link
                   href={user ? '/profile' : '/login'}

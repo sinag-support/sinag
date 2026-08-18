@@ -63,7 +63,7 @@ export default function CartPage() {
 
    if (cartItems.length === 0) {
       return (
-         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
+         <div className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 max-w-7xl mx-auto min-h-screen">
             <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto">
                <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center mb-6">
                   <ShoppingBag className="h-12 w-12 text-muted-foreground" />
@@ -83,9 +83,9 @@ export default function CartPage() {
    }
 
    return (
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+      <div className="w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto min-h-screen pb-28 md:pb-6">
          {/* Header */}
-         <div className="flex items-center gap-3 mb-6 sm:mb-8">
+         <div className="flex items-center gap-3 mb-6 sm:mb-8 pt-4">
             <Link href="/products" className="text-muted-foreground hover:text-foreground transition-colors">
                <ArrowLeft className="h-5 w-5" />
             </Link>
@@ -105,49 +105,31 @@ export default function CartPage() {
                   onRemove={removeItem}
                />
             ))}
+         </div>
 
-            {/* Mobile Order Summary */}
-            <Card className="mt-6">
-               <CardContent className="p-4 space-y-3">
-                  <h2 className="font-semibold text-lg">Order Summary</h2>
-                  <div className="space-y-2 text-sm">
-                     <div className="flex justify-between">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span>₱{subtotal.toFixed(2)}</span>
-                     </div>
-                     <div className="flex justify-between">
-                        <span className="text-muted-foreground">Shipping</span>
-                        <span>{shipping === 0 ? 'Free' : `₱${shipping.toFixed(2)}`}</span>
-                     </div>
-                     <div className="flex justify-between">
-                        <span className="text-muted-foreground">Tax (12%)</span>
-                        <span>₱{tax.toFixed(2)}</span>
-                     </div>
-                     <Separator />
-                     <div className="flex justify-between font-bold text-base">
-                        <span>Total</span>
-                        <span>₱{total.toFixed(2)}</span>
-                     </div>
-                  </div>
-                  <Button className="w-full mt-2" size="lg">
-                     Proceed to Checkout
-                  </Button>
-               </CardContent>
-            </Card>
+         {/* Mobile Sticky Order Summary */}
+         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-background border-t p-4 shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+               <span className="text-sm font-medium">Total</span>
+               <span className="text-lg font-bold">₱{total.toFixed(2)}</span>
+            </div>
+            <Button className="w-full" size="lg">
+               Proceed to Checkout
+            </Button>
+            <div className="text-xs text-muted-foreground text-center mt-1.5">
+               Shipping & taxes calculated at checkout
+            </div>
          </div>
 
          {/* Desktop/Tablet: Side-by-side layout */}
          <div className="hidden lg:grid lg:grid-cols-3 gap-8">
-            {/* Cart Items - 2 columns */}
             <div className="lg:col-span-2 space-y-4">
-               {/* Header row */}
                <div className="hidden md:grid md:grid-cols-12 gap-4 text-sm font-medium text-muted-foreground pb-2 border-b">
                   <div className="col-span-6">Product</div>
                   <div className="col-span-2 text-center">Price</div>
                   <div className="col-span-2 text-center">Quantity</div>
                   <div className="col-span-2 text-right">Subtotal</div>
                </div>
-
                {cartItems.map((item) => (
                   <CartItemDesktop
                      key={item.id}
@@ -157,8 +139,6 @@ export default function CartPage() {
                   />
                ))}
             </div>
-
-            {/* Order Summary - 1 column */}
             <div className="lg:col-span-1">
                <Card>
                   <CardContent className="p-6 space-y-4">
@@ -202,8 +182,7 @@ export default function CartPage() {
                   />
                ))}
             </div>
-
-            <Card className="mt-6">
+            <Card className="mt-6 mb-20">
                <CardContent className="p-6 space-y-3">
                   <h2 className="font-semibold text-lg">Order Summary</h2>
                   <div className="space-y-2 text-sm">
