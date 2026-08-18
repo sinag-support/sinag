@@ -1,9 +1,14 @@
+import { connection } from 'next/server'
 import prisma from '@/lib/prisma'
+import { safeQuery } from '@/lib/safe-query'
 import { BannerCarousel } from '@/components/home/banner-carousel'
 import { ProductGrid } from '@/components/home/product-grid'
 import { BlogSection } from '@/components/home/blog-section'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const banners = [
    {
@@ -57,31 +62,37 @@ const blogPosts = [
 ]
 
 export default async function HomePage() {
-   // Fetch featured products from database
-   const dbProducts = await prisma.product.findMany({
-      where: {
-         isFeatured: true,
-         isAvailable: true,
-      },
-      take: 6,
-      orderBy: { createdAt: 'desc' },
-      select: {
-         id: true,
-         title: true,
-         price: true,
-         discount: true,
-         images: true,
-      },
-   })
+   // Tell Next.js to bail out of prerendering immediately
+   await connection()
 
-   // ✅ Explicitly type the map callback to avoid implicit any
-   const products = dbProducts.map((p: { id: string; title: string; price: number; discount: number; images: string[] }) => ({
+   // Safely fetch products; fallback to empty array during build
+   const dbProducts = await safeQuery(
+      () =>
+         prisma.product.findMany({
+            where: {
+               isFeatured: true,
+               isAvailable: true,
+            },
+            take: 6,
+            orderBy: { createdAt: 'desc' },
+            select: {
+               id: true,
+               title: true,
+               price: true,
+               discount: true,
+               images: true,
+            },
+         }),
+      [] // fallback
+   )
+
+   const products = dbProducts.map((p: any) => ({
       id: p.id,
       name: p.title,
       price: p.price,
       discount: p.discount,
       image: p.images?.[0] || '',
-      rating: 4.0, // placeholder
+      rating: 4.0,
    }))
 
    return (
@@ -94,9 +105,7 @@ export default async function HomePage() {
             <div className="flex items-center justify-between mb-6 sm:mb-8">
                <h2 className="text-xl sm:text-2xl font-bold">Featured Products</h2>
                <Link href="/products">
-                  <Button variant="outline" size="sm">
-                     View All →
-                  </Button>
+                  <Button variant="outline" size="sm">View All →</Button>
                </Link>
             </div>
             <ProductGrid products={products} />
@@ -106,9 +115,7 @@ export default async function HomePage() {
             <div className="flex items-center justify-between mb-6 sm:mb-8">
                <h2 className="text-xl sm:text-2xl font-bold">Latest from Our Blog</h2>
                <Link href="/blog">
-                  <Button variant="outline" size="sm">
-                     Read All →
-                  </Button>
+                  <Button variant="outline" size="sm">Read All →</Button>
                </Link>
             </div>
             <BlogSection posts={blogPosts} />

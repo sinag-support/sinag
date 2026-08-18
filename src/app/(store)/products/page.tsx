@@ -1,6 +1,8 @@
+import { connection } from 'next/server'
+import prisma from '@/lib/prisma'
+import { safeQuery } from '@/lib/safe-query'
 import { Suspense } from 'react'
 import Link from 'next/link'
-import prisma from '@/lib/prisma'
 import { ProductGrid } from '@/components/home/product-grid'
 import { ProductFilters } from '@/components/products/product-filters'
 import { ProductSort } from '@/components/products/product-sort'
@@ -8,6 +10,9 @@ import { MobileFilterButton } from '@/components/products/mobile-filter-button'
 import { MobileShortcuts } from '@/components/products/mobile-shortcuts'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
+
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 interface SearchParams {
    query?: string
@@ -78,29 +83,30 @@ async function getCategories() {
    }
 }
 
-export const dynamic = 'force-dynamic'
-
 export default async function ProductsPage({
    searchParams,
 }: {
    searchParams: Promise<SearchParams>
 }) {
+   await connection()
+
    const params = await searchParams
+
    const [products, categories] = await Promise.all([
-      getProducts(params),
-      getCategories(),
+      safeQuery(() => getProducts(params), []),
+      safeQuery(() => getCategories(), []),
    ])
 
+   // Infer the product type
    type ProductWithRelations = Awaited<ReturnType<typeof getProducts>>[number]
 
-   // Format products with discount
    const formattedProducts = products.map((p: ProductWithRelations) => ({
       id: p.id,
       name: p.title,
       price: p.price,
       discount: p.discount,
       image: p.images?.[0] || '',
-      rating: 4.0, // placeholder
+      rating: 4.0,
    }))
 
    const hasFilters = Object.values(params).some(
