@@ -213,7 +213,7 @@ export default function Header() {
                </div>
             </div>
 
-            {/* Mobile Header – only search + notification */}
+            {/* Mobile Header – search + notification + theme toggle */}
             <div className="md:hidden px-4 py-2 flex items-center gap-3">
                <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -237,6 +237,7 @@ export default function Header() {
                      0
                   </span>
                </Button>
+               <ThemeToggle />
             </div>
          </header>
 
