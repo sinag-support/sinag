@@ -1,25 +1,25 @@
-/** @type {import('next').NextConfig} */
-const withPWA = require('next-pwa-turbo')({
+import type { NextConfig } from 'next'
+import withPWA from '@ducanh2912/next-pwa'
+
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'msqibpoiztlmckutsilp.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+    ],
+  },
+  reactStrictMode: true,
+}
+
+export default withPWA({
   dest: 'public',
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
-})
-
-const nextConfig = {
-   images: {
-      remotePatterns: [
-         {
-            protocol: 'https',
-            hostname: 'msqibpoiztlmckutsilp.supabase.co',
-         },
-         {
-            protocol: 'https',
-            hostname: 'images.unsplash.com',
-         },
-      ],
-   },
-   reactStrictMode: true,
-}
-
-module.exports = withPWA(nextConfig)
+})(nextConfig)
