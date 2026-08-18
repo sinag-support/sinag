@@ -2,24 +2,26 @@ import type { NextConfig } from 'next'
 import withPWA from '@ducanh2912/next-pwa'
 
 const nextConfig: NextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'msqibpoiztlmckutsilp.supabase.co',
-      },
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-      },
-    ],
-  },
-  reactStrictMode: true,
+   images: {
+      remotePatterns: [
+         {
+            protocol: 'https',
+            hostname: 'msqibpoiztlmckutsilp.supabase.co',
+         },
+         {
+            protocol: 'https',
+            hostname: 'images.unsplash.com',
+         },
+      ],
+   },
+   reactStrictMode: true,
 }
 
 export default withPWA({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
+   dest: 'public',
+   register: true,
+   disable: process.env.NODE_ENV === 'development',
+   workboxOptions: {
+      skipWaiting: true,
+   },
 })(nextConfig)
