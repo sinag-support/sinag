@@ -1,6 +1,8 @@
 import { ThemeToggle } from '@/components/theme-toggle'
 import { VerifyOTPForm } from './components/verify-otp-form'
 
+export const dynamic = 'force-dynamic'
+
 export default function VerifyOTPPage() {
    return (
       <div className="flex min-h-screen">
