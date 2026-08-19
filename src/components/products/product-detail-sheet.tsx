@@ -15,7 +15,7 @@ interface ProductDetailSheetProps {
    onOpenChange: (open: boolean) => void
 }
 
-// Shared content component for both mobile and desktop
+// Shared content component – with robust null guards
 function ProductDetailContent({
    product,
    quantity,
@@ -26,11 +26,7 @@ function ProductDetailContent({
    buyNow,
    loading,
 }: any) {
-   const hasDiscount = product?.discount && product.discount > 0
-   const finalPrice = hasDiscount
-      ? product.price - (product.price * product.discount) / 100
-      : product.price
-
+   // Early return for loading
    if (loading) {
       return (
          <div className="flex-1 overflow-y-auto scrollbar-hide">
@@ -54,13 +50,20 @@ function ProductDetailContent({
       )
    }
 
+   // Early return if product is null
    if (!product) {
       return (
-         <div className="flex items-center justify-center h-full">
+         <div className="flex items-center justify-center h-full p-6">
             <p className="text-muted-foreground">Product not found</p>
          </div>
       )
    }
+
+   // Safe to access product properties now
+   const hasDiscount = product.discount && product.discount > 0
+   const finalPrice = hasDiscount
+      ? product.price - (product.price * product.discount) / 100
+      : product.price
 
    return (
       <div className="flex-1 overflow-y-auto scrollbar-hide">
@@ -81,7 +84,6 @@ function ProductDetailContent({
          </div>
 
          <div className="p-4 sm:p-6 space-y-3">
-            {/* Title & Rating */}
             <div>
                <h2 className="text-xl sm:text-2xl font-bold leading-tight">{product.title}</h2>
                <div className="flex items-center gap-2 mt-1">
@@ -93,14 +95,12 @@ function ProductDetailContent({
                </div>
             </div>
 
-            {/* Description */}
             {product.description && (
                <p className="text-sm text-muted-foreground leading-relaxed">
                   {product.description}
                </p>
             )}
 
-            {/* Price – discount percent removed */}
             <div className="flex items-center gap-3">
                {hasDiscount ? (
                   <>
@@ -114,7 +114,6 @@ function ProductDetailContent({
                )}
             </div>
 
-            {/* Quantity & Wishlist */}
             <div className="flex items-center justify-between pt-1">
                <div className="flex items-center gap-3">
                   <span className="text-sm font-medium">Qty</span>
@@ -148,7 +147,6 @@ function ProductDetailContent({
                </Button>
             </div>
 
-            {/* Action Buttons – always side‑by‑side */}
             <div className="flex flex-row gap-3 pt-2">
                <Button
                   variant="outline"
@@ -182,13 +180,17 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
       if (productId && open) {
          setLoading(true)
          fetch(`/api/products/${productId}`)
-            .then((res) => res.json())
+            .then((res) => {
+               if (!res.ok) throw new Error('Product not found')
+               return res.json()
+            })
             .then((data) => {
                setProduct(data)
                setLoading(false)
             })
             .catch((err) => {
                console.error(err)
+               setProduct(null)
                setLoading(false)
             })
       }
@@ -238,7 +240,7 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
       )
    }
 
-   // Desktop: centered floating modal, single column
+   // Desktop: centered floating modal
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
@@ -255,5 +257,5 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
             </div>
          </DialogContent>
       </Dialog>
-   )
+    )
 }
