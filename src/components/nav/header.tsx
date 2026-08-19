@@ -76,6 +76,7 @@ export default function Header() {
       }
    }
 
+   // ✅ Always render header except on admin pages
    if (pathname?.startsWith('/admin')) {
       return null
    }
@@ -85,12 +86,9 @@ export default function Header() {
       return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
    }
 
-   // ✅ Added "Home" to navLinks
    const navLinks = [
       { href: '/', label: 'Home' },
       { href: '/products', label: 'Products' },
-      { href: '/about', label: 'About' },
-      { href: '/contact', label: 'Contact' },
       { href: '/blog', label: 'Blog' },
    ]
 
@@ -107,7 +105,7 @@ export default function Header() {
                   <div className="flex items-center gap-6">
                      <div className="text-xl font-bold shrink-0">SINAG</div>
                      <div className="flex items-center gap-6">
-                        {[1, 2, 3, 4, 5].map((i) => (
+                        {[1, 2, 3].map((i) => (
                            <div key={i} className="h-4 w-12 bg-muted animate-pulse rounded" />
                         ))}
                      </div>
@@ -126,7 +124,7 @@ export default function Header() {
                </div>
             </header>
             <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background">
-               <nav className="flex items-center justify-around h-16">
+               <nav className="flex items-center justify-evenly h-16">
                   {[1, 2, 3, 4].map((i) => (
                      <div key={i} className="flex flex-col items-center gap-0.5 text-xs">
                         <div className="w-5 h-5 rounded-full bg-muted animate-pulse" />
@@ -236,7 +234,7 @@ export default function Header() {
                   </div>
                </div>
 
-               {/* Mobile Top – unchanged */}
+               {/* Mobile Top – only shown if not hidden */}
                <div className="md:hidden px-4 py-2 flex items-center gap-3">
                   <div className="relative flex-1">
                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -266,7 +264,7 @@ export default function Header() {
 
          {/* Mobile Bottom Navigation – always rendered on mobile */}
          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background">
-            <nav className="flex items-center justify-around h-16">
+            <nav className="flex items-center justify-evenly h-16">
                <Link
                   href="/"
                   className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${

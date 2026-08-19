@@ -76,13 +76,16 @@ export default function ProfilePage() {
    }
 
    return (
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-4xl">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-16 md:pb-0 max-w-4xl">
          {/* Header */}
          <div className="flex items-center gap-3 mb-6">
-            <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link
+               href="/"
+               className="hidden sm:inline-flex text-muted-foreground hover:text-foreground transition-colors"
+            >
                <ArrowLeft className="h-5 w-5" />
             </Link>
-            <h1 className="text-2xl font-bold">My Profile</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">My Profile</h1>
          </div>
 
          {/* Profile Card */}

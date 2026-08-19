@@ -62,10 +62,10 @@ const blogPosts = [
 ]
 
 export default async function HomePage() {
-   // Tell Next.js to bail out of prerendering immediately
+   // Bail out of prerendering
    await connection()
 
-   // Safely fetch products; fallback to empty array during build
+   // Safely fetch featured products; fallback to empty array during build
    const dbProducts = await safeQuery(
       () =>
          prisma.product.findMany({
@@ -89,14 +89,14 @@ export default async function HomePage() {
    const products = dbProducts.map((p: any) => ({
       id: p.id,
       name: p.title,
-      price: p.price, 
+      price: p.price,
       discount: p.discount,
       image: p.images?.[0] || '',
       rating: 4.0,
    }))
 
    return (
-      <main className="min-h-screen">
+      <main className="min-h-screen pb-12 md:pb-0">
          <section className="w-full -mt-[1px]">
             <BannerCarousel banners={banners} />
          </section>

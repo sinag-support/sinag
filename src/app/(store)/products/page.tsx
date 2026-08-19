@@ -118,7 +118,7 @@ export default async function ProductsPage({
    const clearAll = () => '/products'
 
    return (
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 md:pb-0">
          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div className="hidden md:block">
                <h1 className="text-2xl sm:text-3xl font-bold">All Products</h1>
@@ -132,7 +132,7 @@ export default async function ProductsPage({
 
          <CategoryChips categories={categories} currentCategory={params.category || null} />
 
-         {/* ✅ Active filters bar – hidden on mobile, shown on desktop */}
+         {/* Active filters bar – hidden on mobile */}
          {hasFilters && (
             <div className="hidden md:flex flex-wrap items-center gap-2 mb-4 p-3 bg-muted/30 rounded-lg">
                <span className="text-sm font-medium">Active filters:</span>

@@ -1,17 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Bell, CheckCircle2, Trash2, ShoppingBag, Tag, Truck, Gift } from 'lucide-react'
+import { ArrowLeft, Bell, CheckCircle2, Trash2, ShoppingBag, Tag, Gift } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 
-// Sample data – replace with real API
+// Sample data
 const sampleNotifications = [
    { id: 1, title: 'Order #1234 has been shipped', description: 'Your order is on its way!', time: '2 hours ago', read: false, type: 'order' },
    { id: 2, title: 'New product: Wireless Earbuds', description: 'Check out our latest arrival.', time: '5 hours ago', read: false, type: 'product' },
    { id: 3, title: 'Flash Sale: 50% off', description: 'Ends tomorrow. Don\'t miss out!', time: '1 day ago', read: true, type: 'sale' },
    { id: 4, title: 'Order #1230 delivered', description: 'Your order has been delivered successfully.', time: '2 days ago', read: true, type: 'order' },
+   { id: 5, title: 'Welcome to SINAG!', description: 'Thank you for joining us.', time: '3 minutes ago', read: false, type: 'default' },
 ]
 
 const typeIcons = {
@@ -28,8 +31,43 @@ const typeColors = {
    default: 'text-gray-500 bg-gray-50 dark:bg-gray-950',
 }
 
+function groupNotifications(notifs: typeof sampleNotifications) {
+   const groups: { [key: string]: typeof sampleNotifications } = {
+      Today: [],
+      Yesterday: [],
+      Earlier: [],
+   }
+
+   notifs.forEach((n) => {
+      const time = n.time.toLowerCase()
+      if (time.includes('minute') || time.includes('hour') || time.includes('just now')) {
+         groups.Today.push(n)
+      } else if (time.includes('yesterday') || (time.includes('day') && time.includes('ago'))) {
+         const days = parseInt(time.match(/\d+/)?.[0] || '0')
+         if (days === 1) {
+            groups.Yesterday.push(n)
+         } else {
+            groups.Earlier.push(n)
+         }
+      } else {
+         groups.Earlier.push(n)
+      }
+   })
+
+   return Object.fromEntries(
+      Object.entries(groups).filter(([_, items]) => items.length > 0)
+   )
+}
+
 export default function NotificationsPage() {
    const [notifications, setNotifications] = useState(sampleNotifications)
+   const [loading, setLoading] = useState(true)
+   const [filter, setFilter] = useState<'all' | 'unread'>('all')
+
+   useEffect(() => {
+      const timer = setTimeout(() => setLoading(false), 1500)
+      return () => clearTimeout(timer)
+   }, [])
 
    const markAsRead = (id: number) => {
       setNotifications(prev =>
@@ -45,10 +83,52 @@ export default function NotificationsPage() {
       setNotifications(prev => prev.filter(n => n.id !== id))
    }
 
+   const filtered = filter === 'all' ? notifications : notifications.filter(n => !n.read)
    const unreadCount = notifications.filter(n => !n.read).length
+   const grouped = groupNotifications(filtered)
+   const groupKeys = Object.keys(grouped)
+
+   if (loading) {
+      return (
+         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-16 md:pb-0 max-w-3xl">
+            {/* Header skeleton */}
+            <div className="flex items-center gap-3 mb-6">
+               <Skeleton className="hidden sm:inline-block h-5 w-5 rounded" />
+               <Skeleton className="h-7 w-32" />
+               <Skeleton className="h-4 w-12 ml-auto" />
+            </div>
+
+            {/* Filter chips skeleton */}
+            <div className="flex items-center justify-between gap-3 mb-4">
+               <div className="flex items-center gap-2">
+                  <Skeleton className="h-7 w-12 rounded-full" />
+                  <Skeleton className="h-7 w-16 rounded-full" />
+               </div>
+               <Skeleton className="h-7 w-24 rounded" />
+            </div>
+
+            {/* Notification cards skeleton */}
+            <div className="space-y-4">
+               {[1, 2, 3].map((i) => (
+                  <Card key={i} className="overflow-hidden">
+                     <CardContent className="p-3 sm:p-4 flex items-start gap-3">
+                        <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                        <div className="flex-1 space-y-2">
+                           <Skeleton className="h-4 w-3/4" />
+                           <Skeleton className="h-3 w-1/2" />
+                           <Skeleton className="h-3 w-1/4" />
+                        </div>
+                        <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                     </CardContent>
+                  </Card>
+               ))}
+            </div>
+         </div>
+      )
+   }
 
    return (
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 max-w-3xl">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 md:pb-0 max-w-3xl">
          {/* Header */}
          <div className="flex items-center gap-3 mb-6">
             <Link
@@ -57,7 +137,7 @@ export default function NotificationsPage() {
             >
                <ArrowLeft className="h-5 w-5" />
             </Link>
-            <h1 className="text-xl sm:text-2xl font-bold">Notifications</h1>
+            <h1 className="text-xl sm:text-2xl font-bold leading-none">Notifications</h1>
             {unreadCount > 0 && (
                <span className="text-xs sm:text-sm text-muted-foreground ml-auto">
                   {unreadCount} unread
@@ -65,87 +145,128 @@ export default function NotificationsPage() {
             )}
          </div>
 
-         {/* Actions */}
-         {notifications.length > 0 && unreadCount > 0 && (
-            <div className="flex justify-end mb-4">
-               <Button variant="ghost" size="sm" onClick={markAllAsRead} className="text-xs sm:text-sm">
+         {/* Filter chips */}
+         <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2">
+               <button
+                  onClick={() => setFilter('all')}
+                  className={cn(
+                     "h-7 px-3 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center justify-center",
+                     filter === 'all'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted hover:bg-muted/80'
+                  )}
+               >
+                  All
+               </button>
+               <button
+                  onClick={() => setFilter('unread')}
+                  className={cn(
+                     "h-7 px-3 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center justify-center",
+                     filter === 'unread'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted hover:bg-muted/80'
+                  )}
+               >
+                  Unread {unreadCount > 0 && `(${unreadCount})`}
+               </button>
+            </div>
+            {notifications.length > 0 && unreadCount > 0 && (
+               <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={markAllAsRead}
+                  className="h-7 px-2 text-xs sm:text-sm"
+               >
                   <CheckCircle2 className="h-4 w-4 mr-1 sm:mr-2" />
                   Mark all as read
                </Button>
-            </div>
-         )}
-
-         {/* Notifications List */}
-         <div className="space-y-3">
-            {notifications.length === 0 ? (
-               <div className="text-center py-12">
-                  <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium">No notifications</h3>
-                  <p className="text-sm text-muted-foreground">You're all caught up!</p>
-               </div>
-            ) : (
-               notifications.map((notif) => {
-                  const Icon = typeIcons[notif.type as keyof typeof typeIcons] || typeIcons.default
-                  const colorClass = typeColors[notif.type as keyof typeof typeColors] || typeColors.default
-                  const isUnread = !notif.read
-
-                  return (
-                     <Card
-                        key={notif.id}
-                        className={`transition-colors ${
-                           isUnread ? 'border-primary/20 bg-primary/5' : ''
-                        }`}
-                     >
-                        <CardContent className="p-3 sm:p-4 flex items-start gap-3">
-                           {/* Icon */}
-                           <div className={`p-2 rounded-full shrink-0 ${colorClass}`}>
-                              <Icon className="h-4 w-4" />
-                           </div>
-
-                           {/* Content */}
-                           <div className="flex-1 min-w-0">
-                              <p className={`text-sm ${isUnread ? 'font-medium' : ''}`}>
-                                 {notif.title}
-                              </p>
-                              {notif.description && (
-                                 <p className="text-sm text-muted-foreground mt-0.5">
-                                    {notif.description}
-                                 </p>
-                              )}
-                              <p className="text-xs text-muted-foreground mt-1">
-                                 {notif.time}
-                              </p>
-                           </div>
-
-                           {/* Actions */}
-                           <div className="flex items-center gap-0.5 shrink-0">
-                              {isUnread && (
-                                 <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => markAsRead(notif.id)}
-                                    aria-label="Mark as read"
-                                 >
-                                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                                 </Button>
-                              )}
-                              <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                 onClick={() => deleteNotification(notif.id)}
-                                 aria-label="Delete notification"
-                              >
-                                 <Trash2 className="h-4 w-4" />
-                              </Button>
-                           </div>
-                        </CardContent>
-                     </Card>
-                  )
-               })
             )}
          </div>
+
+         {/* Notifications List */}
+         {filtered.length === 0 ? (
+            <div className="text-center py-12">
+               <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+               <h3 className="text-lg font-medium">
+                  {filter === 'all' ? 'No notifications' : 'No unread notifications'}
+               </h3>
+               <p className="text-sm text-muted-foreground">
+                  {filter === 'all' ? "You're all caught up!" : 'You have no unread notifications.'}
+               </p>
+            </div>
+         ) : (
+            <div className="space-y-4">
+               {groupKeys.map((group) => (
+                  <div key={group} className="space-y-3">
+                     <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group}</h2>
+                     <div className="space-y-3">
+                        {grouped[group].map((notif) => {
+                           const Icon = typeIcons[notif.type as keyof typeof typeIcons] || typeIcons.default
+                           const colorClass = typeColors[notif.type as keyof typeof typeColors] || typeColors.default
+                           const isUnread = !notif.read
+
+                           return (
+                              <Card
+                                 key={notif.id}
+                                 className={cn(
+                                    "overflow-hidden transition-colors",
+                                    isUnread ? 'border-primary/20 bg-primary/5' : ''
+                                 )}
+                              >
+                                 <CardContent className="pt-4 px-3 sm:px-4 flex items-start gap-3">
+                                    {/* Icon container - h-10 w-10 rounded-full */}
+                                    <div className={cn("h-10 w-10 rounded-full shrink-0 flex items-center justify-center", colorClass)}>
+                                       <Icon className="h-5 w-5" />
+                                    </div>
+
+                                    {/* Text content - space-y-2 */}
+                                    <div className="flex-1 min-w-0 space-y-2">
+                                       <p className={cn("text-sm leading-tight", isUnread ? 'font-semibold' : 'font-medium')}>
+                                          {notif.title}
+                                       </p>
+                                       {notif.description && (
+                                          <p className="text-xs sm:text-sm text-muted-foreground leading-tight">
+                                             {notif.description}
+                                          </p>
+                                       )}
+                                       <p className="text-xs text-muted-foreground leading-tight">
+                                          {notif.time}
+                                       </p>
+                                    </div>
+
+                                    {/* Action button(s) - h-8 w-8 rounded-full */}
+                                    <div className="flex items-center gap-1 shrink-0">
+                                       {isUnread && (
+                                          <Button
+                                             variant="ghost"
+                                             size="icon"
+                                             className="h-8 w-8 rounded-full"
+                                             onClick={() => markAsRead(notif.id)}
+                                             aria-label="Mark as read"
+                                          >
+                                             <CheckCircle2 className="h-4 w-4 text-primary" />
+                                          </Button>
+                                       )}
+                                       <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive"
+                                          onClick={() => deleteNotification(notif.id)}
+                                          aria-label="Delete notification"
+                                       >
+                                          <Trash2 className="h-4 w-4" />
+                                       </Button>
+                                    </div>
+                                 </CardContent>
+                              </Card>
+                           )
+                        })}
+                     </div>
+                  </div>
+               ))}
+            </div>
+         )}
       </div>
    )
 }
