@@ -5,9 +5,8 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { ProductGrid } from '@/components/home/product-grid'
 import { ProductFilters } from '@/components/products/product-filters'
-import { ProductSort } from '@/components/products/product-sort'
-import { MobileFilterButton } from '@/components/products/mobile-filter-button'
 import { MobileShortcuts } from '@/components/products/mobile-shortcuts'
+import { CategoryChips } from '@/components/products/category-chips'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
 
@@ -88,16 +87,12 @@ export default async function ProductsPage({
 }: {
    searchParams: Promise<SearchParams>
 }) {
-   await connection()
-
    const params = await searchParams
-
    const [products, categories] = await Promise.all([
-      safeQuery(() => getProducts(params), []),
-      safeQuery(() => getCategories(), []),
+      getProducts(params),
+      getCategories(),
    ])
 
-   // Infer the product type
    type ProductWithRelations = Awaited<ReturnType<typeof getProducts>>[number]
 
    const formattedProducts = products.map((p: ProductWithRelations) => ({
@@ -124,8 +119,7 @@ export default async function ProductsPage({
 
    return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-         {/* Header with title (desktop) and shortcuts (mobile) */}
-         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div className="hidden md:block">
                <h1 className="text-2xl sm:text-3xl font-bold">All Products</h1>
                <p className="text-sm text-muted-foreground mt-0.5">
@@ -134,16 +128,13 @@ export default async function ProductsPage({
             </div>
 
             <MobileShortcuts />
-
-            <div className="flex items-center gap-3">
-               <MobileFilterButton categories={categories} />
-               <ProductSort />
-            </div>
          </div>
 
-         {/* Active filters bar */}
+         <CategoryChips categories={categories} currentCategory={params.category || null} />
+
+         {/* ✅ Active filters bar – hidden on mobile, shown on desktop */}
          {hasFilters && (
-            <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-muted/30 rounded-lg">
+            <div className="hidden md:flex flex-wrap items-center gap-2 mb-4 p-3 bg-muted/30 rounded-lg">
                <span className="text-sm font-medium">Active filters:</span>
                {params.query && (
                   <span className="inline-flex items-center gap-1 bg-background px-2 py-1 rounded text-xs border">
@@ -155,10 +146,7 @@ export default async function ProductsPage({
                )}
                {params.category && (
                   <span className="inline-flex items-center gap-1 bg-background px-2 py-1 rounded text-xs border">
-                     Category:{' '}
-                     {categories.find(
-                        (c: { id: string; title: string }) => c.id === params.category
-                     )?.title}
+                     Category: {categories.find((c: { id: string; title: string }) => c.id === params.category)?.title}
                      <Link href={removeFilter('category')} className="hover:text-destructive">
                         <X className="h-3 w-3" />
                      </Link>
@@ -186,7 +174,6 @@ export default async function ProductsPage({
             </div>
          )}
 
-         {/* Filters (desktop) + Product grid */}
          <div className="flex gap-6">
             <aside className="hidden md:block w-64 shrink-0">
                <div className="sticky top-20">

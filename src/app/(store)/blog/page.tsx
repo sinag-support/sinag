@@ -1,8 +1,10 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Calendar, Clock } from 'lucide-react'
 
-// Sample blog posts – move this to a shared data file later
+// Sample blog posts – replace with real data from CMS/DB
 const blogPosts = [
    {
       id: 1,
@@ -11,6 +13,7 @@ const blogPosts = [
       image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600&h=400&fit=crop',
       date: '2024-01-15',
       slug: 'top-10-gift-ideas',
+      readTime: 4,
    },
    {
       id: 2,
@@ -19,6 +22,7 @@ const blogPosts = [
       image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&h=400&fit=crop',
       date: '2024-01-10',
       slug: 'choose-right-headphones',
+      readTime: 6,
    },
    {
       id: 3,
@@ -27,6 +31,7 @@ const blogPosts = [
       image: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=600&h=400&fit=crop',
       date: '2024-01-05',
       slug: 'online-shopping-tips',
+      readTime: 3,
    },
 ]
 
@@ -39,49 +44,70 @@ export const dynamic = 'force-dynamic'
 
 export default function BlogPage() {
    return (
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 max-w-6xl">
-         <div className="space-y-8">
-            <div>
-               <h1 className="text-3xl sm:text-4xl font-bold">Latest from Our Blog</h1>
-               <p className="text-muted-foreground text-lg mt-2">
-                  Insights, tips, and news from the SINAG team.
-               </p>
-            </div>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 max-w-6xl">
+         {/* Header */}
+         <div className="text-center space-y-4 mb-8 sm:mb-12">
+            <Badge variant="outline" className="px-4 py-1 text-xs font-medium">
+               Our Blog
+            </Badge>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
+               Latest from Our Blog
+            </h1>
+            <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
+               Insights, tips, and news from the SINAG team.
+            </p>
+         </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-               {blogPosts.map((post) => (
-                  <Card key={post.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                     <Link href={`/blog/${post.slug}`}>
-                        <div className="relative aspect-video bg-gray-100">
-                           <Image
-                              src={post.image}
-                              alt={post.title}
-                              fill
-                              className="object-cover hover:scale-105 transition-transform"
-                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                           />
-                        </div>
-                     </Link>
-                     <CardContent className="p-4">
-                        <Link href={`/blog/${post.slug}`}>
-                           <h3 className="font-semibold text-lg hover:text-primary transition-colors line-clamp-2">
-                              {post.title}
-                           </h3>
-                        </Link>
-                        <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
-                           {post.excerpt}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-3">
+         {/* Blog Grid */}
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {blogPosts.map((post) => (
+               <Card
+                  key={post.id}
+                  className="overflow-hidden hover:shadow-lg transition-shadow group"
+               >
+                  <Link href={`/blog/${post.slug}`}>
+                     <div className="relative aspect-video bg-gray-100 overflow-hidden">
+                        <Image
+                           src={post.image}
+                           alt={post.title}
+                           fill
+                           className="object-cover group-hover:scale-105 transition-transform duration-300"
+                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        />
+                     </div>
+                  </Link>
+                  <CardContent className="p-5 space-y-3">
+                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                           <Calendar className="h-3 w-3" />
                            {new Date(post.date).toLocaleDateString('en-PH', {
                               year: 'numeric',
-                              month: 'long',
+                              month: 'short',
                               day: 'numeric',
                            })}
-                        </p>
-                     </CardContent>
-                  </Card>
-               ))}
-            </div>
+                        </span>
+                        <span className="flex items-center gap-1">
+                           <Clock className="h-3 w-3" />
+                           {post.readTime} min read
+                        </span>
+                     </div>
+                     <Link href={`/blog/${post.slug}`}>
+                        <h3 className="font-bold text-lg leading-tight hover:text-primary transition-colors line-clamp-2">
+                           {post.title}
+                        </h3>
+                     </Link>
+                     <p className="text-sm text-muted-foreground line-clamp-3">
+                        {post.excerpt}
+                     </p>
+                     <Link
+                        href={`/blog/${post.slug}`}
+                        className="inline-flex items-center text-sm font-medium text-primary hover:underline"
+                     >
+                        Read more →
+                     </Link>
+                  </CardContent>
+               </Card>
+            ))}
          </div>
       </div>
    )

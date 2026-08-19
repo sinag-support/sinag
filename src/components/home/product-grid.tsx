@@ -2,10 +2,9 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Heart, ShoppingCart, Minus, Plus, Star } from 'lucide-react'
+import { Heart, Star } from 'lucide-react'
+import { ProductDetailSheet } from '@/components/products/product-detail-sheet'
 
 interface Product {
    id: string
@@ -13,7 +12,7 @@ interface Product {
    price: number
    image: string
    rating: number
-   discount?: number // optional
+   discount?: number
 }
 
 interface ProductGridProps {
@@ -21,10 +20,17 @@ interface ProductGridProps {
 }
 
 export function ProductGrid({ products }: ProductGridProps) {
+   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
+   const [sheetOpen, setSheetOpen] = useState(false)
    const [wishlist, setWishlist] = useState<Set<string>>(new Set())
-   const [quantities, setQuantities] = useState<Record<string, number>>({})
 
-   const toggleWishlist = (productId: string) => {
+   const openProductDetail = (productId: string) => {
+      setSelectedProductId(productId)
+      setSheetOpen(true)
+   }
+
+   const toggleWishlist = (e: React.MouseEvent, productId: string) => {
+      e.stopPropagation()
       setWishlist((prev) => {
          const newSet = new Set(prev)
          if (newSet.has(productId)) {
@@ -36,64 +42,34 @@ export function ProductGrid({ products }: ProductGridProps) {
       })
    }
 
-   const updateQuantity = (productId: string, delta: number) => {
-      setQuantities((prev) => {
-         const current = prev[productId] || 0
-         const newQuantity = Math.max(0, current + delta)
-         if (newQuantity === 0) {
-            const { [productId]: _, ...rest } = prev
-            return rest
-         }
-         return { ...prev, [productId]: newQuantity }
-      })
-   }
-
-   const addToCart = (productId: string) => {
-      setQuantities((prev) => ({
-         ...prev,
-         [productId]: (prev[productId] || 0) + 1,
-      }))
-   }
-
-   // Helper: get final price after discount
-   const getFinalPrice = (product: Product) => {
-      if (product.discount && product.discount > 0) {
-         return product.price - (product.price * product.discount / 100)
-      }
-      return product.price
-   }
-
    return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
-         {products.map((product) => {
-            const isWishlisted = wishlist.has(product.id)
-            const quantity = quantities[product.id] || 0
-            const hasDiscount = product.discount && product.discount > 0
-            const finalPrice = getFinalPrice(product)
+      <>
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
+            {products.map((product) => {
+               const discount = product.discount || 0
+               const hasDiscount = discount > 0
+               const finalPrice = product.price - (product.price * discount / 100)
+               const isWishlisted = wishlist.has(product.id)
 
-            return (
-               <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow relative">
-                  {/* Discount Badge */}
-                  {hasDiscount && (
-                     <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">
-                        -{product.discount}%
-                     </div>
-                  )}
-
-                  {/* Wishlist Button */}
-                  <button
-                     onClick={() => toggleWishlist(product.id)}
-                     className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/80 hover:bg-white dark:bg-black/50 dark:hover:bg-black/70 transition-colors"
-                     aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+               return (
+                  <Card
+                     key={product.id}
+                     className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer relative"
+                     onClick={() => openProductDetail(product.id)}
                   >
-                     <Heart
-                        className={`h-5 w-5 transition-colors ${
-                           isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-600 dark:text-gray-300'
-                        }`}
-                     />
-                  </button>
+                     {/* Wishlist Button */}
+                     <button
+                        onClick={(e) => toggleWishlist(e, product.id)}
+                        className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/80 hover:bg-white dark:bg-black/50 dark:hover:bg-black/70 transition-colors"
+                        aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                     >
+                        <Heart
+                           className={`h-4 w-4 transition-colors ${
+                              isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-600 dark:text-gray-300'
+                           }`}
+                        />
+                     </button>
 
-                  <Link href={`/products/${product.id}`}>
                      <div className="relative aspect-square bg-gray-100 overflow-hidden">
                         <Image
                            src={product.image}
@@ -102,75 +78,50 @@ export function ProductGrid({ products }: ProductGridProps) {
                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                            className="object-cover hover:scale-105 transition-transform"
                         />
+                        {hasDiscount && (
+                           <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-md">
+                              -{discount}%
+                           </div>
+                        )}
                      </div>
-                  </Link>
 
-                  <CardContent className="p-3 sm:p-4 space-y-1.5">
-                     <Link href={`/products/${product.id}`}>
-                        <h3 className="font-medium text-sm sm:text-base line-clamp-1 hover:text-primary transition-colors">
+                     <CardContent className="px-3 sm:px-4 space-y-1">
+                        <h3 className="font-medium text-sm sm:text-base line-clamp-1">
                            {product.name}
                         </h3>
-                     </Link>
 
-                     <div className="flex items-center gap-1">
-                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                        <span className="text-xs font-medium">{product.rating}</span>
-                     </div>
+                        <div className="flex items-center gap-1">
+                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                           <span className="text-xs font-medium">{product.rating}</span>
+                        </div>
 
-                     <div className="flex items-center justify-between pt-0.5">
-                        <div>
+                        <div className="flex items-center gap-2">
                            {hasDiscount ? (
-                              <div className="flex items-center gap-2">
+                              <>
                                  <span className="font-bold text-sm sm:text-base">
                                     ₱{finalPrice.toFixed(2)}
                                  </span>
                                  <span className="text-xs text-muted-foreground line-through">
                                     ₱{product.price.toFixed(2)}
                                  </span>
-                              </div>
+                              </>
                            ) : (
                               <span className="font-bold text-sm sm:text-base">
                                  ₱{product.price.toFixed(2)}
                               </span>
                            )}
                         </div>
-                        <Button
-                           size="icon"
-                           variant={quantity > 0 ? 'default' : 'outline'}
-                           className="h-8 w-8 rounded-full"
-                           onClick={() => addToCart(product.id)}
-                           aria-label="Add to cart"
-                        >
-                           <ShoppingCart className="h-4 w-4" />
-                        </Button>
-                     </div>
+                     </CardContent>
+                  </Card>
+               )
+            })}
+         </div>
 
-                     <div className="flex items-center gap-2 pt-0.5">
-                        <Button
-                           size="icon"
-                           variant="outline"
-                           className="h-7 w-7 rounded-full"
-                           onClick={() => updateQuantity(product.id, -1)}
-                           disabled={quantity === 0}
-                        >
-                           <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="text-sm font-medium w-5 text-center">
-                           {quantity}
-                        </span>
-                        <Button
-                           size="icon"
-                           variant="outline"
-                           className="h-7 w-7 rounded-full"
-                           onClick={() => updateQuantity(product.id, 1)}
-                        >
-                           <Plus className="h-3 w-3" />
-                        </Button>
-                     </div>
-                  </CardContent>
-               </Card>
-            )
-         })}
-      </div>
+         <ProductDetailSheet
+            productId={selectedProductId}
+            open={sheetOpen}
+            onOpenChange={setSheetOpen}
+         />
+      </>
    )
 }

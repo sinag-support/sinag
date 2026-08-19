@@ -2,7 +2,8 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Mail, Phone, MapPin } from 'lucide-react'
+import { Mail, Phone, MapPin, ChevronRight } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
 export function Footer() {
    const pathname = usePathname()
@@ -52,15 +53,18 @@ export function Footer() {
 
    return (
       <footer className="hidden md:block border-t bg-background">
-         <div className="container mx-auto px-4 py-12">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+         <div className="container mx-auto px-4 py-12 lg:py-16">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12">
                {/* Brand */}
                <div className="space-y-4">
-                  <h3 className="text-xl font-bold">SINAG</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                     <span className="text-2xl font-bold">SINAG</span>
+                     <Badge variant="outline" className="text-[10px] font-normal">v1.0</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                      Your trusted online store for quality products. Shop, discover, and enjoy a seamless shopping experience.
                   </p>
-                  <div className="flex space-x-4">
+                  <div className="flex space-x-3">
                      {socialIcons.map((social) => (
                         <Link
                            key={social.name}
@@ -76,72 +80,66 @@ export function Footer() {
 
                {/* Quick Links */}
                <div>
-                  <h4 className="font-semibold mb-4">Quick Links</h4>
-                  <ul className="space-y-2 text-sm">
-                     <li>
-                        <Link href="/products" className="text-muted-foreground hover:text-primary transition-colors">
-                           Products
-                        </Link>
-                     </li>
-                     <li>
-                        <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">
-                           About Us
-                        </Link>
-                     </li>
-                     <li>
-                        <Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">
-                           Contact
-                        </Link>
-                     </li>
-                     <li>
-                        <Link href="/blog" className="text-muted-foreground hover:text-primary transition-colors">
-                           Blog
-                        </Link>
-                     </li>
+                  <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground/80 mb-4">
+                     Quick Links
+                  </h4>
+                  <ul className="space-y-2.5">
+                     {['Products', 'About Us', 'Contact', 'Blog'].map((label) => {
+                        const href = `/${label.toLowerCase().replace(' ', '-')}`
+                        return (
+                           <li key={href}>
+                              <Link
+                                 href={href}
+                                 className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors group"
+                              >
+                                 <ChevronRight className="h-3 w-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                                 {label}
+                              </Link>
+                           </li>
+                        )
+                     })}
                   </ul>
                </div>
 
                {/* Customer Service */}
                <div>
-                  <h4 className="font-semibold mb-4">Customer Service</h4>
-                  <ul className="space-y-2 text-sm">
-                     <li>
-                        <Link href="/faq" className="text-muted-foreground hover:text-primary transition-colors">
-                           FAQ
-                        </Link>
-                     </li>
-                     <li>
-                        <Link href="/shipping" className="text-muted-foreground hover:text-primary transition-colors">
-                           Shipping Policy
-                        </Link>
-                     </li>
-                     <li>
-                        <Link href="/returns" className="text-muted-foreground hover:text-primary transition-colors">
-                           Returns Policy
-                        </Link>
-                     </li>
-                     <li>
-                        <Link href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
-                           Privacy Policy
-                        </Link>
-                     </li>
+                  <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground/80 mb-4">
+                     Customer Service
+                  </h4>
+                  <ul className="space-y-2.5">
+                     {['FAQ', 'Shipping Policy', 'Returns Policy', 'Privacy Policy'].map((label) => {
+                        const href = `/${label.toLowerCase().replace(' ', '-')}`
+                        return (
+                           <li key={href}>
+                              <Link
+                                 href={href}
+                                 className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors group"
+                              >
+                                 <ChevronRight className="h-3 w-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                                 {label}
+                              </Link>
+                           </li>
+                        )
+                     })}
                   </ul>
                </div>
 
                {/* Contact Info */}
                <div>
-                  <h4 className="font-semibold mb-4">Contact Us</h4>
+                  <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground/80 mb-4">
+                     Contact Us
+                  </h4>
                   <ul className="space-y-3 text-sm">
                      <li className="flex items-start gap-3 text-muted-foreground">
-                        <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-                        <span>123 SINAG Street, Metro Manila, Philippines</span>
+                        <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary/70" />
+                        <span>123 SINAG Street,<br />Metro Manila, Philippines</span>
                      </li>
                      <li className="flex items-center gap-3 text-muted-foreground">
-                        <Phone className="h-4 w-4 shrink-0" />
+                        <Phone className="h-4 w-4 shrink-0 text-primary/70" />
                         <span>+63 912 345 6789</span>
                      </li>
                      <li className="flex items-center gap-3 text-muted-foreground">
-                        <Mail className="h-4 w-4 shrink-0" />
+                        <Mail className="h-4 w-4 shrink-0 text-primary/70" />
                         <span>support@sinag.com</span>
                      </li>
                   </ul>
@@ -149,7 +147,7 @@ export function Footer() {
             </div>
 
             {/* Bottom Bar */}
-            <div className="border-t mt-8 pt-6 flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground">
+            <div className="border-t mt-8 pt-6 flex flex-col sm:flex-row justify-between items-center text-xs text-muted-foreground">
                <p>© {new Date().getFullYear()} SINAG. All rights reserved.</p>
                <div className="flex gap-4 mt-2 sm:mt-0">
                   <Link href="/terms" className="hover:text-primary transition-colors">

@@ -29,7 +29,6 @@ export default function Header() {
    const [loading, setLoading] = useState(true)
    const [isMobile, setIsMobile] = useState(false)
 
-   // Detect mobile
    useEffect(() => {
       const checkMobile = () => setIsMobile(window.innerWidth < 768)
       checkMobile()
@@ -77,18 +76,7 @@ export default function Header() {
       }
    }
 
-   // Hide on admin pages
    if (pathname?.startsWith('/admin')) {
-      return null
-   }
-
-   // Hide on mobile cart page
-   if (isMobile && pathname === '/cart') {
-      return null
-   }
-
-   // Hide header on mobile for blog pages (listing + detail)
-   if (isMobile && pathname?.startsWith('/blog')) {
       return null
    }
 
@@ -97,27 +85,38 @@ export default function Header() {
       return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
    }
 
+   // ✅ Added "Home" to navLinks
    const navLinks = [
+      { href: '/', label: 'Home' },
       { href: '/products', label: 'Products' },
       { href: '/about', label: 'About' },
       { href: '/contact', label: 'Contact' },
       { href: '/blog', label: 'Blog' },
    ]
 
-   // Loading skeleton
+   const hideTopHeader = isMobile && (
+      pathname === '/notifications' ||
+      pathname?.startsWith('/profile')
+   )
+
    if (loading) {
       return (
          <>
             <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
                <div className="hidden md:flex px-4 sm:px-6 lg:px-8 h-16 items-center justify-between gap-4">
-                  <div className="text-xl font-bold shrink-0">SINAG</div>
-                  <div className="hidden flex-1 max-w-md mx-4 md:flex relative">
-                     <div className="w-full h-9 rounded-md bg-muted animate-pulse" />
+                  <div className="flex items-center gap-6">
+                     <div className="text-xl font-bold shrink-0">SINAG</div>
+                     <div className="flex items-center gap-6">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                           <div key={i} className="h-4 w-12 bg-muted animate-pulse rounded" />
+                        ))}
+                     </div>
                   </div>
-                  <div className="flex items-center gap-2 sm:gap-4">
-                     <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
-                     <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
-                     <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
+                  <div className="flex items-center gap-4">
+                     <div className="w-48 h-9 bg-muted animate-pulse rounded" />
+                     <div className="h-9 w-9 bg-muted animate-pulse rounded-full" />
+                     <div className="h-9 w-9 bg-muted animate-pulse rounded-full" />
+                     <div className="h-9 w-9 bg-muted animate-pulse rounded-full" />
                   </div>
                </div>
                <div className="md:hidden px-4 py-2 flex items-center gap-3">
@@ -142,121 +141,130 @@ export default function Header() {
 
    return (
       <>
-         <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-            {/* Desktop */}
-            <div className="hidden md:flex px-4 sm:px-6 lg:px-8 h-16 items-center justify-between gap-4">
-               <Link href="/" className="text-xl font-bold shrink-0">SINAG</Link>
-               <nav className="flex items-center gap-6 text-sm">
-                  {navLinks.map((link) => (
-                     <Link
-                        key={link.href}
-                        href={link.href}
-                        className={`transition-colors hover:text-primary ${
-                           pathname === link.href ? 'text-primary font-medium' : 'text-muted-foreground'
-                        }`}
-                     >
-                        {link.label}
+         {!hideTopHeader && (
+            <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
+               {/* Desktop */}
+               <div className="hidden md:flex px-4 sm:px-6 lg:px-8 h-16 items-center justify-between gap-4">
+                  {/* Left: Logo + Nav */}
+                  <div className="flex items-center gap-6">
+                     <Link href="/" className="text-xl font-bold shrink-0">
+                        SINAG
                      </Link>
-                  ))}
-               </nav>
-               <div className="flex flex-1 max-w-sm mx-4 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                     type="search"
-                     placeholder="Search products..."
-                     className="pl-9 w-full"
-                     onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                           const target = e.target as HTMLInputElement
-                           if (target.value.trim()) {
-                              router.push(`/products?search=${encodeURIComponent(target.value.trim())}`)
-                           }
-                        }
-                     }}
-                  />
+                     <nav className="flex items-center gap-6 text-sm">
+                        {navLinks.map((link) => (
+                           <Link
+                              key={link.href}
+                              href={link.href}
+                              className={`transition-colors hover:text-primary ${
+                                 pathname === link.href ? 'text-primary font-medium' : 'text-muted-foreground'
+                              }`}
+                           >
+                              {link.label}
+                           </Link>
+                        ))}
+                     </nav>
+                  </div>
+
+                  {/* Right: Search + Actions */}
+                  <div className="flex items-center gap-4">
+                     <div className="relative w-48 lg:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                           type="search"
+                           placeholder="Search products..."
+                           className="pl-9 w-full"
+                           onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                 const target = e.target as HTMLInputElement
+                                 if (target.value.trim()) {
+                                    router.push(`/products?search=${encodeURIComponent(target.value.trim())}`)
+                                 }
+                              }
+                           }}
+                        />
+                     </div>
+                     <ThemeToggle />
+                     <NotificationsDropdown />
+                     <Link href="/cart">
+                        <Button variant="outline" size="icon" className="h-9 w-9">
+                           <ShoppingCart className="h-5 w-5" />
+                        </Button>
+                     </Link>
+                     {user ? (
+                        <DropdownMenu>
+                           <DropdownMenuTrigger>
+                              <div className="cursor-pointer rounded-full h-9 w-9 bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors">
+                                 <Avatar className="h-9 w-9">
+                                    <AvatarFallback className="bg-transparent text-primary">
+                                       {getInitials(user.user_metadata?.name || user.email || '')}
+                                    </AvatarFallback>
+                                 </Avatar>
+                              </div>
+                           </DropdownMenuTrigger>
+                           <DropdownMenuContent className="w-56" align="end">
+                              <div className="flex flex-col space-y-1 px-4 py-2">
+                                 <p className="text-sm font-medium leading-none">
+                                    {user.user_metadata?.name || user.email}
+                                 </p>
+                                 <p className="text-xs leading-none text-muted-foreground">
+                                    {user.email}
+                                 </p>
+                              </div>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuGroup>
+                                 <DropdownMenuItem onClick={() => router.push('/profile')}>
+                                    <UserCircle className="mr-2 h-4 w-4" /> Profile
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem onClick={() => router.push('/orders')}>
+                                    <Package className="mr-2 h-4 w-4" /> My Orders
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem onClick={() => router.push('/wishlist')}>
+                                    <Heart className="mr-2 h-4 w-4" /> Wishlist
+                                 </DropdownMenuItem>
+                              </DropdownMenuGroup>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={handleLogout} className="text-red-500">
+                                 <LogOut className="mr-2 h-4 w-4" /> Logout
+                              </DropdownMenuItem>
+                           </DropdownMenuContent>
+                        </DropdownMenu>
+                     ) : (
+                        <Link href="/login">
+                           <Button variant="default" size="sm">Login</Button>
+                        </Link>
+                     )}
+                  </div>
                </div>
-               <div className="flex items-center gap-2 sm:gap-4">
+
+               {/* Mobile Top – unchanged */}
+               <div className="md:hidden px-4 py-2 flex items-center gap-3">
+                  <div className="relative flex-1">
+                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                     <Input
+                        type="search"
+                        placeholder="Search products..."
+                        className="pl-9 w-full"
+                        onKeyDown={(e) => {
+                           if (e.key === 'Enter') {
+                              const target = e.target as HTMLInputElement
+                              if (target.value.trim()) {
+                                 router.push(`/products?search=${encodeURIComponent(target.value.trim())}`)
+                              }
+                           }
+                        }}
+                     />
+                  </div>
                   <ThemeToggle />
-                  <NotificationsDropdown />
                   <Link href="/cart">
-                     <Button variant="outline" size="icon" className="h-9 w-9">
+                     <Button variant="outline" size="icon" className="h-9 w-9 shrink-0">
                         <ShoppingCart className="h-5 w-5" />
                      </Button>
                   </Link>
-                  {user ? (
-                     <DropdownMenu>
-                        <DropdownMenuTrigger>
-                           <div className="cursor-pointer rounded-full h-9 w-9 bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors">
-                              <Avatar className="h-9 w-9">
-                                 <AvatarFallback className="bg-transparent text-primary">
-                                    {getInitials(user.user_metadata?.name || user.email || '')}
-                                 </AvatarFallback>
-                              </Avatar>
-                           </div>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-56" align="end">
-                           <div className="flex flex-col space-y-1 px-4 py-2">
-                              <p className="text-sm font-medium leading-none">
-                                 {user.user_metadata?.name || user.email}
-                              </p>
-                              <p className="text-xs leading-none text-muted-foreground">
-                                 {user.email}
-                              </p>
-                           </div>
-                           <DropdownMenuSeparator />
-                           <DropdownMenuGroup>
-                              <DropdownMenuItem onClick={() => router.push('/profile')}>
-                                 <UserCircle className="mr-2 h-4 w-4" /> Profile
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => router.push('/orders')}>
-                                 <Package className="mr-2 h-4 w-4" /> My Orders
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => router.push('/wishlist')}>
-                                 <Heart className="mr-2 h-4 w-4" /> Wishlist
-                              </DropdownMenuItem>
-                           </DropdownMenuGroup>
-                           <DropdownMenuSeparator />
-                           <DropdownMenuItem onClick={handleLogout} className="text-red-500">
-                              <LogOut className="mr-2 h-4 w-4" /> Logout
-                           </DropdownMenuItem>
-                        </DropdownMenuContent>
-                     </DropdownMenu>
-                  ) : (
-                     <Link href="/login">
-                        <Button variant="default" size="sm">Login</Button>
-                     </Link>
-                  )}
                </div>
-            </div>
+            </header>
+         )}
 
-            {/* Mobile – search + theme + cart */}
-            <div className="md:hidden px-4 py-2 flex items-center gap-3">
-               <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                     type="search"
-                     placeholder="Search products..."
-                     className="pl-9 w-full"
-                     onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                           const target = e.target as HTMLInputElement
-                           if (target.value.trim()) {
-                              router.push(`/products?search=${encodeURIComponent(target.value.trim())}`)
-                           }
-                        }
-                     }}
-                  />
-               </div>
-               <ThemeToggle />
-               <Link href="/cart">
-                  <Button variant="outline" size="icon" className="h-9 w-9 shrink-0">
-                     <ShoppingCart className="h-5 w-5" />
-                  </Button>
-               </Link>
-            </div>
-         </header>
-
-         {/* Mobile Bottom Navigation */}
+         {/* Mobile Bottom Navigation – always rendered on mobile */}
          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background">
             <nav className="flex items-center justify-around h-16">
                <Link

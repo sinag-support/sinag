@@ -7,6 +7,14 @@ export async function POST(request: Request) {
    try {
       const { email, password } = await request.json()
 
+      // Validate input
+      if (!email || !password) {
+         return NextResponse.json(
+            { error: 'Email and password are required' },
+            { status: 400 }
+         )
+      }
+
       const cookieStore = await cookies()
       
       const supabase = createServerClient(
@@ -33,34 +41,48 @@ export async function POST(request: Request) {
       })
 
       if (error) {
+         console.error('Supabase sign in error:', error.message, error)
          return NextResponse.json(
-            { error: error.message },
+            { error: `Authentication failed: ${error.message}` },
             { status: 400 }
          )
       }
 
-      if (data.user) {
-         // Get user role from database
-         const dbUser = await prisma.user.findUnique({
-            where: { email: data.user.email! },
-            select: { role: true }
-         })
-
-         const role = dbUser?.role || 'USER'
-
-         return NextResponse.json({
-            success: true,
-            role,
-            email: data.user.email,
-         })
+      if (!data.user) {
+         return NextResponse.json(
+            { error: 'No user data returned' },
+            { status: 400 }
+         )
       }
 
-      return NextResponse.json(
-         { error: 'Login failed' },
-         { status: 400 }
-      )
+      // Get or create user in database
+      let dbUser = await prisma.user.findUnique({
+         where: { email: data.user.email! },
+         select: { role: true }
+      })
+
+      if (!dbUser) {
+         // Create user with role from metadata or default USER
+         const role = data.user.user_metadata?.role || 'USER'
+         dbUser = await prisma.user.create({
+            data: {
+               email: data.user.email!,
+               name: data.user.user_metadata?.name || data.user.email?.split('@')[0],
+               role: role,
+            },
+            select: { role: true }
+         })
+         console.log('Created new user in DB:', data.user.email, 'Role:', role)
+      }
+
+      return NextResponse.json({
+         success: true,
+         role: dbUser.role,
+         email: data.user.email,
+      })
+
    } catch (error) {
-      console.error('Login error:', error)
+      console.error('Login API error:', error)
       return NextResponse.json(
          { error: 'Internal server error' },
          { status: 500 }

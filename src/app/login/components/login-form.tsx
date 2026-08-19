@@ -44,28 +44,25 @@ export function LoginForm() {
       }
 
       try {
-         const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {
-               'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email, password }),
+         // ✅ Client-side sign in
+         const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
          })
 
-         const data = await response.json()
-
-         if (!response.ok) {
-            setError(data.error || 'Login failed')
+         if (error) {
+            setError(error.message)
             setIsLoading(false)
             return
          }
 
-         if (data.success) {
-            const role = data.role || 'USER'
-            
-            console.log('Login role:', role) // Debug
+         if (data.user) {
+            // Fetch role from API
+            const roleResponse = await fetch('/api/auth/role')
+            const roleData = await roleResponse.json()
+            const role = roleData.role || 'USER'
 
-            // ✅ Redirect based on role
+            // Redirect based on role
             if (role === 'ADMIN' || role === 'STAFF' || role === 'RIDER') {
                window.location.href = '/admin'
             } else {

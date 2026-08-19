@@ -89,7 +89,7 @@ export default async function HomePage() {
    const products = dbProducts.map((p: any) => ({
       id: p.id,
       name: p.title,
-      price: p.price,
+      price: p.price, 
       discount: p.discount,
       image: p.images?.[0] || '',
       rating: 4.0,
