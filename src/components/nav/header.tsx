@@ -76,8 +76,13 @@ export default function Header() {
       }
    }
 
-   // ✅ Always render header except on admin pages
+   // Hide entire header on admin pages
    if (pathname?.startsWith('/admin')) {
+      return null
+   }
+
+   // Hide entire header (top + bottom) on mobile for cart page
+   if (isMobile && pathname === '/cart') {
       return null
    }
 
@@ -92,11 +97,20 @@ export default function Header() {
       { href: '/blog', label: 'Blog' },
    ]
 
+   // Hide top header (search + actions) on mobile for notifications and profile pages
    const hideTopHeader = isMobile && (
       pathname === '/notifications' ||
       pathname?.startsWith('/profile')
    )
 
+   // Hide bottom navigation on mobile for profile sub-pages (settings, orders, wishlist)
+   const hideBottomNav = isMobile && (
+      pathname === '/profile/settings' ||
+      pathname === '/profile/orders' ||
+      pathname === '/profile/wishlist'
+   )
+
+   // ---- Loading skeleton ----
    if (loading) {
       return (
          <>
@@ -123,6 +137,7 @@ export default function Header() {
                   <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
                </div>
             </header>
+            {/* Bottom nav skeleton */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background">
                <nav className="flex items-center justify-evenly h-16">
                   {[1, 2, 3, 4].map((i) => (
@@ -137,8 +152,10 @@ export default function Header() {
       )
    }
 
+   // ---- Actual render ----
    return (
       <>
+         {/* Top Header – hidden on mobile for notifications and profile */}
          {!hideTopHeader && (
             <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
                {/* Desktop */}
@@ -262,60 +279,62 @@ export default function Header() {
             </header>
          )}
 
-         {/* Mobile Bottom Navigation – always rendered on mobile */}
-         <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background">
-            <nav className="flex items-center justify-evenly h-16">
-               <Link
-                  href="/"
-                  className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
-                     pathname === '/' ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-               >
-                  <Home className="h-5 w-5" />
-                  <span>Home</span>
-               </Link>
-               <Link
-                  href="/products"
-                  className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
-                     pathname?.startsWith('/products') ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-               >
-                  <Package className="h-5 w-5" />
-                  <span>Products</span>
-               </Link>
-               <Link
-                  href="/notifications"
-                  className={`relative flex flex-col items-center gap-0.5 text-xs transition-colors ${
-                     pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-               >
-                  <div className="relative">
-                     <Bell className="h-5 w-5" />
-                     <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
-                        0
-                     </span>
-                  </div>
-                  <span>Notifications</span>
-               </Link>
-               <Link
-                  href={user ? '/profile' : '/login'}
-                  className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
-                     pathname?.startsWith('/profile') ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-               >
-                  {user ? (
-                     <Avatar className="h-6 w-6 border-2 border-primary/20">
-                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                           {getInitials(user.user_metadata?.name || user.email || '')}
-                        </AvatarFallback>
-                     </Avatar>
-                  ) : (
-                     <UserCircle className="h-5 w-5" />
-                  )}
-                  <span>{user ? 'Profile' : 'Login'}</span>
-               </Link>
-            </nav>
-         </div>
+         {/* Mobile Bottom Navigation – hidden on specific sub‑pages */}
+         {!hideBottomNav && (
+            <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background">
+               <nav className="flex items-center justify-evenly h-16">
+                  <Link
+                     href="/"
+                     className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
+                        pathname === '/' ? 'text-primary' : 'text-muted-foreground'
+                     }`}
+                  >
+                     <Home className="h-5 w-5" />
+                     <span>Home</span>
+                  </Link>
+                  <Link
+                     href="/products"
+                     className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
+                        pathname?.startsWith('/products') ? 'text-primary' : 'text-muted-foreground'
+                     }`}
+                  >
+                     <Package className="h-5 w-5" />
+                     <span>Products</span>
+                  </Link>
+                  <Link
+                     href="/notifications"
+                     className={`relative flex flex-col items-center gap-0.5 text-xs transition-colors ${
+                        pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground'
+                     }`}
+                  >
+                     <div className="relative">
+                        <Bell className="h-5 w-5" />
+                        <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
+                           0
+                        </span>
+                     </div>
+                     <span>Notifications</span>
+                  </Link>
+                  <Link
+                     href={user ? '/profile' : '/login'}
+                     className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
+                        pathname?.startsWith('/profile') ? 'text-primary' : 'text-muted-foreground'
+                     }`}
+                  >
+                     {user ? (
+                        <Avatar className="h-6 w-6 border-2 border-primary/20">
+                           <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                              {getInitials(user.user_metadata?.name || user.email || '')}
+                           </AvatarFallback>
+                        </Avatar>
+                     ) : (
+                        <UserCircle className="h-5 w-5" />
+                     )}
+                     <span>{user ? 'Profile' : 'Login'}</span>
+                  </Link>
+               </nav>
+            </div>
+         )}
       </>
    )
 }

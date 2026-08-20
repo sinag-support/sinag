@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell } from 'lucide-react'
+import { Bell, ShoppingBag, Gift, Tag } from 'lucide-react'
 import {
    DropdownMenu,
    DropdownMenuContent,
@@ -12,11 +12,25 @@ import {
 import Link from 'next/link'
 import { useState } from 'react'
 
+const typeIcons = {
+   order: ShoppingBag,
+   product: Gift,
+   sale: Tag,
+   default: Bell,
+}
+
+const typeColors = {
+   order: 'text-blue-500 bg-blue-50 dark:bg-blue-950',
+   product: 'text-purple-500 bg-purple-50 dark:bg-purple-950',
+   sale: 'text-orange-500 bg-orange-50 dark:bg-orange-950',
+   default: 'text-gray-500 bg-gray-50 dark:bg-gray-950',
+}
+
 // Sample notifications – replace with real data
 const sampleNotifications = [
-   { id: 1, title: 'Order #1234 shipped', time: '2 hours ago', read: false },
-   { id: 2, title: 'New product available', time: '5 hours ago', read: false },
-   { id: 3, title: 'Sale ends tomorrow', time: '1 day ago', read: true },
+   { id: 1, title: 'Order #1234 shipped', time: '2 hours ago', read: false, type: 'order' },
+   { id: 2, title: 'New product available', time: '5 hours ago', read: false, type: 'product' },
+   { id: 3, title: 'Sale ends tomorrow', time: '1 day ago', read: true, type: 'sale' },
 ]
 
 export function NotificationsDropdown() {
@@ -50,7 +64,6 @@ export function NotificationsDropdown() {
             </div>
          </DropdownMenuTrigger>
          <DropdownMenuContent align="end" className="w-80">
-            {/* Replace DropdownMenuLabel with a simple div */}
             <div className="flex items-center justify-between px-2 py-1.5 text-sm font-semibold">
                <span>Notifications</span>
                {unreadCount > 0 && (
@@ -69,23 +82,34 @@ export function NotificationsDropdown() {
                </div>
             ) : (
                <DropdownMenuGroup>
-                  {notifications.map((notif) => (
-                     <DropdownMenuItem
-                        key={notif.id}
-                        className="flex flex-col items-start gap-0.5 py-2 cursor-pointer"
-                        onClick={() => markAsRead(notif.id)}
-                     >
-                        <div className="flex items-center justify-between w-full">
-                           <span className={`text-sm ${notif.read ? 'text-muted-foreground' : 'font-medium'}`}>
-                              {notif.title}
-                           </span>
-                           {!notif.read && (
-                              <span className="h-2 w-2 rounded-full bg-blue-500" />
-                           )}
-                        </div>
-                        <span className="text-xs text-muted-foreground">{notif.time}</span>
-                     </DropdownMenuItem>
-                  ))}
+                  {notifications.map((notif) => {
+                     const Icon = typeIcons[notif.type as keyof typeof typeIcons] || typeIcons.default
+                     const colorClass = typeColors[notif.type as keyof typeof typeColors] || typeColors.default
+                     const isUnread = !notif.read
+
+                     return (
+                        <DropdownMenuItem
+                           key={notif.id}
+                           className="flex items-start gap-3 py-2 cursor-pointer"
+                           onClick={() => markAsRead(notif.id)}
+                        >
+                           <div className={`p-1.5 rounded-full shrink-0 ${colorClass}`}>
+                              <Icon className="h-3.5 w-3.5" />
+                           </div>
+                           <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                 <span className={`text-sm ${isUnread ? 'font-medium' : 'text-muted-foreground'}`}>
+                                    {notif.title}
+                                 </span>
+                                 {isUnread && (
+                                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500 ml-1 shrink-0" />
+                                 )}
+                              </div>
+                              <span className="text-xs text-muted-foreground">{notif.time}</span>
+                           </div>
+                        </DropdownMenuItem>
+                     )
+                  })}
                </DropdownMenuGroup>
             )}
             <DropdownMenuSeparator />

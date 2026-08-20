@@ -3,8 +3,8 @@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { isOTPValid } from '@/lib/validation'
-import { Loader2, ArrowLeft } from 'lucide-react'
+import { isOTPValid, isPasswordValid, passwordRequirements } from '@/lib/validation'
+import { Loader2, ArrowLeft, CheckCircle2, XCircle } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
@@ -13,12 +13,25 @@ export function VerifyOTPForm() {
    const searchParams = useSearchParams()
    const router = useRouter()
    const email = searchParams.get('email') || ''
+   const mode = searchParams.get('mode') || 'signup' // 'signup' or 'reset'
+
    const [otp, setOtp] = useState('')
+   const [newPassword, setNewPassword] = useState('')
    const [isLoading, setIsLoading] = useState(false)
    const [error, setError] = useState('')
    const [success, setSuccess] = useState(false)
    const [timeLeft, setTimeLeft] = useState(600)
    const [isResending, setIsResending] = useState(false)
+   const [touched, setTouched] = useState({ password: false })
+
+   const passwordChecks = passwordRequirements.map((req) => ({
+      ...req,
+      isValid: req.validate(newPassword),
+   }))
+   const allValid = isPasswordValid(newPassword)
+   const passwordErrors = touched.password && newPassword && !allValid
+      ? 'Please meet all password requirements'
+      : ''
 
    useEffect(() => {
       if (timeLeft <= 0) return
@@ -46,15 +59,29 @@ export function VerifyOTPForm() {
          return
       }
 
+      if (mode === 'reset') {
+         if (!allValid) {
+            setError('Please meet all password requirements')
+            setIsLoading(false)
+            return
+         }
+      }
+
       try {
+         const payload: any = {
+            email,
+            otp,
+            step: 'verify-otp',
+            mode,
+         }
+         if (mode === 'reset') {
+            payload.newPassword = newPassword
+         }
+
          const response = await fetch('/api/auth/signup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-               email,
-               otp,
-               step: 'verify-otp',
-            }),
+            body: JSON.stringify(payload),
          })
 
          const data = await response.json()
@@ -67,7 +94,11 @@ export function VerifyOTPForm() {
 
          setSuccess(true)
          setTimeout(() => {
-            window.location.href = '/'
+            if (mode === 'reset') {
+               window.location.href = '/login?reset=true'
+            } else {
+               window.location.href = '/'
+            }
          }, 1500)
       } catch (error) {
          setError('An unexpected error occurred')
@@ -83,7 +114,10 @@ export function VerifyOTPForm() {
       setError('')
 
       try {
-         const response = await fetch('/api/auth/resend-otp', {
+         const endpoint = mode === 'reset'
+            ? '/api/auth/resend-otp?mode=reset'
+            : '/api/auth/resend-otp'
+         const response = await fetch(endpoint, {
             method: 'POST',
          })
 
@@ -109,13 +143,15 @@ export function VerifyOTPForm() {
       return (
          <div className="text-center py-8">
             <div className="rounded-full bg-green-100 p-3 w-16 h-16 mx-auto flex items-center justify-center">
-               <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-               </svg>
+               <CheckCircle2 className="h-8 w-8 text-green-600" />
             </div>
-            <h3 className="mt-4 text-lg font-semibold">Email Verified!</h3>
+            <h3 className="mt-4 text-lg font-semibold">
+               {mode === 'reset' ? 'Password Reset!' : 'Email Verified!'}
+            </h3>
             <p className="text-sm text-muted-foreground mt-2">
-               Your account has been created. Redirecting to store...
+               {mode === 'reset'
+                  ? 'Your password has been updated. Redirecting to login...'
+                  : 'Your account has been created. Redirecting to store...'}
             </p>
          </div>
       )
@@ -131,16 +167,18 @@ export function VerifyOTPForm() {
       <div className="space-y-6">
          <div className="flex items-center justify-between">
             <Link
-               href="/register"
+               href={mode === 'reset' ? '/forgot-password' : '/register'}
                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
                <ArrowLeft className="mr-2 h-4 w-4" />
-               Back to Register
+               {mode === 'reset' ? 'Back to Reset Password' : 'Back to Register'}
             </Link>
          </div>
 
          <div className="space-y-2 text-center">
-            <h1 className="text-2xl font-bold tracking-tight">Verify Email</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+               {mode === 'reset' ? 'Reset Password' : 'Verify Email'}
+            </h1>
             <p className="text-sm text-muted-foreground">
                Enter the 6-digit OTP sent to <span className="font-medium">{email}</span>
             </p>
@@ -168,6 +206,40 @@ export function VerifyOTPForm() {
                )}
             </div>
 
+            {mode === 'reset' && (
+               <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password <span className="text-destructive">*</span></Label>
+                  <Input
+                     id="new-password"
+                     type="password"
+                     placeholder="••••••••"
+                     value={newPassword}
+                     onChange={(e) => setNewPassword(e.target.value)}
+                     onBlur={() => setTouched({ ...touched, password: true })}
+                     disabled={isLoading}
+                     className={passwordErrors ? 'border-destructive' : ''}
+                     required
+                  />
+                  {touched.password && newPassword && (
+                     <div className="space-y-1.5 rounded-lg bg-muted p-3">
+                        {passwordChecks.map((check) => (
+                           <div key={check.id} className="flex items-center gap-2 text-sm">
+                              {check.isValid ? (
+                                 <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              ) : (
+                                 <XCircle className="h-4 w-4 text-destructive" />
+                              )}
+                              <span className={check.isValid ? 'text-green-500' : 'text-muted-foreground'}>
+                                 {check.label}
+                              </span>
+                           </div>
+                        ))}
+                     </div>
+                  )}
+                  {passwordErrors && <p className="text-sm text-destructive">{passwordErrors}</p>}
+               </div>
+            )}
+
             {error && (
                <p className={`text-sm ${error.includes('sent') ? 'text-green-600' : 'text-destructive'}`}>
                   {error}
@@ -176,7 +248,7 @@ export function VerifyOTPForm() {
 
             <Button type="submit" className="w-full" disabled={isLoading}>
                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-               Verify OTP
+               {mode === 'reset' ? 'Reset Password' : 'Verify OTP'}
             </Button>
 
             <div className="text-center">

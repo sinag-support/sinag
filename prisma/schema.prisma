@@ -17,10 +17,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders   Order[]
-  cart     Cart?
+  orders    Order[]
+  cart      Cart?
   addresses Address[]
-  reviews  Review[]
+  reviews   Review[]
 }
 
 model Owner {
@@ -73,9 +73,9 @@ model Product {
   brandId     String?
   brand       Brand?   @relation(fields: [brandId], references: [id])
 
-  cartItems CartItem[]
-  orderItems OrderItem[]
-  reviews   Review[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  reviews     Review[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -103,22 +103,22 @@ model Brand {
 }
 
 model Order {
-  id         String   @id @default(cuid())
-  orderNumber Int     @unique @default(autoincrement())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  status     OrderStatus @default(PENDING)
-  total      Float
-  shipping   Float    @default(0)
-  tax        Float    @default(0)
-  discount   Float    @default(0)
-  payable    Float
-  isPaid     Boolean  @default(false)
-  addressId  String?
-  address    Address? @relation(fields: [addressId], references: [id])
+  id          String       @id @default(cuid())
+  orderNumber Int          @unique @default(autoincrement())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  status      OrderStatus  @default(PENDING)
+  total       Float
+  shipping    Float        @default(0)
+  tax         Float        @default(0)
+  discount    Float        @default(0)
+  payable     Float
+  isPaid      Boolean      @default(false)
+  addressId   String?
+  address     Address?     @relation(fields: [addressId], references: [id])
 
-  items OrderItem[]
-  payments Payment[]
+  items       OrderItem[]
+  payments    Payment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

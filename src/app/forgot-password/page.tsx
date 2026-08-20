@@ -1,0 +1,37 @@
+import { ThemeToggle } from '@/components/theme-toggle'
+import { ForgotPasswordForm } from './components/forgot-password-form'
+
+export const metadata = {
+   title: 'Forgot Password - SINAG',
+   description: 'Reset your SINAG account password.',
+}
+
+export default function ForgotPasswordPage() {
+   return (
+      <div className="flex min-h-screen">
+         <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-background border-r p-12">
+            <div>
+               <span className="text-2xl font-bold">SINAG</span>
+            </div>
+            <div className="text-sm text-muted-foreground">
+               © {new Date().getFullYear()} SINAG. All rights reserved.
+            </div>
+         </div>
+
+         <div className="flex-1 flex items-center justify-center bg-background p-8">
+            <div className="w-full max-w-md space-y-6">
+               <div className="flex items-center justify-between lg:hidden">
+                  <span className="text-xl font-bold">SINAG</span>
+                  <ThemeToggle />
+               </div>
+
+               <div className="hidden lg:flex lg:justify-end">
+                  <ThemeToggle />
+               </div>
+
+               <ForgotPasswordForm />
+            </div>
+         </div>
+      </div>
+   )
+}

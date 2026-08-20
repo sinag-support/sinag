@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Bell, CheckCircle2, Trash2, ShoppingBag, Tag, Gift } from 'lucide-react'
+import { Bell, CheckCircle2, Trash2, ShoppingBag, Tag, Gift } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
-// Sample data
+// Sample data – replace with real API
 const sampleNotifications = [
    { id: 1, title: 'Order #1234 has been shipped', description: 'Your order is on its way!', time: '2 hours ago', read: false, type: 'order' },
    { id: 2, title: 'New product: Wireless Earbuds', description: 'Check out our latest arrival.', time: '5 hours ago', read: false, type: 'product' },
@@ -91,23 +91,10 @@ export default function NotificationsPage() {
    if (loading) {
       return (
          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-16 md:pb-0 max-w-3xl">
-            {/* Header skeleton */}
             <div className="flex items-center gap-3 mb-6">
-               <Skeleton className="hidden sm:inline-block h-5 w-5 rounded" />
-               <Skeleton className="h-7 w-32" />
-               <Skeleton className="h-4 w-12 ml-auto" />
+               <Skeleton className="h-6 w-6 rounded" />
+               <Skeleton className="h-8 w-48" />
             </div>
-
-            {/* Filter chips skeleton */}
-            <div className="flex items-center justify-between gap-3 mb-4">
-               <div className="flex items-center gap-2">
-                  <Skeleton className="h-7 w-12 rounded-full" />
-                  <Skeleton className="h-7 w-16 rounded-full" />
-               </div>
-               <Skeleton className="h-7 w-24 rounded" />
-            </div>
-
-            {/* Notification cards skeleton */}
             <div className="space-y-4">
                {[1, 2, 3].map((i) => (
                   <Card key={i} className="overflow-hidden">
@@ -128,30 +115,24 @@ export default function NotificationsPage() {
    }
 
    return (
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 md:pb-0 max-w-3xl">
-         {/* Header */}
-         <div className="flex items-center gap-3 mb-6">
-            <Link
-               href="/"
-               className="hidden sm:inline-flex text-muted-foreground hover:text-foreground transition-colors"
-            >
-               <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <h1 className="text-xl sm:text-2xl font-bold leading-none">Notifications</h1>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 md:pb-12 sm:pb-12 max-w-3xl">
+         {/* Header – no back button */}
+         <div className="flex items-center justify-between mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold">Notifications</h1>
             {unreadCount > 0 && (
-               <span className="text-xs sm:text-sm text-muted-foreground ml-auto">
+               <span className="text-xs sm:text-sm text-muted-foreground">
                   {unreadCount} unread
                </span>
             )}
          </div>
 
          {/* Filter chips */}
-         <div className="flex items-center justify-between gap-3 mb-4">
+         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
                <button
                   onClick={() => setFilter('all')}
                   className={cn(
-                     "h-7 px-3 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center justify-center",
+                     "px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-colors",
                      filter === 'all'
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted hover:bg-muted/80'
@@ -162,7 +143,7 @@ export default function NotificationsPage() {
                <button
                   onClick={() => setFilter('unread')}
                   className={cn(
-                     "h-7 px-3 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center justify-center",
+                     "px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-colors",
                      filter === 'unread'
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted hover:bg-muted/80'
@@ -172,19 +153,14 @@ export default function NotificationsPage() {
                </button>
             </div>
             {notifications.length > 0 && unreadCount > 0 && (
-               <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={markAllAsRead}
-                  className="h-7 px-2 text-xs sm:text-sm"
-               >
+               <Button variant="ghost" size="sm" onClick={markAllAsRead} className="text-xs sm:text-sm">
                   <CheckCircle2 className="h-4 w-4 mr-1 sm:mr-2" />
                   Mark all as read
                </Button>
             )}
          </div>
 
-         {/* Notifications List */}
+         {/* Notifications List with groups – icons use old style (p-2, h-4 w-4) */}
          {filtered.length === 0 ? (
             <div className="text-center py-12">
                <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -196,11 +172,11 @@ export default function NotificationsPage() {
                </p>
             </div>
          ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
                {groupKeys.map((group) => (
-                  <div key={group} className="space-y-3">
-                     <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group}</h2>
-                     <div className="space-y-3">
+                  <div key={group}>
+                     <h2 className="text-sm font-semibold text-muted-foreground mb-2">{group}</h2>
+                     <div className="space-y-2">
                         {grouped[group].map((notif) => {
                            const Icon = typeIcons[notif.type as keyof typeof typeIcons] || typeIcons.default
                            const colorClass = typeColors[notif.type as keyof typeof typeColors] || typeColors.default
@@ -209,39 +185,33 @@ export default function NotificationsPage() {
                            return (
                               <Card
                                  key={notif.id}
-                                 className={cn(
-                                    "overflow-hidden transition-colors",
+                                 className={`transition-colors ${
                                     isUnread ? 'border-primary/20 bg-primary/5' : ''
-                                 )}
+                                 }`}
                               >
-                                 <CardContent className="pt-4 px-3 sm:px-4 flex items-start gap-3">
-                                    {/* Icon container - h-10 w-10 rounded-full */}
-                                    <div className={cn("h-10 w-10 rounded-full shrink-0 flex items-center justify-center", colorClass)}>
-                                       <Icon className="h-5 w-5" />
+                                 <CardContent className="p-3 sm:p-4 flex items-start gap-3">
+                                    <div className={`p-2 rounded-full shrink-0 ${colorClass}`}>
+                                       <Icon className="h-4 w-4" />
                                     </div>
-
-                                    {/* Text content - space-y-2 */}
-                                    <div className="flex-1 min-w-0 space-y-2">
-                                       <p className={cn("text-sm leading-tight", isUnread ? 'font-semibold' : 'font-medium')}>
+                                    <div className="flex-1 min-w-0">
+                                       <p className={`text-sm ${isUnread ? 'font-medium' : ''}`}>
                                           {notif.title}
                                        </p>
                                        {notif.description && (
-                                          <p className="text-xs sm:text-sm text-muted-foreground leading-tight">
+                                          <p className="text-sm text-muted-foreground mt-0.5">
                                              {notif.description}
                                           </p>
                                        )}
-                                       <p className="text-xs text-muted-foreground leading-tight">
+                                       <p className="text-xs text-muted-foreground mt-1">
                                           {notif.time}
                                        </p>
                                     </div>
-
-                                    {/* Action button(s) - h-8 w-8 rounded-full */}
-                                    <div className="flex items-center gap-1 shrink-0">
+                                    <div className="flex items-center gap-0.5 shrink-0">
                                        {isUnread && (
                                           <Button
                                              variant="ghost"
                                              size="icon"
-                                             className="h-8 w-8 rounded-full"
+                                             className="h-8 w-8"
                                              onClick={() => markAsRead(notif.id)}
                                              aria-label="Mark as read"
                                           >
@@ -251,7 +221,7 @@ export default function NotificationsPage() {
                                        <Button
                                           variant="ghost"
                                           size="icon"
-                                          className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive"
+                                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
                                           onClick={() => deleteNotification(notif.id)}
                                           aria-label="Delete notification"
                                        >

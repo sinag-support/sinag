@@ -7,7 +7,7 @@ import nodemailer from 'nodemailer'
 
 export async function POST(request: Request) {
    try {
-      const { email, password, name, otp, step } = await request.json()
+      const { email, password, name, otp, step, mode, newPassword } = await request.json()
 
       const cookieStore = await cookies()
       
@@ -42,11 +42,10 @@ export async function POST(request: Request) {
          }
 
          const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
-         const expiresAt = Date.now() + 10 * 60 * 1000 // 10 minutes from now
+         const expiresAt = Date.now() + 10 * 60 * 1000
 
          const response = NextResponse.json({ success: true })
 
-         // Store OTP, user data, and expiration
          response.cookies.set('signup_otp', otpCode, {
             maxAge: 600,
             httpOnly: true,
@@ -73,7 +72,6 @@ export async function POST(request: Request) {
             path: '/',
          })
 
-         // Send email
          try {
             const transporter = nodemailer.createTransport({
                service: process.env.MAIL_SMTP_SERVICE || 'gmail',
@@ -106,20 +104,36 @@ export async function POST(request: Request) {
       }
 
       if (step === 'verify-otp') {
-         const storedOtp = cookieStore.get('signup_otp')?.value
-         const storedEmail = cookieStore.get('signup_email')?.value
-         const storedPassword = cookieStore.get('signup_password')?.value
-         const storedName = cookieStore.get('signup_name')?.value
-         const storedExpires = cookieStore.get('signup_otp_expires')?.value
+         let storedOtp, storedEmail, storedPassword, storedName, storedExpires
+         let isReset = false
 
-         if (!storedOtp || !storedEmail || !storedPassword || !storedName || !storedExpires) {
+         if (mode === 'reset') {
+            storedOtp = cookieStore.get('reset_otp')?.value
+            storedEmail = cookieStore.get('reset_email')?.value
+            storedExpires = cookieStore.get('reset_otp_expires')?.value
+            isReset = true
+         } else {
+            storedOtp = cookieStore.get('signup_otp')?.value
+            storedEmail = cookieStore.get('signup_email')?.value
+            storedPassword = cookieStore.get('signup_password')?.value
+            storedName = cookieStore.get('signup_name')?.value
+            storedExpires = cookieStore.get('signup_otp_expires')?.value
+         }
+
+         if (!storedOtp || !storedEmail || !storedExpires) {
             return NextResponse.json(
                { error: 'OTP expired. Please try again.' },
                { status: 400 }
             )
          }
 
-         // Check expiration
+         if (!isReset && (!storedPassword || !storedName)) {
+            return NextResponse.json(
+               { error: 'Invalid session. Please restart signup.' },
+               { status: 400 }
+            )
+         }
+
          const expiresAt = parseInt(storedExpires)
          if (Date.now() > expiresAt) {
             return NextResponse.json(
@@ -135,51 +149,105 @@ export async function POST(request: Request) {
             )
          }
 
-         // Create user in Supabase Auth
-         const supabaseAdmin = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-         )
-
-         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-            email,
-            password: storedPassword,
-            email_confirm: true,
-            user_metadata: {
-               name: storedName,
-               role: 'USER',
-            },
-         })
-
-         if (authError) {
-            return NextResponse.json(
-               { error: authError.message },
-               { status: 400 }
-            )
-         }
-
-         await prisma.user.create({
-            data: {
-               email,
-               name: storedName,
-               role: 'USER',
+         if (isReset) {
+            if (!newPassword) {
+               return NextResponse.json(
+                  { error: 'New password is required' },
+                  { status: 400 }
+               )
             }
-         })
 
-         // Auto-login
-         await supabase.auth.signInWithPassword({
-            email,
-            password: storedPassword,
-         })
+            const supabaseAdmin = createClient(
+               process.env.NEXT_PUBLIC_SUPABASE_URL!,
+               process.env.SUPABASE_SERVICE_ROLE_KEY!
+            )
 
-         const response = NextResponse.json({ success: true })
-         response.cookies.delete('signup_otp')
-         response.cookies.delete('signup_otp_expires')
-         response.cookies.delete('signup_email')
-         response.cookies.delete('signup_password')
-         response.cookies.delete('signup_name')
+            // Find user by email more directly
+            const { data: { users }, error: userError } = await supabaseAdmin.auth.admin.listUsers()
+            if (userError) {
+               console.error('List users error:', userError)
+               return NextResponse.json(
+                  { error: 'Failed to verify user' },
+                  { status: 500 }
+               )
+            }
 
-         return response
+            // Normalize email for case‑insensitive search
+            const normalizedEmail = email.toLowerCase()
+            const user = users.find(u => u.email?.toLowerCase() === normalizedEmail)
+
+            if (!user) {
+               console.error('User not found for email:', email)
+               return NextResponse.json(
+                  { error: 'User not found' },
+                  { status: 404 }
+               )
+            }
+
+            // Update the password
+            const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+               user.id,
+               { password: newPassword }
+            )
+
+            if (updateError) {
+               console.error('Update password error:', updateError)
+               return NextResponse.json(
+                  { error: updateError.message },
+                  { status: 400 }
+               )
+            }
+
+            const response = NextResponse.json({ success: true })
+            response.cookies.delete('reset_otp')
+            response.cookies.delete('reset_otp_expires')
+            response.cookies.delete('reset_email')
+            return response
+         } else {
+            // Signup flow
+            const supabaseAdmin = createClient(
+               process.env.NEXT_PUBLIC_SUPABASE_URL!,
+               process.env.SUPABASE_SERVICE_ROLE_KEY!
+            )
+
+            const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+               email,
+               password: storedPassword as string,
+               email_confirm: true,
+               user_metadata: {
+                  name: storedName,
+                  role: 'USER',
+               },
+            })
+
+            if (authError) {
+               return NextResponse.json(
+                  { error: authError.message },
+                  { status: 400 }
+               )
+            }
+
+            await prisma.user.create({
+               data: {
+                  email,
+                  name: storedName,
+                  role: 'USER',
+               }
+            })
+
+            await supabase.auth.signInWithPassword({
+               email,
+               password: storedPassword as string,
+            })
+
+            const response = NextResponse.json({ success: true })
+            response.cookies.delete('signup_otp')
+            response.cookies.delete('signup_otp_expires')
+            response.cookies.delete('signup_email')
+            response.cookies.delete('signup_password')
+            response.cookies.delete('signup_name')
+            return response
+         }
       }
 
       return NextResponse.json(

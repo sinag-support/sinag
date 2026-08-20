@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from 'lucide-react'
@@ -40,6 +40,7 @@ const initialCartItems = [
 export const dynamic = 'force-dynamic'
 
 export default function CartPage() {
+   const router = useRouter()
    const [cartItems, setCartItems] = useState(initialCartItems)
 
    const updateQuantity = (id: number, delta: number) => {
@@ -65,40 +66,44 @@ export default function CartPage() {
 
    if (cartItems.length === 0) {
       return (
-         <div className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 max-w-7xl mx-auto min-h-screen">
-            <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto">
-               <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center mb-6">
-                  <ShoppingBag className="h-12 w-12 text-muted-foreground" />
-               </div>
-               <h1 className="text-2xl font-bold">Your cart is empty</h1>
-               <p className="text-muted-foreground mt-2">
-                  Looks like you haven't added any items to your cart yet.
-               </p>
-               <Link href="/products">
-                  <Button className="mt-6">
-                     Continue Shopping
-                  </Button>
-               </Link>
+         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 max-w-7xl min-h-screen flex flex-col items-center justify-center text-center">
+            <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
+               <ShoppingBag className="h-8 w-8 text-muted-foreground" />
             </div>
+            <h1 className="text-2xl font-semibold tracking-tight">Your cart is empty</h1>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+               Looks like you haven't added any items yet.
+            </p>
+            <Link href="/products">
+               <Button className="mt-6">Start shopping</Button>
+            </Link>
          </div>
       )
    }
 
+   const goBack = () => {
+      router.back()
+   }
+
    return (
-      <div className="w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto min-h-screen pb-28 md:pb-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl mx-auto min-h-screen pb-28 md:pb-8">
          {/* Header */}
-         <div className="flex items-center gap-3 mb-6 sm:mb-8 pt-4">
-            <Link href="/products" className="text-muted-foreground hover:text-foreground transition-colors">
+         <div className="flex items-center gap-3 mb-8">
+            <button
+               onClick={goBack}
+               className="inline-flex text-muted-foreground hover:text-foreground transition-colors"
+               aria-label="Go back"
+            >
                <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <h1 className="text-2xl sm:text-3xl font-bold">Shopping Cart</h1>
+            </button>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Cart</h1>
             <span className="text-sm text-muted-foreground ml-auto">
                {cartItems.length} {cartItems.length === 1 ? 'item' : 'items'}
             </span>
          </div>
 
          {/* Mobile: Cart Items stacked */}
-         <div className="lg:hidden space-y-4">
+         <div className="lg:hidden space-y-3">
             {cartItems.map((item) => (
                <CartItemMobile
                   key={item.id}
@@ -110,26 +115,26 @@ export default function CartPage() {
          </div>
 
          {/* Mobile Sticky Order Summary */}
-         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-background border-t p-4 shadow-lg">
-            <div className="flex items-center justify-between mb-2">
+         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-background border-t px-4 py-3 shadow-lg">
+            <div className="flex items-center justify-between mb-1.5">
                <span className="text-sm font-medium">Total</span>
                <span className="text-lg font-bold">₱{total.toFixed(2)}</span>
             </div>
-            <Button className="w-full" size="lg">
+            <Button className="w-full" size="default">
                Proceed to Checkout
             </Button>
-            <div className="text-xs text-muted-foreground text-center mt-1.5">
+            <div className="text-xs text-muted-foreground text-center mt-1">
                Shipping & taxes calculated at checkout
             </div>
          </div>
 
-         {/* Desktop/Tablet: Side-by-side layout */}
+         {/* Desktop: Side-by-side layout (unchanged) */}
          <div className="hidden lg:grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-4">
-               <div className="hidden md:grid md:grid-cols-12 gap-4 text-sm font-medium text-muted-foreground pb-2 border-b">
+               <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground pb-2 border-b">
                   <div className="col-span-6">Product</div>
                   <div className="col-span-2 text-center">Price</div>
-                  <div className="col-span-2 text-center">Quantity</div>
+                  <div className="col-span-2 text-center">Qty</div>
                   <div className="col-span-2 text-right">Subtotal</div>
                </div>
                {cartItems.map((item) => (
@@ -164,17 +169,15 @@ export default function CartPage() {
                            <span>₱{total.toFixed(2)}</span>
                         </div>
                      </div>
-                     <Button className="w-full mt-2" size="lg">
-                        Proceed to Checkout
-                     </Button>
+                     <Button className="w-full">Proceed to Checkout</Button>
                   </CardContent>
                </Card>
             </div>
          </div>
 
-         {/* Tablet: Side-by-side but stacked differently */}
+         {/* Tablet: stacked layout (kept as is) */}
          <div className="hidden md:block lg:hidden">
-            <div className="space-y-4">
+            <div className="space-y-3">
                {cartItems.map((item) => (
                   <CartItemTablet
                      key={item.id}
@@ -206,9 +209,7 @@ export default function CartPage() {
                         <span>₱{total.toFixed(2)}</span>
                      </div>
                   </div>
-                  <Button className="w-full mt-2" size="lg">
-                     Proceed to Checkout
-                  </Button>
+                  <Button className="w-full">Proceed to Checkout</Button>
                </CardContent>
             </Card>
          </div>
@@ -220,12 +221,12 @@ export default function CartPage() {
 function CartItemMobile({ item, onUpdateQuantity, onRemove }: any) {
    return (
       <Card>
-         <CardContent className="p-4 flex gap-4">
+         <CardContent className="p-3 flex gap-3">
             <div className="relative h-20 w-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
                <Image src={item.image} alt={item.name} fill className="object-cover" />
             </div>
             <div className="flex-1 min-w-0">
-               <div className="flex justify-between items-start gap-2">
+               <div className="flex justify-between items-start gap-1">
                   <h3 className="font-medium text-sm truncate">{item.name}</h3>
                   <button
                      onClick={() => onRemove(item.id)}
@@ -234,8 +235,8 @@ function CartItemMobile({ item, onUpdateQuantity, onRemove }: any) {
                      <Trash2 className="h-4 w-4" />
                   </button>
                </div>
-               <p className="text-sm font-semibold mt-1">₱{item.price.toFixed(2)}</p>
-               <div className="flex items-center gap-2 mt-2">
+               <p className="text-sm font-semibold mt-0.5">₱{item.price.toFixed(2)}</p>
+               <div className="flex items-center gap-2 mt-1.5">
                   <button
                      onClick={() => onUpdateQuantity(item.id, -1)}
                      className="h-7 w-7 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
@@ -243,7 +244,7 @@ function CartItemMobile({ item, onUpdateQuantity, onRemove }: any) {
                   >
                      <Minus className="h-3 w-3" />
                   </button>
-                  <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+                  <span className="text-sm font-medium w-5 text-center">{item.quantity}</span>
                   <button
                      onClick={() => onUpdateQuantity(item.id, 1)}
                      className="h-7 w-7 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
@@ -261,12 +262,12 @@ function CartItemMobile({ item, onUpdateQuantity, onRemove }: any) {
    )
 }
 
-// --- Desktop Cart Item ---
+// --- Desktop Cart Item (unchanged) ---
 function CartItemDesktop({ item, onUpdateQuantity, onRemove }: any) {
    return (
-      <div className="grid grid-cols-12 gap-4 items-center py-4 border-b last:border-0">
-         <div className="col-span-6 flex items-center gap-4">
-            <div className="relative h-16 w-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
+      <div className="grid grid-cols-12 gap-4 items-center py-3 border-b last:border-0">
+         <div className="col-span-6 flex items-center gap-3">
+            <div className="relative h-14 w-14 rounded-md overflow-hidden bg-muted flex-shrink-0">
                <Image src={item.image} alt={item.name} fill className="object-cover" />
             </div>
             <div>
@@ -306,48 +307,46 @@ function CartItemDesktop({ item, onUpdateQuantity, onRemove }: any) {
    )
 }
 
-// --- Tablet Cart Item ---
+// --- Tablet Cart Item (unchanged) ---
 function CartItemTablet({ item, onUpdateQuantity, onRemove }: any) {
    return (
       <Card>
-         <CardContent className="p-4">
-            <div className="flex gap-4">
-               <div className="relative h-20 w-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                  <Image src={item.image} alt={item.name} fill className="object-cover" />
+         <CardContent className="p-4 flex gap-4">
+            <div className="relative h-20 w-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
+               <Image src={item.image} alt={item.name} fill className="object-cover" />
+            </div>
+            <div className="flex-1 min-w-0">
+               <div className="flex justify-between items-start">
+                  <h3 className="font-medium">{item.name}</h3>
+                  <button
+                     onClick={() => onRemove(item.id)}
+                     className="text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                     <Trash2 className="h-4 w-4" />
+                  </button>
                </div>
-               <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start">
-                     <h3 className="font-medium">{item.name}</h3>
+               <div className="flex flex-wrap items-center justify-between mt-2 gap-2">
+                  <span className="text-sm font-semibold">₱{item.price.toFixed(2)}</span>
+                  <div className="flex items-center gap-2">
                      <button
-                        onClick={() => onRemove(item.id)}
-                        className="text-muted-foreground hover:text-destructive transition-colors"
+                        onClick={() => onUpdateQuantity(item.id, -1)}
+                        className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
+                        disabled={item.quantity <= 1}
                      >
-                        <Trash2 className="h-4 w-4" />
+                        <Minus className="h-3 w-3" />
+                     </button>
+                     <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+                     <button
+                        onClick={() => onUpdateQuantity(item.id, 1)}
+                        className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
+                        disabled={item.quantity >= item.maxStock}
+                     >
+                        <Plus className="h-3 w-3" />
                      </button>
                   </div>
-                  <div className="flex flex-wrap items-center justify-between mt-2 gap-2">
-                     <span className="text-sm font-semibold">₱{item.price.toFixed(2)}</span>
-                     <div className="flex items-center gap-2">
-                        <button
-                           onClick={() => onUpdateQuantity(item.id, -1)}
-                           className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
-                           disabled={item.quantity <= 1}
-                        >
-                           <Minus className="h-3 w-3" />
-                        </button>
-                        <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
-                        <button
-                           onClick={() => onUpdateQuantity(item.id, 1)}
-                           className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
-                           disabled={item.quantity >= item.maxStock}
-                        >
-                           <Plus className="h-3 w-3" />
-                        </button>
-                     </div>
-                     <span className="text-sm font-semibold">
-                        ₱{(item.price * item.quantity).toFixed(2)}
-                     </span>
-                  </div>
+                  <span className="text-sm font-semibold">
+                     ₱{(item.price * item.quantity).toFixed(2)}
+                  </span>
                </div>
             </div>
          </CardContent>

@@ -4,37 +4,45 @@ import nodemailer from 'nodemailer'
 
 export async function POST(request: Request) {
    try {
+      const { searchParams } = new URL(request.url)
+      const mode = searchParams.get('mode') || 'signup'
       const cookieStore = await cookies()
-      const email = cookieStore.get('signup_email')?.value
-      const password = cookieStore.get('signup_password')?.value
-      const name = cookieStore.get('signup_name')?.value
 
-      if (!email || !password || !name) {
+      let email, otpCookie, expiresCookie
+
+      if (mode === 'reset') {
+         email = cookieStore.get('reset_email')?.value
+         otpCookie = 'reset_otp'
+         expiresCookie = 'reset_otp_expires'
+      } else {
+         email = cookieStore.get('signup_email')?.value
+         otpCookie = 'signup_otp'
+         expiresCookie = 'signup_otp_expires'
+      }
+
+      if (!email) {
          return NextResponse.json(
-            { error: 'Session expired. Please restart signup.' },
+            { error: 'Session expired. Please restart.' },
             { status: 400 }
          )
       }
 
-      // Generate new OTP
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
       const expiresAt = Date.now() + 10 * 60 * 1000
 
       const response = NextResponse.json({ success: true })
 
-      // Update cookies with new OTP
-      response.cookies.set('signup_otp', otpCode, {
+      response.cookies.set(otpCookie, otpCode, {
          maxAge: 600,
          httpOnly: true,
          path: '/',
       })
-      response.cookies.set('signup_otp_expires', expiresAt.toString(), {
+      response.cookies.set(expiresCookie, expiresAt.toString(), {
          maxAge: 600,
          httpOnly: true,
          path: '/',
       })
 
-      // Send email
       const transporter = nodemailer.createTransport({
          service: process.env.MAIL_SMTP_SERVICE || 'gmail',
          auth: {
@@ -43,13 +51,17 @@ export async function POST(request: Request) {
          },
       })
 
+      const subject = mode === 'reset'
+         ? 'Your new SINAG OTP (Password Reset)'
+         : 'Your new SINAG OTP'
+
       await transporter.sendMail({
          from: process.env.MAIL_SMTP_USER,
          to: email,
-         subject: 'Your new SINAG OTP',
+         subject,
          html: `
             <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-               <h2 style="color: #1a1a1a; text-align: center;">New OTP</h2>
+               <h2 style="color: #1a1a1a; text-align: center;">${subject}</h2>
                <p style="color: #4a4a4a; text-align: center;">Your new OTP is:</p>
                <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
                   <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1a1a1a;">${otpCode}</span>
