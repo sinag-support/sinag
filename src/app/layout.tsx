@@ -1,8 +1,13 @@
 import { ThemeProvider } from '@/components/theme-provider'
-import { Inter } from 'next/font/google'
+import { Inter, Work_Sans } from 'next/font/google'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
+const workSans = Work_Sans({
+   subsets: ['latin'],
+   weight: ['800'], // Extrabold
+   variable: '--font-work-sans',
+})
 
 export const metadata = {
    title: 'SINAG',
@@ -35,7 +40,7 @@ export default function RootLayout({
             <meta name="apple-mobile-web-app-status-bar-style" content="default" />
             <meta name="format-detection" content="telephone=no" />
          </head>
-         <body className={inter.className}>
+         <body className={`${inter.className} ${workSans.variable}`}>
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
                {children}
             </ThemeProvider>

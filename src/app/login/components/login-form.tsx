@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { isEmailValid } from '@/lib/validation'
 import { supabase } from '@/lib/supabase'
-import { Loader2, ArrowLeft } from 'lucide-react'
+import { Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 
@@ -15,6 +15,7 @@ export function LoginForm() {
    const [password, setPassword] = useState<string>('')
    const [error, setError] = useState<string>('')
    const [emailError, setEmailError] = useState<string>('')
+   const [showPassword, setShowPassword] = useState<boolean>(false)
 
    const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value
@@ -44,7 +45,6 @@ export function LoginForm() {
       }
 
       try {
-         // ✅ Client-side sign in
          const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
@@ -57,12 +57,10 @@ export function LoginForm() {
          }
 
          if (data.user) {
-            // Fetch role from API
             const roleResponse = await fetch('/api/auth/role')
             const roleData = await roleResponse.json()
             const role = roleData.role || 'USER'
 
-            // Redirect based on role
             if (role === 'ADMIN' || role === 'STAFF' || role === 'RIDER') {
                window.location.href = '/admin'
             } else {
@@ -151,15 +149,29 @@ export function LoginForm() {
                      Forgot password?
                   </Link>
                </div>
-               <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading}
-                  required
-               />
+               <div className="relative">
+                  <Input
+                     id="password"
+                     type={showPassword ? 'text' : 'password'}
+                     placeholder="••••••••"
+                     value={password}
+                     onChange={(e) => setPassword(e.target.value)}
+                     disabled={isLoading}
+                     required
+                  />
+                  <button
+                     type="button"
+                     onClick={() => setShowPassword(!showPassword)}
+                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                     disabled={isLoading}
+                  >
+                     {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                     ) : (
+                        <Eye className="h-4 w-4" />
+                     )}
+                  </button>
+               </div>
             </div>
 
             {error && (

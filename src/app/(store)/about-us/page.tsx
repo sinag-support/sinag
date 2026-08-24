@@ -7,7 +7,7 @@ import { CheckCircle2, Truck, Shield, HeadphonesIcon, Package, Sparkles } from '
 
 export const metadata = {
    title: 'About Us - SINAG',
-   description: 'Learn about SINAG, your trusted online store for quality products.',
+   description: 'Learn about SINAG, your online store for cooking essentials.',
 }
 
 export default function AboutPage() {
@@ -21,10 +21,10 @@ export default function AboutPage() {
                   About SINAG
                </Badge>
                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-                  Your trusted online store
+                  Your online store for cooking essentials
                </h1>
                <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
-                  We're on a mission to make online shopping simple, reliable, and enjoyable for everyone.
+                  We're on a mission to make cooking essentials accessible, reliable, and convenient for every home and kitchen.
                </p>
             </div>
          </div>
@@ -34,14 +34,10 @@ export default function AboutPage() {
             <div className="space-y-4">
                <h2 className="text-2xl sm:text-3xl font-bold">Our Story</h2>
                <p className="text-muted-foreground leading-relaxed">
-                  SINAG was born from a simple idea: to create an online marketplace where quality meets convenience.
-                  What started as a small passion project has grown into a trusted destination for thousands of
-                  customers across the Philippines.
+                  SINAG was born from a simple idea: to bring the finest cooking essentials — from spices and coffee to grains and dried seafood — directly to your doorstep. What started as a small passion project has grown into a trusted destination for thousands of customers across the Philippines.
                </p>
                <p className="text-muted-foreground leading-relaxed">
-                  We carefully curate every product we offer, ensuring that each item meets our high standards
-                  for quality and value. Whether you're shopping for the latest gadgets, fashion, or home essentials,
-                  we're here to make your experience seamless.
+                  We carefully source every product we offer, ensuring that each item meets our high standards for quality and value. Whether you're looking for ground black pepper, whole coffee beans, or dried anchovies, we're here to make your cooking experience seamless.
                </p>
                <div className="flex flex-wrap gap-4 pt-2">
                   <div className="flex items-center gap-2 text-sm">
@@ -62,7 +58,7 @@ export default function AboutPage() {
                <div className="text-center p-6">
                   <div className="text-6xl mb-4">🇵🇭</div>
                   <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                     Proudly serving customers across the Philippines with quality products and reliable service.
+                     Proudly serving customers across the Philippines with quality cooking essentials and reliable service.
                   </p>
                </div>
             </div>
@@ -110,7 +106,7 @@ export default function AboutPage() {
                   </div>
                   <h3 className="font-semibold">Quality Guaranteed</h3>
                   <p className="text-sm text-muted-foreground">
-                     Every product is carefully vetted for quality.
+                     Every product is carefully sourced for quality.
                   </p>
                </CardContent>
             </Card>
@@ -125,8 +121,7 @@ export default function AboutPage() {
                      <h3 className="font-semibold text-lg">Our Mission</h3>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                     To empower Filipino shoppers by providing a trusted, convenient, and enjoyable online shopping
-                     experience that brings quality products right to their doorstep.
+                     To empower Filipino cooks and families by providing trusted, high-quality cooking essentials that bring flavor and joy to every meal.
                   </p>
                </CardContent>
             </Card>
@@ -137,8 +132,7 @@ export default function AboutPage() {
                      <h3 className="font-semibold text-lg">Our Vision</h3>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                     To become the most trusted online shopping destination in the Philippines, known for quality,
-                     reliability, and exceptional customer service.
+                     To become the most trusted online destination for cooking essentials in the Philippines, known for quality, reliability, and exceptional customer service.
                   </p>
                </CardContent>
             </Card>
@@ -146,9 +140,9 @@ export default function AboutPage() {
 
          {/* CTA */}
          <div className="text-center bg-muted/30 rounded-2xl p-8 sm:p-12">
-            <h2 className="text-2xl sm:text-3xl font-bold">Ready to start shopping?</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold">Ready to stock your kitchen?</h2>
             <p className="text-muted-foreground mt-2 max-w-md mx-auto">
-               Explore our collection and find your next favorite item today.
+               Explore our collection of spices, coffee, grains, and more — all carefully sourced for your cooking needs.
             </p>
             <Link href="/products">
                <Button size="lg" className="mt-6">

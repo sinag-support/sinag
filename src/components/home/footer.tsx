@@ -1,9 +1,9 @@
 'use client'
 
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, Phone, MapPin, ChevronRight } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 
 export function Footer() {
    const pathname = usePathname()
@@ -57,14 +57,22 @@ export function Footer() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12">
                {/* Brand */}
                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                     <span className="text-2xl font-bold">SINAG</span>
-                     <Badge variant="outline" className="text-[10px] font-normal">v1.0</Badge>
+                  <div className="flex items-center gap-3">
+                     <Image
+                        src="/sinag.png"
+                        alt="SINAG Logo"
+                        width={36}
+                        height={36}
+                        className="h-9 w-auto"
+                     />
+                     <span className="text-2xl font-bold font-work-sans">
+                        SINAG
+                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                     Your trusted online store for quality products. Shop, discover, and enjoy a seamless shopping experience.
+                     Your online store for cooking essentials — spices, coffee, grains, dried seafood &amp; more.
                   </p>
-                  <div className="flex space-x-3">
+                  <div className="flex mt-10 space-x-3">
                      {socialIcons.map((social) => (
                         <Link
                            key={social.name}

@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
@@ -117,7 +118,7 @@ export default function Header() {
             <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
                <div className="hidden md:flex px-4 sm:px-6 lg:px-8 h-16 items-center justify-between gap-4">
                   <div className="flex items-center gap-6">
-                     <div className="text-xl font-bold shrink-0">SINAG</div>
+                     <div className="text-xl font-bold font-work-sans shrink-0">SINAG</div>
                      <div className="flex items-center gap-6">
                         {[1, 2, 3].map((i) => (
                            <div key={i} className="h-4 w-12 bg-muted animate-pulse rounded" />
@@ -162,7 +163,15 @@ export default function Header() {
                <div className="hidden md:flex px-4 sm:px-6 lg:px-8 h-16 items-center justify-between gap-4">
                   {/* Left: Logo + Nav */}
                   <div className="flex items-center gap-6">
-                     <Link href="/" className="text-xl font-bold shrink-0">
+                     <Image
+                        src="/sinag.png"
+                        alt="SINAG Logo"
+                        width={32}
+                        height={32}
+                        className="h-8 w-auto"
+                        priority
+                     />
+                     <Link href="/" className="text-xl font-bold font-work-sans shrink-0">
                         SINAG
                      </Link>
                      <nav className="flex items-center gap-6 text-sm">
@@ -253,6 +262,14 @@ export default function Header() {
 
                {/* Mobile Top – only shown if not hidden */}
                <div className="md:hidden px-4 py-2 flex items-center gap-3">
+                  <Image
+                     src="/sinag.png"
+                     alt="SINAG Logo"
+                     width={28}
+                     height={28}
+                     className="h-7 w-auto"
+                     priority
+                  />
                   <div className="relative flex-1">
                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                      <Input

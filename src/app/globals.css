@@ -128,6 +128,10 @@
   scrollbar-width: none;  /* Firefox */
 }
 
+.font-work-sans {
+   font-family: var(--font-work-sans);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
