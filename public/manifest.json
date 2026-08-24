@@ -1,10 +1,24 @@
 {
-   "name": "SINAG Store",
+   "name": "SINAG - Cooking Essentials",
    "short_name": "SINAG",
-   "description": "Your trusted online store for quality products",
+   "description": "Your online store for cooking essentials — spices, coffee, grains, dried seafood & more.",
    "start_url": "/",
    "display": "standalone",
    "background_color": "#ffffff",
    "theme_color": "#0a0a0a",
-   "orientation": "portrait-primary"
+   "orientation": "portrait-primary",
+   "icons": [
+      {
+         "src": "/192x192.png",
+         "sizes": "192x192",
+         "type": "image/png",
+         "purpose": "any maskable"
+      },
+      {
+         "src": "/512x512.png",
+         "sizes": "512x512",
+         "type": "image/png",
+         "purpose": "any maskable"
+      }
+   ]
 }
