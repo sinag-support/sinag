@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { isEmailValid, isPasswordValid, passwordRequirements } from '@/lib/validation'
 import { supabase } from '@/lib/supabase'
-import { Loader2, XCircle, CheckCircle2, ArrowLeft } from 'lucide-react'
+import { Loader2, XCircle, CheckCircle2, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -14,6 +14,7 @@ export function RegisterForm() {
    const router = useRouter()
    const [isLoading, setIsLoading] = useState(false)
    const [error, setError] = useState('')
+   const [showPassword, setShowPassword] = useState(false)
    
    const [formData, setFormData] = useState({
       name: '',
@@ -175,17 +176,31 @@ export function RegisterForm() {
 
             <div className="space-y-2">
                <Label htmlFor="password">Password <span className="text-destructive">*</span></Label>
-               <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  onBlur={() => setTouched({ ...touched, password: true })}
-                  disabled={isLoading}
-                  className={passwordErrors ? 'border-destructive' : ''}
-                  required
-               />
+               <div className="relative">
+                  <Input
+                     id="password"
+                     type={showPassword ? 'text' : 'password'}
+                     placeholder="••••••••"
+                     value={formData.password}
+                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                     onBlur={() => setTouched({ ...touched, password: true })}
+                     disabled={isLoading}
+                     className={passwordErrors ? 'border-destructive' : ''}
+                     required
+                  />
+                  <button
+                     type="button"
+                     onClick={() => setShowPassword(!showPassword)}
+                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                     disabled={isLoading}
+                  >
+                     {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                     ) : (
+                        <Eye className="h-4 w-4" />
+                     )}
+                  </button>
+               </div>
                {touched.password && formData.password && (
                   <div className="space-y-1.5 rounded-lg bg-muted p-3">
                      {passwordChecks.map((check) => (
