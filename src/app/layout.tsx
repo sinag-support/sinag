@@ -43,9 +43,9 @@ export default function RootLayout({
    return (
       <html lang="en" suppressHydrationWarning>
          <head>
-            <link rel="apple-touch-icon" href="/sinag.png" sizes="192x192" />
-            <link rel="icon" type="image/png" sizes="32x32" href="/sinag.png" />
-            <link rel="icon" type="image/png" sizes="16x16" href="/sinag.png" />
+            <link rel="apple-touch-icon" href="/192x192.png" sizes="192x192" />
+            <link rel="icon" type="image/png" sizes="32x32" href="/32x32.png" />
+            <link rel="icon" type="image/png" sizes="16x16" href="/16x16.png" />
             <meta name="apple-mobile-web-app-capable" content="yes" />
             <meta name="apple-mobile-web-app-status-bar-style" content="default" />
             <meta name="format-detection" content="telephone=no" />
