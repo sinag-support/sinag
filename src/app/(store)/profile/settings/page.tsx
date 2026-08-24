@@ -56,7 +56,7 @@ export default function SettingsPage() {
       return (
          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-16 md:pb-0 max-w-3xl">
             <div className="flex items-center gap-3 mb-8">
-               <Skeleton className="md:hidden h-5 w-5 rounded" />
+               <Skeleton className="h-5 w-5 rounded" />
                <Skeleton className="h-8 w-32" />
             </div>
             <Card>
@@ -72,11 +72,10 @@ export default function SettingsPage() {
 
    return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-16 md:pb-0 max-w-3xl">
-         {/* Header – back button only on mobile */}
          <div className="flex items-center gap-3 mb-8">
             <button
                onClick={goBack}
-               className="md:hidden inline-flex text-muted-foreground hover:text-foreground transition-colors"
+               className="inline-flex text-muted-foreground hover:text-foreground transition-colors"
                aria-label="Go back"
             >
                <ArrowLeft className="h-5 w-5" />
@@ -84,7 +83,6 @@ export default function SettingsPage() {
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Settings</h1>
          </div>
 
-         {/* Form Card */}
          <Card>
             <CardContent className="p-6 space-y-4">
                <form onSubmit={handleUpdateProfile} className="space-y-4">

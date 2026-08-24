@@ -104,11 +104,17 @@ export default function Header() {
       pathname?.startsWith('/profile')
    )
 
-   // Hide bottom navigation on mobile for profile sub-pages (settings, orders, wishlist)
+   // Hide bottom navigation on mobile for profile sub-pages
    const hideBottomNav = isMobile && (
       pathname === '/profile/settings' ||
       pathname === '/profile/orders' ||
-      pathname === '/profile/wishlist'
+      pathname === '/profile/wishlist' ||
+      pathname === '/profile/addresses' ||
+      pathname === '/profile/help' ||
+      pathname === '/profile/notifications' ||
+      pathname === '/profile/payments' ||
+      pathname === '/profile/privacy' ||
+      pathname === '/profile/security' 
    )
 
    // ---- Loading skeleton ----

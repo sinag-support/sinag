@@ -1,11 +1,11 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowLeft, Heart } from 'lucide-react'
+import { ArrowLeft, HelpCircle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import Link from 'next/link'
 
-export default function WishlistPage() {
+export default function HelpPage() {
    const router = useRouter()
    const goBack = () => router.back()
 
@@ -19,24 +19,24 @@ export default function WishlistPage() {
             >
                <ArrowLeft className="h-5 w-5" />
             </button>
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Wishlist</h1>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Help Center & FAQ</h1>
          </div>
 
          <Card>
             <CardContent className="p-6">
                <div className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-                     <Heart className="h-8 w-8 text-muted-foreground" />
+                     <HelpCircle className="h-8 w-8 text-muted-foreground" />
                   </div>
-                  <p className="text-lg font-medium">Your wishlist is empty</p>
+                  <p className="text-lg font-medium">Help Center</p>
                   <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                     Start adding items you love.
+                     Find answers to common questions and contact support.
                   </p>
                   <Link
-                     href="/products"
+                     href="/faq"
                      className="mt-6 text-sm font-medium text-primary hover:underline"
                   >
-                     Explore products
+                     Visit FAQ
                   </Link>
                </div>
             </CardContent>

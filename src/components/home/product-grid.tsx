@@ -85,7 +85,7 @@ export function ProductGrid({ products }: ProductGridProps) {
                         )}
                      </div>
 
-                     <CardContent className="px-3 sm:px-4 space-y-1">
+                     <CardContent className="p-4 space-y-1">
                         <h3 className="font-medium text-sm sm:text-base line-clamp-1">
                            {product.name}
                         </h3>

@@ -1,11 +1,10 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowLeft, Heart } from 'lucide-react'
+import { ArrowLeft, Lock } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
-export default function WishlistPage() {
+export default function SecurityPage() {
    const router = useRouter()
    const goBack = () => router.back()
 
@@ -19,25 +18,19 @@ export default function WishlistPage() {
             >
                <ArrowLeft className="h-5 w-5" />
             </button>
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Wishlist</h1>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Security & Password</h1>
          </div>
 
          <Card>
             <CardContent className="p-6">
                <div className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-                     <Heart className="h-8 w-8 text-muted-foreground" />
+                     <Lock className="h-8 w-8 text-muted-foreground" />
                   </div>
-                  <p className="text-lg font-medium">Your wishlist is empty</p>
+                  <p className="text-lg font-medium">Security settings coming soon</p>
                   <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                     Start adding items you love.
+                     Manage your password and two‑factor authentication.
                   </p>
-                  <Link
-                     href="/products"
-                     className="mt-6 text-sm font-medium text-primary hover:underline"
-                  >
-                     Explore products
-                  </Link>
                </div>
             </CardContent>
          </Card>
