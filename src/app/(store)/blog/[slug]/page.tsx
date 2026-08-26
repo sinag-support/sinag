@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Calendar, Clock, Share2, User } from 'lucide-react'
+import { Calendar, Clock, Share2, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import prisma from '@/lib/prisma'
 import { safeQuery } from '@/lib/safe-query'
+import { BackButton } from '@/components/ui/back-button'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -111,14 +112,8 @@ export default async function BlogPostPage({
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 max-w-4xl">
-      {/* Back button */}
-      <Link
-        href="/blog"
-        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Blog
-      </Link>
+      {/* Back button - only visible on mobile, goes back to previous page */}
+      <BackButton className="md:hidden mb-6" />
 
       <article>
         {/* Header */}

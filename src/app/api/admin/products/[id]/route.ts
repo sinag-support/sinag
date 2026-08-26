@@ -11,8 +11,9 @@ export async function PUT(
 
   const { id } = await params
   const body = await request.json()
-  const { title, description, price, discount, stock, isAvailable, categoryId, images } = body
+  const { title, description, price, discount, stock, isAvailable, categoryId, images, options } = body
 
+  // First, update the product
   const product = await prisma.product.update({
     where: { id },
     data: {
@@ -27,7 +28,37 @@ export async function PUT(
     },
   })
 
-  return NextResponse.json(product)
+  // Then handle options (if provided)
+  if (options !== undefined) {
+    // Delete existing options
+    await prisma.productOption.deleteMany({
+      where: { productId: id },
+    })
+
+    // Create new options
+    if (options.length > 0) {
+      await prisma.productOption.createMany({
+        data: options.map((opt: any) => ({
+          name: opt.name,
+          price: Number(opt.price),
+          image: opt.image || null,
+          stock: Number(opt.stock || 0),
+          productId: id,
+        })),
+      })
+    }
+  }
+
+  // Return updated product with options
+  const updatedProduct = await prisma.product.findUnique({
+    where: { id },
+    include: {
+      category: true,
+      options: true,
+    },
+  })
+
+  return NextResponse.json(updatedProduct)
 }
 
 export async function DELETE(

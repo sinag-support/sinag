@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Search, Pencil, Trash2, Package } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Package, Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -26,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface Product {
   id: string
@@ -36,6 +37,7 @@ interface Product {
   isAvailable: boolean
   category?: { id: string; title: string } | null
   images: string[]
+  options?: { id: string; name: string; price: number }[]
   createdAt: string
 }
 
@@ -88,7 +90,6 @@ export default function ProductsPage() {
         <p className="text-muted-foreground">Manage your product catalog</p>
       </div>
 
-      {/* Search Bar & Add Button - Inline */}
       <div className="flex items-center gap-2">
         <Search className="h-4 w-4 text-muted-foreground" />
         <Input
@@ -118,6 +119,7 @@ export default function ProductsPage() {
                 <TableHead>Category</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead>Stock</TableHead>
+                <TableHead>Options</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -125,7 +127,7 @@ export default function ProductsPage() {
             <TableBody>
               {products.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     {search ? 'No products found matching your search' : 'No products found'}
                   </TableCell>
                 </TableRow>
@@ -145,6 +147,32 @@ export default function ProductsPage() {
                     <TableCell>{p.category?.title || 'Uncategorized'}</TableCell>
                     <TableCell>₱{p.price.toFixed(2)}</TableCell>
                     <TableCell>{p.stock}</TableCell>
+                    <TableCell>
+                      {p.options && p.options.length > 0 ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Badge variant="outline" className="flex items-center gap-1">
+                                <Layers className="h-3 w-3" />
+                                {p.options.length}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="space-y-1">
+                                {p.options.map((opt) => (
+                                  <div key={opt.id} className="text-xs flex justify-between gap-4">
+                                    <span>{opt.name}</span>
+                                    <span className="font-medium">₱{opt.price.toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={p.isAvailable ? 'default' : 'secondary'}>
                         {p.isAvailable ? 'Available' : 'Unavailable'}

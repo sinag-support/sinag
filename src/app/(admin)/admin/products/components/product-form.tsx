@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,16 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
+import { Plus, Trash2 } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+
+// ✅ Simplified schema - NO .default()
+const optionSchema = z.object({
+  name: z.string().min(1, 'Option name is required'),
+  price: z.number().min(0, 'Price must be positive'),
+  image: z.string().optional(),
+  stock: z.number().int().min(0),
+})
 
 const productSchema = z.object({
   title: z.string().min(2, 'Title is required'),
@@ -28,6 +38,7 @@ const productSchema = z.object({
   isAvailable: z.boolean(),
   categoryId: z.string().optional(),
   images: z.string().optional(),
+  options: z.array(optionSchema).optional(),
 })
 
 type ProductFormValues = z.infer<typeof productSchema>
@@ -52,7 +63,13 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
       isAvailable: true,
       categoryId: '',
       images: '',
+      options: [],
     },
+  })
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'options',
   })
 
   // Fetch categories
@@ -79,6 +96,13 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
     if (!categoriesLoaded) return
 
     const categoryId = initialData.categoryId ?? ''
+    const options = initialData.options?.map((opt: any) => ({
+      name: opt.name,
+      price: Number(opt.price),
+      image: opt.image || '',
+      stock: Number(opt.stock || 0),
+    })) || []
+
     form.reset({
       title: initialData.title ?? '',
       description: initialData.description ?? '',
@@ -88,6 +112,7 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
       isAvailable: Boolean(initialData.isAvailable),
       categoryId: categoryId,
       images: initialData.images?.[0] ?? '',
+      options: options,
     })
   }, [initialData, form, categoriesLoaded])
 
@@ -97,6 +122,7 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
         ...data,
         categoryId: data.categoryId || undefined,
         images: data.images ? [data.images] : [],
+        options: data.options || [],
       }
       const url = initialData
         ? `/api/admin/products/${initialData.id}`
@@ -121,7 +147,6 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
     }
   }
 
-  // Find the category title for display
   const getCategoryTitle = (id: string) => {
     if (!id) return ''
     const cat = categories.find(c => c.id === id)
@@ -165,13 +190,16 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
             name="price"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Price</FormLabel>
+                <FormLabel>Base Price</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
                     step="0.01"
-                    value={field.value}
-                    onChange={(e) => field.onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+                    value={field.value || ''}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      field.onChange(val === '' ? 0 : Number(val))
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -190,8 +218,11 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
                     type="number"
                     min="0"
                     max="100"
-                    value={field.value}
-                    onChange={(e) => field.onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+                    value={field.value || ''}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      field.onChange(val === '' ? 0 : Number(val))
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -206,13 +237,16 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
             name="stock"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Stock</FormLabel>
+                <FormLabel>Base Stock</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
                     min="0"
-                    value={field.value}
-                    onChange={(e) => field.onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+                    value={field.value || ''}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      field.onChange(val === '' ? 0 : Number(val))
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -223,46 +257,32 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
           <FormField
             control={form.control}
             name="categoryId"
-            render={({ field }) => {
-              // Use a separate state to track the displayed value
-              const displayValue = categoriesLoaded 
-                ? (field.value ? getCategoryTitle(field.value) : '')
-                : ''
-
-              return (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <Select
-                    value={field.value || ''}
-                    onValueChange={(value: string | null) => {
-                      // ✅ Handle null by converting to empty string
-                      field.onChange(value || '')
-                    }}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="max-w-full truncate">
-                        {/* Show the category name, not the ID */}
-                        <SelectValue className="truncate">
-                          {displayValue || 'Select category'}
-                        </SelectValue>
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent 
-                      side="bottom" 
-                      align="start"
-                    >
-                      <SelectItem value="">None</SelectItem>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )
-            }}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Category</FormLabel>
+                <Select
+                  value={field.value || 'none'}
+                  onValueChange={(value) => {
+                    field.onChange(value === 'none' ? '' : value)
+                  }}
+                >
+                  <FormControl>
+                    <SelectTrigger className="max-w-full truncate">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent side="bottom" align="start">
+                    <SelectItem value="none">None</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
           />
         </div>
 
@@ -296,6 +316,120 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
             </FormItem>
           )}
         />
+
+        {/* Product Options */}
+        <div className="space-y-3 pt-2 border-t">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium">Product Options / Packages</h3>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => append({ name: '', price: 0, image: '', stock: 0 })}
+            >
+              <Plus className="h-4 w-4 mr-1" /> Add Option
+            </Button>
+          </div>
+
+          {fields.length === 0 && (
+            <p className="text-sm text-muted-foreground">No options added yet.</p>
+          )}
+
+          {fields.map((field, index) => (
+            <Card key={field.id} className="relative">
+              <CardContent className="p-4 space-y-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-2 right-2 h-7 w-7 p-0"
+                  onClick={() => remove(index)}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name={`options.${index}.name`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Option Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 500g Bulk Pack" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name={`options.${index}.price`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Price</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            value={field.value || ''}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              field.onChange(val === '' ? 0 : Number(val))
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name={`options.${index}.stock`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Stock</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            value={field.value || ''}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              field.onChange(val === '' ? 0 : Number(val))
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name={`options.${index}.image`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Image URL (optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://example.com/option.jpg" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
         <Button type="submit" className="w-full">
           {initialData ? 'Update Product' : 'Create Product'}

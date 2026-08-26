@@ -650,3 +650,253 @@ MIT © SINAG
 5. **Added Database Schema details** – includes OrderItem model
 6. **Updated Tech Stack** – added Recharts for charts
 7. **Added Search & Filtering** – detailed search capabilities across all admin pages
+
+
+```
+sinag-ecommerce
+├─ AGENTS.md
+├─ CLAUDE.md
+├─ components.json
+├─ eslint.config.mjs
+├─ next.config.ts
+├─ package-lock.json
+├─ package.json
+├─ postcss.config.mjs
+├─ prisma
+│  ├─ create-users.ts
+│  ├─ schema.prisma
+│  └─ seed.ts
+├─ public
+│  ├─ 16x16.png
+│  ├─ 192x192.png
+│  ├─ 32x32.png
+│  ├─ 512x512.png
+│  ├─ favicon.ico
+│  ├─ file.svg
+│  ├─ globe.svg
+│  ├─ manifest.json
+│  ├─ next.svg
+│  ├─ sinag.png
+│  ├─ vercel.svg
+│  └─ window.svg
+├─ README.md
+├─ src
+│  ├─ app
+│  │  ├─ (admin)
+│  │  │  ├─ admin
+│  │  │  │  ├─ banners
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ categories
+│  │  │  │  │  ├─ components
+│  │  │  │  │  │  └─ category-form.tsx
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ delivery
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ orders
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ page.tsx
+│  │  │  │  ├─ products
+│  │  │  │  │  ├─ components
+│  │  │  │  │  │  └─ product-form.tsx
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ profile
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ reports
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  └─ users
+│  │  │  │     └─ page.tsx
+│  │  │  └─ layout.tsx
+│  │  ├─ (store)
+│  │  │  ├─ about-us
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ blog
+│  │  │  │  ├─ page.tsx
+│  │  │  │  └─ [slug]
+│  │  │  │     └─ page.tsx
+│  │  │  ├─ cart
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ contact
+│  │  │  │  ├─ components
+│  │  │  │  │  └─ contact-form.tsx
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ faq
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ help
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ layout.tsx
+│  │  │  ├─ notifications
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ page.tsx
+│  │  │  ├─ privacy
+│  │  │  │  ├─ page.tsx
+│  │  │  │  └─ privacy
+│  │  │  │     └─ page.tsx
+│  │  │  ├─ products
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ profile
+│  │  │  │  ├─ addresses
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ help
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ notifications
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ orders
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ page.tsx
+│  │  │  │  ├─ payments
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ privacy
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ security
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ settings
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  └─ wishlist
+│  │  │  │     └─ page.tsx
+│  │  │  ├─ returns-policy
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ shipping-policy
+│  │  │  │  └─ page.tsx
+│  │  │  └─ terms
+│  │  │     └─ page.tsx
+│  │  ├─ api
+│  │  │  ├─ admin
+│  │  │  │  ├─ banners
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     └─ route.ts
+│  │  │  │  ├─ categories
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     └─ route.ts
+│  │  │  │  ├─ orders
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     ├─ route.ts
+│  │  │  │  │     └─ status
+│  │  │  │  │        └─ route.ts
+│  │  │  │  ├─ products
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     └─ route.ts
+│  │  │  │  ├─ reports
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ stats
+│  │  │  │  │  └─ route.ts
+│  │  │  │  └─ users
+│  │  │  │     ├─ route.ts
+│  │  │  │     └─ [id]
+│  │  │  │        └─ route.ts
+│  │  │  ├─ auth
+│  │  │  │  ├─ callback
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ forgot-password
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ login
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ logout
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ resend-otp
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ role
+│  │  │  │  │  └─ route.ts
+│  │  │  │  └─ signup
+│  │  │  │     └─ route.ts
+│  │  │  ├─ cart
+│  │  │  │  ├─ items
+│  │  │  │  │  └─ [itemId]
+│  │  │  │  │     └─ route.ts
+│  │  │  │  └─ route.ts
+│  │  │  └─ products
+│  │  │     ├─ route.ts
+│  │  │     └─ [id]
+│  │  │        └─ route.ts
+│  │  ├─ favicon.ico
+│  │  ├─ forgot-password
+│  │  │  ├─ components
+│  │  │  │  └─ forgot-password-form.tsx
+│  │  │  └─ page.tsx
+│  │  ├─ globals.css
+│  │  ├─ layout.tsx
+│  │  ├─ login
+│  │  │  ├─ components
+│  │  │  │  └─ login-form.tsx
+│  │  │  └─ page.tsx
+│  │  ├─ offline
+│  │  │  └─ page.tsx
+│  │  ├─ register
+│  │  │  ├─ components
+│  │  │  │  └─ register-form.tsx
+│  │  │  └─ page.tsx
+│  │  └─ verify-otp
+│  │     ├─ components
+│  │     │  └─ verify-otp-form.tsx
+│  │     └─ page.tsx
+│  ├─ components
+│  │  ├─ admin
+│  │  │  └─ user-management.tsx
+│  │  ├─ home
+│  │  │  ├─ banner-carousel.tsx
+│  │  │  ├─ blog-section.tsx
+│  │  │  ├─ footer.tsx
+│  │  │  └─ product-grid.tsx
+│  │  ├─ nav
+│  │  │  ├─ admin-sidebar.tsx
+│  │  │  └─ header.tsx
+│  │  ├─ notifications
+│  │  │  └─ notifications-dropdown.tsx
+│  │  ├─ orders
+│  │  │  └─ order-detail-sheet.tsx
+│  │  ├─ products
+│  │  │  ├─ category-chips.tsx
+│  │  │  ├─ mobile-filter-button.tsx
+│  │  │  ├─ mobile-shortcuts.tsx
+│  │  │  ├─ product-detail-sheet.tsx
+│  │  │  ├─ product-filters.tsx
+│  │  │  └─ product-sort.tsx
+│  │  ├─ theme-provider.tsx
+│  │  ├─ theme-toggle.tsx
+│  │  └─ ui
+│  │     ├─ accordion.tsx
+│  │     ├─ alert-dialog.tsx
+│  │     ├─ avatar.tsx
+│  │     ├─ back-button.tsx
+│  │     ├─ badge.tsx
+│  │     ├─ button.tsx
+│  │     ├─ card.tsx
+│  │     ├─ checkbox.tsx
+│  │     ├─ collapsible.tsx
+│  │     ├─ command.tsx
+│  │     ├─ dialog.tsx
+│  │     ├─ dropdown-menu.tsx
+│  │     ├─ form.tsx
+│  │     ├─ input-group.tsx
+│  │     ├─ input.tsx
+│  │     ├─ label.tsx
+│  │     ├─ popover.tsx
+│  │     ├─ select.tsx
+│  │     ├─ separator.tsx
+│  │     ├─ sheet.tsx
+│  │     ├─ skeleton.tsx
+│  │     ├─ slider.tsx
+│  │     ├─ switch.tsx
+│  │     ├─ table.tsx
+│  │     ├─ tabs.tsx
+│  │     ├─ textarea.tsx
+│  │     └─ tooltip.tsx
+│  ├─ hooks
+│  │  └─ use-role.ts
+│  ├─ lib
+│  │  ├─ jwt.ts
+│  │  ├─ prisma.ts
+│  │  ├─ role.ts
+│  │  ├─ safe-query.ts
+│  │  ├─ supabase.ts
+│  │  ├─ utils.ts
+│  │  └─ validation.ts
+│  └─ proxy.ts
+├─ tailwind.config.js
+├─ tsconfig.json
+└─ vercel.json
+
+```

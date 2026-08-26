@@ -5,6 +5,7 @@ import { Calendar, Clock, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import prisma from '@/lib/prisma'
 import { safeQuery } from '@/lib/safe-query'
+import { BackButton } from '@/components/ui/back-button'
 
 export const metadata = {
   title: 'Blog - SINAG',
@@ -72,6 +73,9 @@ export default async function BlogPage({
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 max-w-6xl">
+      {/* Back button - only visible on mobile */}
+      <BackButton className="md:hidden mb-6" />
+
       {/* Header */}
       <div className="text-center space-y-4 mb-8 sm:mb-12">
         <Badge variant="outline" className="px-4 py-1 text-xs font-medium">

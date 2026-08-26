@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Heart, Star } from 'lucide-react'
 import { ProductDetailSheet } from '@/components/products/product-detail-sheet'
@@ -18,13 +18,33 @@ interface Product {
 interface ProductGridProps {
   products: Product[]
   limit?: number
-  scrollable?: boolean // Horizontal scroll on mobile
+  scrollable?: boolean
+  initialProductId?: string | null
 }
 
-export function ProductGrid({ products, limit, scrollable = false }: ProductGridProps) {
+export function ProductGrid({
+  products,
+  limit,
+  scrollable = false,
+  initialProductId = null,
+}: ProductGridProps) {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [wishlist, setWishlist] = useState<Set<string>>(new Set())
+
+  // Open sheet if initialProductId is provided and the product exists
+  useEffect(() => {
+    if (!initialProductId) return
+
+    const productExists = products.some(
+      (product) => product.id === initialProductId
+    )
+
+    if (productExists) {
+      setSelectedProductId(initialProductId)
+      setSheetOpen(true)
+    }
+  }, [initialProductId, products])
 
   const displayProducts = limit ? products.slice(0, limit) : products
 
@@ -90,7 +110,7 @@ export function ProductGrid({ products, limit, scrollable = false }: ProductGrid
                 />
               </button>
 
-              <div className="relative aspect-square w-full bg-gray-100 dark:bg-gray-800 overflow-hidden rounded-t-lg">
+              <div className="relative aspect-square w-full bg-white dark:bg-black overflow-hidden rounded-t-lg">
                 {product.image ? (
                   <img
                     src={product.image}
@@ -152,7 +172,6 @@ export function ProductGrid({ products, limit, scrollable = false }: ProductGrid
       {/* Mobile/Tablet */}
       <div className="lg:hidden pb-0">
         {scrollable ? (
-          /* Horizontal scrollable (for homepage) */
           <div
             className="flex gap-3 overflow-x-auto scroll-smooth pb-0 px-1"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -181,7 +200,7 @@ export function ProductGrid({ products, limit, scrollable = false }: ProductGrid
                       />
                     </button>
 
-                    <div className="relative aspect-square w-full bg-gray-100 dark:bg-gray-800 overflow-hidden rounded-t-lg">
+                    <div className="relative aspect-square w-full bg-white dark:bg-black overflow-hidden rounded-t-lg">
                       {product.image ? (
                         <img
                           src={product.image}
@@ -241,7 +260,6 @@ export function ProductGrid({ products, limit, scrollable = false }: ProductGrid
             })}
           </div>
         ) : (
-          /* Grid layout (for products page) */
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pb-4 sm:pb-0">
             {displayProducts.map((product) => {
               const discount = product.discount || 0
@@ -267,7 +285,7 @@ export function ProductGrid({ products, limit, scrollable = false }: ProductGrid
                     />
                   </button>
 
-                  <div className="relative aspect-square w-full bg-gray-100 dark:bg-gray-800 overflow-hidden rounded-t-lg">
+                  <div className="relative aspect-square w-full bg-white dark:bg-black overflow-hidden rounded-t-lg">
                     {product.image ? (
                       <img
                         src={product.image}

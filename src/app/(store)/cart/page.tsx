@@ -1,355 +1,504 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from 'lucide-react'
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, Loader2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 
-// Sample cart data - replace with actual cart state later
-const initialCartItems = [
-   {
-      id: 1,
-      name: 'Wireless Headphones',
-      price: 1299,
-      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop',
-      quantity: 2,
-      maxStock: 10,
-   },
-   {
-      id: 2,
-      name: 'Smart Watch',
-      price: 2499,
-      image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&h=300&fit=crop',
-      quantity: 1,
-      maxStock: 5,
-   },
-   {
-      id: 3,
-      name: 'Laptop Backpack',
-      price: 899,
-      image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=300&h=300&fit=crop',
-      quantity: 3,
-      maxStock: 8,
-   },
-]
-
-export const dynamic = 'force-dynamic'
+// Extended CartItem type with option
+interface CartItem {
+  id: string
+  productId: string
+  quantity: number
+  optionId: string | null
+  product: {
+    id: string
+    title: string
+    price: number
+    discount: number
+    images: string[]
+  }
+  option?: {
+    id: string
+    name: string
+    price: number
+    image?: string
+    stock: number
+  } | null
+}
 
 export default function CartPage() {
-   const router = useRouter()
-   const [cartItems, setCartItems] = useState(initialCartItems)
+  const router = useRouter()
+  const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [updating, setUpdating] = useState<string | null>(null)
 
-   const updateQuantity = (id: number, delta: number) => {
-      setCartItems((prev) =>
-         prev.map((item) => {
-            if (item.id === id) {
-               const newQuantity = Math.max(1, item.quantity + delta)
-               return { ...item, quantity: Math.min(newQuantity, item.maxStock) }
-            }
-            return item
-         })
+  useEffect(() => {
+    fetchCart()
+  }, [])
+
+  const fetchCart = async () => {
+    setLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch('/api/cart')
+      if (!response.ok) {
+        throw new Error('Failed to fetch cart')
+      }
+      const data = await response.json()
+      setCartItems(data.items || [])
+    } catch (error) {
+      console.error('Error fetching cart:', error)
+      toast.error('Failed to load cart')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateQuantity = async (itemId: string, newQuantity: number) => {
+    if (newQuantity < 1) return
+    
+    setCartItems(prev =>
+      prev.map(item =>
+        item.id === itemId ? { ...item, quantity: newQuantity } : item
       )
-   }
+    )
+    
+    setUpdating(itemId)
+    try {
+      const response = await fetch(`/api/cart/items/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity: newQuantity }),
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        await fetchCart()
+        throw new Error(data.error || 'Failed to update quantity')
+      }
+      
+      if (data.cartItem) {
+        setCartItems(prev =>
+          prev.map(item =>
+            item.id === itemId ? { ...item, quantity: data.cartItem.quantity } : item
+          )
+        )
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update quantity')
+      await fetchCart()
+    } finally {
+      setUpdating(null)
+    }
+  }
 
-   const removeItem = (id: number) => {
-      setCartItems((prev) => prev.filter((item) => item.id !== id))
-   }
+  const removeItem = async (itemId: string) => {
+    setCartItems(prev => prev.filter(item => item.id !== itemId))
+    
+    setUpdating(itemId)
+    try {
+      const response = await fetch(`/api/cart/items/${itemId}`, {
+        method: 'DELETE',
+      })
+      
+      if (!response.ok) {
+        const data = await response.json()
+        await fetchCart()
+        throw new Error(data.error || 'Failed to remove item')
+      }
+      
+      toast.success('Item removed')
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to remove item')
+      await fetchCart()
+    } finally {
+      setUpdating(null)
+    }
+  }
 
-   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
-   const shipping = subtotal > 1000 ? 0 : 150
-   const tax = subtotal * 0.12
-   const total = subtotal + shipping + tax
+  // Calculate subtotal – use option price if available, then apply product discount
+  const subtotal = cartItems.reduce((sum, item) => {
+    const basePrice = item.option ? item.option.price : item.product.price
+    const price = item.product.discount > 0
+      ? basePrice * (1 - item.product.discount / 100)
+      : basePrice
+    return sum + price * item.quantity
+  }, 0)
 
-   if (cartItems.length === 0) {
-      return (
-         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 max-w-7xl min-h-screen flex flex-col items-center justify-center text-center">
-            <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-               <ShoppingBag className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight">Your cart is empty</h1>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-               Looks like you haven't added any items yet.
-            </p>
-            <Link href="/products">
-               <Button className="mt-6">Start shopping</Button>
-            </Link>
-         </div>
-      )
-   }
-
-   const goBack = () => {
-      router.back()
-   }
-
-   return (
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl mx-auto min-h-screen pb-28 md:pb-8">
-         {/* Header */}
-         <div className="flex items-center gap-3 mb-8">
-            <button
-               onClick={goBack}
-               className="inline-flex text-muted-foreground hover:text-foreground transition-colors"
-               aria-label="Go back"
-            >
-               <ArrowLeft className="h-5 w-5" />
-            </button>
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Cart</h1>
-            <span className="text-sm text-muted-foreground ml-auto">
-               {cartItems.length} {cartItems.length === 1 ? 'item' : 'items'}
-            </span>
-         </div>
-
-         {/* Mobile: Cart Items stacked */}
-         <div className="lg:hidden space-y-3">
-            {cartItems.map((item) => (
-               <CartItemMobile
-                  key={item.id}
-                  item={item}
-                  onUpdateQuantity={updateQuantity}
-                  onRemove={removeItem}
-               />
-            ))}
-         </div>
-
-         {/* Mobile Sticky Order Summary */}
-         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-background border-t px-4 py-3 shadow-lg">
-            <div className="flex items-center justify-between mb-1.5">
-               <span className="text-sm font-medium">Total</span>
-               <span className="text-lg font-bold">₱{total.toFixed(2)}</span>
-            </div>
-            <Button className="w-full" size="default">
-               Proceed to Checkout
-            </Button>
-            <div className="text-xs text-muted-foreground text-center mt-1">
-               Shipping & taxes calculated at checkout
-            </div>
-         </div>
-
-         {/* Desktop: Side-by-side layout (unchanged) */}
-         <div className="hidden lg:grid lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-4">
-               <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground pb-2 border-b">
-                  <div className="col-span-6">Product</div>
-                  <div className="col-span-2 text-center">Price</div>
-                  <div className="col-span-2 text-center">Qty</div>
-                  <div className="col-span-2 text-right">Subtotal</div>
-               </div>
-               {cartItems.map((item) => (
-                  <CartItemDesktop
-                     key={item.id}
-                     item={item}
-                     onUpdateQuantity={updateQuantity}
-                     onRemove={removeItem}
-                  />
-               ))}
-            </div>
-            <div className="lg:col-span-1">
-               <Card>
-                  <CardContent className="p-6 space-y-4">
-                     <h2 className="font-semibold text-lg">Order Summary</h2>
-                     <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                           <span className="text-muted-foreground">Subtotal</span>
-                           <span>₱{subtotal.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                           <span className="text-muted-foreground">Shipping</span>
-                           <span>{shipping === 0 ? 'Free' : `₱${shipping.toFixed(2)}`}</span>
-                        </div>
-                        <div className="flex justify-between">
-                           <span className="text-muted-foreground">Tax (12%)</span>
-                           <span>₱{tax.toFixed(2)}</span>
-                        </div>
-                        <Separator />
-                        <div className="flex justify-between font-bold text-base">
-                           <span>Total</span>
-                           <span>₱{total.toFixed(2)}</span>
-                        </div>
-                     </div>
-                     <Button className="w-full">Proceed to Checkout</Button>
-                  </CardContent>
-               </Card>
-            </div>
-         </div>
-
-         {/* Tablet: stacked layout (kept as is) */}
-         <div className="hidden md:block lg:hidden">
-            <div className="space-y-3">
-               {cartItems.map((item) => (
-                  <CartItemTablet
-                     key={item.id}
-                     item={item}
-                     onUpdateQuantity={updateQuantity}
-                     onRemove={removeItem}
-                  />
-               ))}
-            </div>
-            <Card className="mt-6 mb-20">
-               <CardContent className="p-6 space-y-3">
-                  <h2 className="font-semibold text-lg">Order Summary</h2>
-                  <div className="space-y-2 text-sm">
-                     <div className="flex justify-between">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span>₱{subtotal.toFixed(2)}</span>
-                     </div>
-                     <div className="flex justify-between">
-                        <span className="text-muted-foreground">Shipping</span>
-                        <span>{shipping === 0 ? 'Free' : `₱${shipping.toFixed(2)}`}</span>
-                     </div>
-                     <div className="flex justify-between">
-                        <span className="text-muted-foreground">Tax (12%)</span>
-                        <span>₱{tax.toFixed(2)}</span>
-                     </div>
-                     <Separator />
-                     <div className="flex justify-between font-bold text-base">
-                        <span>Total</span>
-                        <span>₱{total.toFixed(2)}</span>
-                     </div>
-                  </div>
-                  <Button className="w-full">Proceed to Checkout</Button>
-               </CardContent>
-            </Card>
-         </div>
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 max-w-7xl min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
-   )
+    )
+  }
+
+  if (cartItems.length === 0) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 max-w-7xl min-h-screen flex flex-col items-center justify-center text-center">
+        <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
+          <ShoppingBag className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight">Your cart is empty</h1>
+        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+          Looks like you haven't added any items yet.
+        </p>
+        <Link href="/products">
+          <Button className="mt-6">Start shopping</Button>
+        </Link>
+      </div>
+    )
+  }
+
+  const goBack = () => {
+    router.back()
+  }
+
+  return (
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl mx-auto min-h-screen pb-28 md:pb-8">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-8">
+        <button
+          onClick={goBack}
+          className="inline-flex text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Go back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Cart</h1>
+        <span className="text-sm text-muted-foreground ml-auto">
+          {cartItems.length} {cartItems.length === 1 ? 'item' : 'items'}
+        </span>
+      </div>
+
+      {/* Mobile: Cart Items stacked */}
+      <div className="lg:hidden space-y-3">
+        {cartItems.map((item) => (
+          <CartItemMobile
+            key={item.id}
+            item={item}
+            onUpdateQuantity={updateQuantity}
+            onRemove={removeItem}
+            updating={updating === item.id}
+          />
+        ))}
+      </div>
+
+      {/* Mobile Sticky Order Summary */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-background border-t px-4 py-3 shadow-lg">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-sm font-medium">Total</span>
+          <span className="text-lg font-bold">₱{subtotal.toFixed(2)}</span>
+        </div>
+        <Button className="w-full" size="default">
+          Proceed to Checkout
+        </Button>
+        <div className="text-xs text-muted-foreground text-center mt-1">
+          Shipping & taxes calculated at checkout
+        </div>
+      </div>
+
+      {/* Desktop: Side-by-side layout */}
+      <div className="hidden lg:grid lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-4">
+          <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground pb-2 border-b">
+            <div className="col-span-6">Product</div>
+            <div className="col-span-2 text-center">Price</div>
+            <div className="col-span-2 text-center">Qty</div>
+            <div className="col-span-2 text-right">Subtotal</div>
+          </div>
+          {cartItems.map((item) => (
+            <CartItemDesktop
+              key={item.id}
+              item={item}
+              onUpdateQuantity={updateQuantity}
+              onRemove={removeItem}
+              updating={updating === item.id}
+            />
+          ))}
+        </div>
+        <div className="lg:col-span-1">
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <h2 className="font-semibold text-lg">Order Summary</h2>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>₱{subtotal.toFixed(2)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-bold text-base">
+                  <span>Total</span>
+                  <span>₱{subtotal.toFixed(2)}</span>
+                </div>
+              </div>
+              <Button className="w-full">Proceed to Checkout</Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Shipping & taxes calculated at checkout
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Tablet: stacked layout */}
+      <div className="hidden md:block lg:hidden">
+        <div className="space-y-3">
+          {cartItems.map((item) => (
+            <CartItemTablet
+              key={item.id}
+              item={item}
+              onUpdateQuantity={updateQuantity}
+              onRemove={removeItem}
+              updating={updating === item.id}
+            />
+          ))}
+        </div>
+        <Card className="mt-6 mb-20">
+          <CardContent className="p-6 space-y-3">
+            <h2 className="font-semibold text-lg">Order Summary</h2>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>₱{subtotal.toFixed(2)}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between font-bold text-base">
+                <span>Total</span>
+                <span>₱{subtotal.toFixed(2)}</span>
+              </div>
+            </div>
+            <Button className="w-full">Proceed to Checkout</Button>
+            <p className="text-xs text-muted-foreground text-center">
+              Shipping & taxes calculated at checkout
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+// --- Shared helper to compute price ---
+function getEffectivePrice(item: CartItem): number {
+  const basePrice = item.option ? item.option.price : item.product.price
+  return item.product.discount > 0
+    ? basePrice * (1 - item.product.discount / 100)
+    : basePrice
 }
 
 // --- Mobile Cart Item ---
-function CartItemMobile({ item, onUpdateQuantity, onRemove }: any) {
-   return (
-      <Card>
-         <CardContent className="p-3 flex gap-3">
-            <div className="relative h-20 w-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
-               <Image src={item.image} alt={item.name} fill className="object-cover" />
-            </div>
-            <div className="flex-1 min-w-0">
-               <div className="flex justify-between items-start gap-1">
-                  <h3 className="font-medium text-sm truncate">{item.name}</h3>
-                  <button
-                     onClick={() => onRemove(item.id)}
-                     className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
-                  >
-                     <Trash2 className="h-4 w-4" />
-                  </button>
-               </div>
-               <p className="text-sm font-semibold mt-0.5">₱{item.price.toFixed(2)}</p>
-               <div className="flex items-center gap-2 mt-1.5">
-                  <button
-                     onClick={() => onUpdateQuantity(item.id, -1)}
-                     className="h-7 w-7 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
-                     disabled={item.quantity <= 1}
-                  >
-                     <Minus className="h-3 w-3" />
-                  </button>
-                  <span className="text-sm font-medium w-5 text-center">{item.quantity}</span>
-                  <button
-                     onClick={() => onUpdateQuantity(item.id, 1)}
-                     className="h-7 w-7 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
-                     disabled={item.quantity >= item.maxStock}
-                  >
-                     <Plus className="h-3 w-3" />
-                  </button>
-                  <span className="text-xs text-muted-foreground ml-auto">
-                     ₱{(item.price * item.quantity).toFixed(2)}
-                  </span>
-               </div>
-            </div>
-         </CardContent>
-      </Card>
-   )
-}
+function CartItemMobile({ item, onUpdateQuantity, onRemove, updating }: any) {
+  const price = getEffectivePrice(item)
+  const imageUrl = item.option?.image || item.product.images?.[0] || ''
 
-// --- Desktop Cart Item (unchanged) ---
-function CartItemDesktop({ item, onUpdateQuantity, onRemove }: any) {
-   return (
-      <div className="grid grid-cols-12 gap-4 items-center py-3 border-b last:border-0">
-         <div className="col-span-6 flex items-center gap-3">
-            <div className="relative h-14 w-14 rounded-md overflow-hidden bg-muted flex-shrink-0">
-               <Image src={item.image} alt={item.name} fill className="object-cover" />
+  return (
+    <Card>
+      <CardContent className="px-3 flex gap-3">
+        <div className="relative h-20 w-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={item.product.title}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <ShoppingBag className="h-6 w-6 text-muted-foreground" />
             </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-start gap-1">
             <div>
-               <h3 className="font-medium text-sm">{item.name}</h3>
-               <button
-                  onClick={() => onRemove(item.id)}
-                  className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1 mt-0.5"
-               >
-                  <Trash2 className="h-3 w-3" /> Remove
-               </button>
+              <h3 className="font-medium text-sm truncate">{item.product.title}</h3>
+              {item.option && (
+                <p className="text-xs text-muted-foreground truncate">{item.option.name}</p>
+              )}
             </div>
-         </div>
-         <div className="col-span-2 text-center text-sm font-medium">
-            ₱{item.price.toFixed(2)}
-         </div>
-         <div className="col-span-2 flex items-center justify-center gap-2">
             <button
-               onClick={() => onUpdateQuantity(item.id, -1)}
-               className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
-               disabled={item.quantity <= 1}
+              onClick={() => onRemove(item.id)}
+              className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+              disabled={updating}
             >
-               <Minus className="h-3 w-3" />
+              <Trash2 className="h-4 w-4" />
             </button>
-            <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+          </div>
+          <p className="text-sm font-semibold mt-0.5">₱{price.toFixed(2)}</p>
+          <div className="flex items-center gap-2 mt-1.5">
             <button
-               onClick={() => onUpdateQuantity(item.id, 1)}
-               className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
-               disabled={item.quantity >= item.maxStock}
+              onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+              className="h-7 w-7 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
+              disabled={item.quantity <= 1 || updating}
             >
-               <Plus className="h-3 w-3" />
+              <Minus className="h-3 w-3" />
             </button>
-         </div>
-         <div className="col-span-2 text-right font-semibold">
-            ₱{(item.price * item.quantity).toFixed(2)}
-         </div>
-      </div>
-   )
+            <span className="text-sm font-medium w-5 text-center">{item.quantity}</span>
+            <button
+              onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+              className="h-7 w-7 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
+              disabled={updating}
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+            <span className="text-xs text-muted-foreground ml-auto">
+              ₱{(price * item.quantity).toFixed(2)}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
-// --- Tablet Cart Item (unchanged) ---
-function CartItemTablet({ item, onUpdateQuantity, onRemove }: any) {
-   return (
-      <Card>
-         <CardContent className="p-4 flex gap-4">
-            <div className="relative h-20 w-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
-               <Image src={item.image} alt={item.name} fill className="object-cover" />
+// --- Desktop Cart Item ---
+function CartItemDesktop({ item, onUpdateQuantity, onRemove, updating }: any) {
+  const price = getEffectivePrice(item)
+  const imageUrl = item.option?.image || item.product.images?.[0] || ''
+
+  return (
+    <div className="grid grid-cols-12 gap-4 items-center py-3 border-b last:border-0">
+      <div className="col-span-6 flex items-center gap-3">
+        <div className="relative h-14 w-14 rounded-md overflow-hidden bg-muted flex-shrink-0">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={item.product.title}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <ShoppingBag className="h-5 w-5 text-muted-foreground" />
             </div>
-            <div className="flex-1 min-w-0">
-               <div className="flex justify-between items-start">
-                  <h3 className="font-medium">{item.name}</h3>
-                  <button
-                     onClick={() => onRemove(item.id)}
-                     className="text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                     <Trash2 className="h-4 w-4" />
-                  </button>
-               </div>
-               <div className="flex flex-wrap items-center justify-between mt-2 gap-2">
-                  <span className="text-sm font-semibold">₱{item.price.toFixed(2)}</span>
-                  <div className="flex items-center gap-2">
-                     <button
-                        onClick={() => onUpdateQuantity(item.id, -1)}
-                        className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
-                        disabled={item.quantity <= 1}
-                     >
-                        <Minus className="h-3 w-3" />
-                     </button>
-                     <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
-                     <button
-                        onClick={() => onUpdateQuantity(item.id, 1)}
-                        className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
-                        disabled={item.quantity >= item.maxStock}
-                     >
-                        <Plus className="h-3 w-3" />
-                     </button>
-                  </div>
-                  <span className="text-sm font-semibold">
-                     ₱{(item.price * item.quantity).toFixed(2)}
-                  </span>
-               </div>
+          )}
+        </div>
+        <div>
+          <h3 className="font-medium text-sm">{item.product.title}</h3>
+          {item.option && (
+            <p className="text-xs text-muted-foreground">{item.option.name}</p>
+          )}
+          <button
+            onClick={() => onRemove(item.id)}
+            className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1 mt-2"
+            disabled={updating}
+          >
+            <Trash2 className="h-3 w-3" /> Remove
+          </button>
+        </div>
+      </div>
+      <div className="col-span-2 text-center text-sm font-medium">
+        ₱{price.toFixed(2)}
+      </div>
+      <div className="col-span-2 flex items-center justify-center gap-2">
+        <button
+          onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+          className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
+          disabled={item.quantity <= 1 || updating}
+        >
+          <Minus className="h-3 w-3" />
+        </button>
+        <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+        <button
+          onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+          className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
+          disabled={updating}
+        >
+          <Plus className="h-3 w-3" />
+        </button>
+      </div>
+      <div className="col-span-2 text-right font-semibold">
+        ₱{(price * item.quantity).toFixed(2)}
+      </div>
+    </div>
+  )
+}
+
+// --- Tablet Cart Item ---
+function CartItemTablet({ item, onUpdateQuantity, onRemove, updating }: any) {
+  const price = getEffectivePrice(item)
+  const imageUrl = item.option?.image || item.product.images?.[0] || ''
+
+  return (
+    <Card>
+      <CardContent className="p-4 flex gap-4">
+        <div className="relative h-20 w-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={item.product.title}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <ShoppingBag className="h-6 w-6 text-muted-foreground" />
             </div>
-         </CardContent>
-      </Card>
-   )
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="font-medium">{item.product.title}</h3>
+              {item.option && (
+                <p className="text-xs text-muted-foreground">{item.option.name}</p>
+              )}
+            </div>
+            <button
+              onClick={() => onRemove(item.id)}
+              className="text-muted-foreground hover:text-destructive transition-colors"
+              disabled={updating}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between mt-2 gap-2">
+            <span className="text-sm font-semibold">₱{price.toFixed(2)}</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
+                disabled={item.quantity <= 1 || updating}
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+              <button
+                onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
+                disabled={updating}
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+            <span className="text-sm font-semibold">
+              ₱{(price * item.quantity).toFixed(2)}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }

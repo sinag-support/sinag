@@ -23,6 +23,7 @@ export async function GET(request: Request) {
           title: true,
         },
       },
+      options: true, // ✅ Include product options
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
   if (role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await request.json()
-  const { title, description, price, discount, stock, isAvailable, categoryId, images } = body
+  const { title, description, price, discount, stock, isAvailable, categoryId, images, options } = body
 
   if (!title || price == null) {
     return NextResponse.json({ error: 'Title and price required' }, { status: 400 })
@@ -51,6 +52,12 @@ export async function POST(request: Request) {
       isAvailable: isAvailable ?? true,
       categoryId: categoryId || undefined,
       images: images || [],
+      options: {
+        create: options || [],
+      },
+    },
+    include: {
+      options: true,
     },
   })
 

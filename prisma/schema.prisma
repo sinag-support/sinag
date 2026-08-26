@@ -50,12 +50,15 @@ model CartItem {
   cart      Cart     @relation(fields: [cartId], references: [id])
   productId String
   product   Product  @relation(fields: [productId], references: [id])
+  optionId  String?   // new field
+  option    ProductOption? @relation(fields: [optionId], references: [id])
   quantity  Int      @default(1)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([cartId, productId])
+  // Remove the old unique constraint; we'll handle uniqueness in application logic
+  // @@unique([cartId, productId])  ← delete this line
 }
 
 model Product {
@@ -71,9 +74,28 @@ model Product {
   categoryId  String?
   category    Category? @relation(fields: [categoryId], references: [id])
 
+  // Relation to package options
+  options     ProductOption[]
+
   cartItems   CartItem[]
   orderItems  OrderItem[]
   reviews     Review[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductOption {
+  id        String   @id @default(cuid())
+  name      String   // e.g., "500g Bulk Pack", "Starter Kit Package", "1kg Bundle"
+  price     Float    // Package price
+  image     String?  // Optional image URL specific to this option
+  stock     Int      @default(0)
+  
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  cartItems CartItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

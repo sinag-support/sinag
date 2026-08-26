@@ -26,7 +26,7 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
    const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '')
    const [priceRange, setPriceRange] = useState<[number, number]>([
       parseInt(searchParams.get('minPrice') || '0'),
-      parseInt(searchParams.get('maxPrice') || '10000'),
+      parseInt(searchParams.get('maxPrice') || '1000'),
    ])
    const [inStock, setInStock] = useState(searchParams.get('inStock') === 'true')
 
