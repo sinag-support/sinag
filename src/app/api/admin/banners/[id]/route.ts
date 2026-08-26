@@ -10,10 +10,17 @@ export async function PUT(
   if (role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
-  const { title, image, link, order, active } = await request.json()
+  const { title, description, image, link, order, active } = await request.json()
   const banner = await prisma.banner.update({
     where: { id },
-    data: { title, image, link, order, active },
+    data: { 
+      title, 
+      description,
+      image, 
+      link, 
+      order, 
+      active 
+    },
   })
   return NextResponse.json(banner)
 }

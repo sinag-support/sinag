@@ -25,11 +25,11 @@ export function CategoryChips({ categories, currentCategory }: CategoryChipsProp
    const isAllActive = currentCategory === null
 
    return (
-      <div className="flex items-center gap-2 overflow-x-auto pb-4 md:hidden scrollbar-hide">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 md:hidden scrollbar-hide">
          {/* All chip */}
          <button
             onClick={() => handleCategoryClick(null)}
-            className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-colors ${
+            className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-colors flex-shrink-0 ${
                isAllActive
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted hover:bg-muted/80'
@@ -42,7 +42,7 @@ export function CategoryChips({ categories, currentCategory }: CategoryChipsProp
             <button
                key={cat.id}
                onClick={() => handleCategoryClick(cat.id)}
-               className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-colors ${
+               className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-colors flex-shrink-0 ${
                   cat.id === currentCategory
                      ? 'bg-primary text-primary-foreground'
                      : 'bg-muted hover:bg-muted/80'

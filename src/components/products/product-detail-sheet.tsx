@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Image from 'next/image'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -65,17 +64,27 @@ function ProductDetailContent({
       ? product.price - (product.price * product.discount) / 100
       : product.price
 
+   const imageUrl = product.images?.[0] || ''
+
    return (
       <div className="flex-1 overflow-y-auto scrollbar-hide">
          {/* Image with discount badge */}
          <div className="relative aspect-video w-full bg-gray-100 overflow-hidden">
-            <Image
-               src={product.images?.[0] || ''}
-               alt={product.title}
-               fill
-               className="object-cover"
-               sizes="100vw"
-            />
+            {imageUrl ? (
+               <img
+                  src={imageUrl}
+                  alt={product.title}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  onError={(e) => {
+                     e.currentTarget.style.display = 'none'
+                  }}
+               />
+            ) : (
+               <div className="flex h-full w-full items-center justify-center bg-gray-200 dark:bg-gray-700">
+                  <span className="text-gray-400 dark:text-gray-500 text-sm">No image</span>
+               </div>
+            )}
             {hasDiscount && (
                <div className="absolute top-3 left-3 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-md shadow-sm">
                   -{product.discount}%

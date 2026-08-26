@@ -24,14 +24,14 @@ export function MobileShortcuts() {
                <Link
                   key={href}
                   href={href}
-                  className={`flex flex-col items-center justify-center gap-0.5 rounded-lg transition-colors ${
+                  className={`flex flex-col items-center justify-center gap-0.5 rounded-lg transition-colors py-1.5 ${
                      isActive
                         ? 'text-primary'
                         : 'text-muted-foreground hover:bg-muted/50'
                   }`}
                >
                   <Icon className="h-5 w-5" />
-                  <span className="text-[9px] font-medium leading-tight truncate max-w-full pt-2">
+                  <span className="text-[9px] font-medium leading-tight truncate max-w-full">
                      {label}
                   </span>
                </Link>

@@ -25,10 +25,12 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 
 interface Banner {
   id: string
   title: string
+  description: string | null
   image: string
   link: string | null
   active: boolean
@@ -60,11 +62,11 @@ export default function BannersPage() {
     fetchBanners()
   }, [])
 
-  // Filter banners based on search
   const filteredBanners = banners.filter(banner => {
     const searchLower = search.toLowerCase()
     return (
       banner.title.toLowerCase().includes(searchLower) ||
+      (banner.description && banner.description.toLowerCase().includes(searchLower)) ||
       (banner.link && banner.link.toLowerCase().includes(searchLower))
     )
   })
@@ -73,6 +75,7 @@ export default function BannersPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     const title = formData.get('title') as string
+    const description = formData.get('description') as string || null
     const image = formData.get('image') as string
     const link = formData.get('link') as string || null
     const order = parseInt(formData.get('order') as string) || 0
@@ -90,7 +93,7 @@ export default function BannersPage() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, image, link, order }),
+        body: JSON.stringify({ title, description, image, link, order }),
       })
       if (res.ok) {
         toast.success(editing ? 'Banner updated' : 'Banner created')
@@ -147,11 +150,10 @@ export default function BannersPage() {
         <p className="text-muted-foreground">Manage homepage carousel banners</p>
       </div>
 
-      {/* Search Bar & Add Button - Inline */}
       <div className="flex items-center gap-2">
         <Search className="h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search banners by title or link..."
+          placeholder="Search banners by title, description, or link..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
@@ -180,6 +182,7 @@ export default function BannersPage() {
               <TableRow>
                 <TableHead>Image</TableHead>
                 <TableHead>Title</TableHead>
+                <TableHead>Description</TableHead>
                 <TableHead>Link</TableHead>
                 <TableHead>Order</TableHead>
                 <TableHead>Active</TableHead>
@@ -189,7 +192,7 @@ export default function BannersPage() {
             <TableBody>
               {filteredBanners.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     {search ? 'No banners found matching your search' : 'No banners'}
                   </TableCell>
                 </TableRow>
@@ -204,6 +207,7 @@ export default function BannersPage() {
                       />
                     </TableCell>
                     <TableCell>{b.title}</TableCell>
+                    <TableCell className="max-w-xs truncate">{b.description || '-'}</TableCell>
                     <TableCell>{b.link || '-'}</TableCell>
                     <TableCell>{b.order}</TableCell>
                     <TableCell>
@@ -239,7 +243,6 @@ export default function BannersPage() {
         </div>
       )}
 
-      {/* Create/Edit Dialog - Fixed spacing */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -256,6 +259,19 @@ export default function BannersPage() {
                 placeholder="Enter banner title"
                 defaultValue={editing?.title || ''}
                 required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-sm font-medium">
+                Description <span className="text-muted-foreground text-xs">(optional)</span>
+              </Label>
+              <Textarea
+                id="description"
+                name="description"
+                placeholder="Enter banner description"
+                defaultValue={editing?.description || ''}
+                rows={2}
               />
             </div>
 
