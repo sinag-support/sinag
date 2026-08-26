@@ -69,13 +69,18 @@ export default function Header() {
 
    const handleLogout = async () => {
       try {
+         // 1. Call server logout to clear cookies
+         await fetch('/api/auth/logout', { method: 'POST' })
+         // 2. Clear client session
          await supabase.auth.signOut()
          window.location.href = '/'
       } catch (error) {
          console.error('Logout error:', error)
+         // Fallback: clear client session anyway
+         await supabase.auth.signOut()
          window.location.href = '/'
       }
-   }
+      }
 
    // Hide entire header on admin pages
    if (pathname?.startsWith('/admin')) {

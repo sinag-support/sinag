@@ -152,15 +152,16 @@ export default function OrdersPage() {
    return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 max-w-3xl">
          {/* Back button */}
-         <button
-            onClick={goBack}
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors gap-1.5 mb-6"
-         >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Profile
-         </button>
-
-         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-6">My Orders</h1>
+         <div className="flex items-center gap-3 mb-8">
+            <button
+               onClick={goBack}
+               className="inline-flex text-muted-foreground hover:text-foreground transition-colors"
+               aria-label="Go back"
+            >
+               <ArrowLeft className="h-5 w-5" />
+            </button>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">My Orders</h1>
+         </div>
 
          {sampleOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">

@@ -70,8 +70,6 @@ model Product {
   isFeatured  Boolean  @default(false)
   categoryId  String?
   category    Category? @relation(fields: [categoryId], references: [id])
-  brandId     String?
-  brand       Brand?   @relation(fields: [brandId], references: [id])
 
   cartItems   CartItem[]
   orderItems  OrderItem[]
@@ -85,17 +83,6 @@ model Category {
   id          String   @id @default(cuid())
   title       String   @unique
   description String?
-  products    Product[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Brand {
-  id          String   @id @default(cuid())
-  title       String   @unique
-  description String?
-  logo        String?
   products    Product[]
 
   createdAt DateTime @default(now())

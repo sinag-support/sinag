@@ -1,118 +1,75 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { getCurrentUserRole } from '@/lib/role'
 import { createClient } from '@supabase/supabase-js'
 
-export async function GET() {
-   try {
-      const cookieStore = await cookies()
-      
-      const supabase = createServerClient(
-         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-         {
-            cookies: {
-               get(name: string) {
-                  return cookieStore.get(name)?.value
-               },
-               set(name: string, value: string, options: any) {
-                  cookieStore.set({ name, value, ...options })
-               },
-               remove(name: string, options: any) {
-                  cookieStore.set({ name, value: '', ...options })
-               },
-            },
-         }
-      )
+export async function GET(request: Request) {
+  const role = await getCurrentUserRole()
+  if (!role || role === 'USER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-         return NextResponse.json(
-            { error: 'Unauthorized' },
-            { status: 401 }
-         )
-      }
+  const { searchParams } = new URL(request.url)
+  const email = searchParams.get('email')
+  const search = searchParams.get('search') || ''
 
-      const users = await prisma.user.findMany({
-         where: {
-            NOT: {
-               email: user.email
-            }
-         },
-         select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            createdAt: true,
-         }
-      })
+  const where: any = {}
+  if (email) {
+    where.email = email
+  } else if (search) {
+    where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+      { role: { contains: search, mode: 'insensitive' } },
+    ]
+  }
 
-      return NextResponse.json({ users })
-   } catch (error) {
-      console.error('Error fetching users:', error)
-      return NextResponse.json(
-         { error: 'Internal server error' },
-         { status: 500 }
-      )
-   }
+  const users = await prisma.user.findMany({
+    where,
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return NextResponse.json({ users })
 }
 
 export async function POST(request: Request) {
-   try {
-      const { email, password, name, role } = await request.json()
+  const role = await getCurrentUserRole()
+  if (role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-      // Validate inputs
-      if (!email || !password || !name || !role) {
-         return NextResponse.json(
-            { error: 'Missing required fields' },
-            { status: 400 }
-         )
-      }
+  const { email, password, name, role: userRole } = await request.json()
 
-      // Create user in Supabase Auth using service role
-      const supabaseAdmin = createClient(
-         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-         process.env.SUPABASE_SERVICE_ROLE_KEY!
-      )
+  if (!email || !password || !name || !userRole) {
+    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
 
-      const { data, error } = await supabaseAdmin.auth.admin.createUser({
-         email,
-         password,
-         email_confirm: true,
-         user_metadata: {
-            name,
-            role,
-         },
-      })
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
-      if (error) {
-         return NextResponse.json(
-            { error: error.message },
-            { status: 400 }
-         )
-      }
+  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { name, role: userRole },
+  })
 
-      // Create user in Prisma
-      await prisma.user.create({
-         data: {
-            email,
-            name,
-            role: role as 'STAFF' | 'RIDER',
-         }
-      })
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 })
+  }
 
-      return NextResponse.json({
-         success: true,
-         message: 'User created successfully'
-      })
-   } catch (error) {
-      console.error('Error creating user:', error)
-      return NextResponse.json(
-         { error: 'Internal server error' },
-         { status: 500 }
-      )
-   }
+  await prisma.user.create({
+    data: {
+      email,
+      name,
+      role: userRole as 'STAFF' | 'RIDER',
+    },
+  })
+
+  return NextResponse.json({ success: true, message: 'User created successfully' })
 }

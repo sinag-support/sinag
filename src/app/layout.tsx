@@ -1,6 +1,9 @@
 import { ThemeProvider } from '@/components/theme-provider'
-import { Inter, Work_Sans } from 'next/font/google'
+import { Inter, Work_Sans, Geist } from 'next/font/google'
 import './globals.css'
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const inter = Inter({ subsets: ['latin'] })
 const workSans = Work_Sans({
@@ -41,7 +44,7 @@ export default function RootLayout({
    children: React.ReactNode
 }) {
    return (
-      <html lang="en" suppressHydrationWarning>
+      <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
          <head>
             <link rel="apple-touch-icon" href="/192x192.png" sizes="192x192" />
             <link rel="icon" type="image/png" sizes="32x32" href="/32x32.png" />
