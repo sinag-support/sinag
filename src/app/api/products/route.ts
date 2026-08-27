@@ -36,13 +36,34 @@ export async function GET(request: Request) {
         include: {
           category: true,
           options: true,
+          reviews: {
+            select: { rating: true }, // only fetch ratings for aggregation
+          },
         },
       }),
       prisma.product.count({ where }),
     ])
 
+    // Transform products to include computed rating and reviewCount
+    const productsWithRating = products.map((product) => {
+      const reviews = product.reviews || []
+      const reviewCount = reviews.length
+      const averageRating = reviewCount > 0
+        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
+        : 0
+
+      // Remove the raw reviews array from the response
+      const { reviews: _, ...productWithoutReviews } = product
+
+      return {
+        ...productWithoutReviews,
+        rating: parseFloat(averageRating.toFixed(1)),
+        reviewCount,
+      }
+    })
+
     return NextResponse.json({
-      products,
+      products: productsWithRating,
       pagination: {
         total,
         page,

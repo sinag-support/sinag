@@ -195,19 +195,20 @@ export default function Header() {
     pathname === '/contact' ||
     pathname === '/blog' ||
     pathname?.startsWith('/blog/') ||
+    pathname?.startsWith('/profile') ||
     pathname === '/about-us' ||
     pathname === '/faq' ||
     pathname === '/privacy' ||
     pathname === '/returns-policy' ||
     pathname === '/shipping-policy' ||
     pathname === '/terms' ||
-    pathname?.startsWith('/profile')
+    pathname === '/checkout'
 
   const hideTopHeader = isMobile && hideOnMobilePage
 
   const hideBottomNav =
     isMobile &&
-    (hideOnMobilePage ||
+    (hideOnMobilePage && !pathname?.endsWith('/profile') ||
       pathname === '/profile/settings' ||
       pathname === '/profile/orders' ||
       pathname === '/profile/wishlist' ||

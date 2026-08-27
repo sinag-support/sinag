@@ -61,6 +61,9 @@ async function getProducts(searchParams: SearchParams) {
       orderBy,
       include: {
         category: true,
+        reviews: {
+          select: { rating: true }, // fetch ratings
+        },
       },
     })
     return products
@@ -95,24 +98,33 @@ export default async function ProductsPage({
 
   type ProductWithRelations = Awaited<ReturnType<typeof getProducts>>[number]
 
-  const formattedProducts = products.map((p: ProductWithRelations) => ({
-    id: p.id,
-    name: p.title,
-    price: p.price,
-    discount: p.discount,
-    image: p.images?.[0] || '',
-    rating: 4.0,
-  }))
+  // Format products with real rating and review count
+  const formattedProducts = products.map((p: ProductWithRelations) => {
+    const reviews = p.reviews || []
+    const reviewCount = reviews.length
+    const avgRating = reviewCount > 0
+      ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviewCount
+      : 0
+
+    return {
+      id: p.id,
+      name: p.title,
+      price: p.price,
+      discount: p.discount || 0,
+      image: p.images?.[0] || '',
+      category: p.category?.title || 'Uncategorized',
+      rating: parseFloat(avgRating.toFixed(1)),
+      reviewCount,
+    }
+  })
 
   // Check if any filters are active (excluding productId)
-  const hasFilters = !!(
-    params.query ||
+  const hasFilters = !!(params.query ||
     params.category ||
     params.minPrice ||
     params.maxPrice ||
     params.inStock ||
-    params.sort
-  )
+    params.sort)
 
   return (
     <div className="max-md:fixed max-md:inset-0 max-md:top-[64px] flex flex-col h-[calc(100dvh-64px)] md:h-[calc(100vh-64px)] overflow-hidden md:overflow-y-auto bg-background">
@@ -137,9 +149,7 @@ export default async function ProductsPage({
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 flex-shrink-0">
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold">
-                    All Products
-                  </h1>
+                  <h1 className="text-2xl sm:text-3xl font-bold">All Products</h1>
                   <p className="text-sm text-muted-foreground mt-0.5">
                     {formattedProducts.length} products found
                   </p>

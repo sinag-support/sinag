@@ -13,23 +13,13 @@ export const fetchCache = 'force-no-store'
 export default async function HomePage() {
   await connection()
 
-  // Fetch banners
+  // Fetch banners (unchanged)
   const dbBanners = await safeQuery(
     () =>
       prisma.banner.findMany({
-        where: {
-          active: true,
-        },
-        orderBy: {
-          order: 'asc',
-        },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          image: true,
-          link: true,
-        },
+        where: { active: true },
+        orderBy: { order: 'asc' },
+        select: { id: true, title: true, description: true, image: true, link: true },
       }),
     []
   )
@@ -68,13 +58,11 @@ export default async function HomePage() {
 
   const finalBanners = banners.length > 0 ? banners : fallbackBanners
 
-  // Fetch products
+  // Fetch products WITH reviews
   const dbProducts = await safeQuery(
     () =>
       prisma.product.findMany({
-        where: {
-          isAvailable: true,
-        },
+        where: { isAvailable: true },
         take: 8,
         orderBy: { createdAt: 'desc' },
         select: {
@@ -84,34 +72,42 @@ export default async function HomePage() {
           discount: true,
           images: true,
           category: {
-            select: {
-              title: true,
-            },
+            select: { title: true },
+          },
+          reviews: {
+            select: { rating: true }, // fetch only ratings for computation
           },
         },
       }),
     []
   )
 
-  const products = dbProducts.map((p: any) => ({
-    id: p.id,
-    name: p.title,
-    price: p.price,
-    discount: p.discount || 0,
-    image: p.images?.[0] || '',
-    category: p.category?.title || 'Uncategorized',
-    rating: 4.0,
-  }))
+  // Compute rating and review count, map to the expected shape
+  const products = dbProducts.map((p: any) => {
+    const reviews = p.reviews || []
+    const reviewCount = reviews.length
+    const avgRating = reviewCount > 0
+      ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviewCount
+      : 0
 
+    return {
+      id: p.id,
+      name: p.title,
+      price: p.price,
+      discount: p.discount || 0,
+      image: p.images?.[0] || '',
+      category: p.category?.title || 'Uncategorized',
+      rating: parseFloat(avgRating.toFixed(1)),
+      reviewCount,
+    }
+  })
+
+  // Fetch blog posts (unchanged)
   const dbBlogPosts = await safeQuery(
     () =>
       prisma.blogPost.findMany({
-        where: {
-          published: true,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
+        where: { published: true },
+        orderBy: { createdAt: 'desc' },
         take: 3,
         select: {
           id: true,
@@ -127,7 +123,6 @@ export default async function HomePage() {
     []
   )
 
-  // Map blog posts to the format expected by BlogSection
   const blogPosts = dbBlogPosts.map((post: any) => ({
     id: post.id,
     title: post.title,

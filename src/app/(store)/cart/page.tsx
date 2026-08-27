@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
@@ -137,10 +138,149 @@ export default function CartPage() {
     return sum + price * item.quantity
   }, 0)
 
+  // --- Skeleton Loading State ---
   if (loading) {
     return (
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 max-w-7xl min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl mx-auto min-h-screen pb-28 md:pb-8">
+        {/* Header skeleton */}
+        <div className="flex items-center gap-3 mb-8">
+          <Skeleton className="h-5 w-5 rounded-full" />
+          <Skeleton className="h-8 w-24" />
+          <Skeleton className="h-5 w-16 ml-auto" />
+        </div>
+
+        {/* Mobile skeletons (visible on small) */}
+        <div className="lg:hidden space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-3 flex gap-3">
+                <Skeleton className="h-20 w-20 rounded-md flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-4 rounded-full" />
+                  </div>
+                  <Skeleton className="h-4 w-1/2 mt-1" />
+                  <Skeleton className="h-4 w-16 mt-2" />
+                  <div className="flex items-center gap-2 mt-2">
+                    <Skeleton className="h-7 w-7 rounded-full" />
+                    <Skeleton className="h-4 w-5" />
+                    <Skeleton className="h-7 w-7 rounded-full" />
+                    <Skeleton className="h-4 w-12 ml-auto" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Tablet skeletons (visible on medium) */}
+        <div className="hidden md:block lg:hidden">
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardContent className="p-4 flex gap-4">
+                  <Skeleton className="h-20 w-20 rounded-md flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-5 w-5 rounded-full" />
+                    </div>
+                    <Skeleton className="h-4 w-1/2 mt-1" />
+                    <div className="flex flex-wrap items-center justify-between mt-3 gap-2">
+                      <Skeleton className="h-4 w-16" />
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <Skeleton className="h-4 w-6" />
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                      </div>
+                      <Skeleton className="h-4 w-16" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {/* Summary skeleton */}
+          <Card className="mt-6 mb-20">
+            <CardContent className="p-6 space-y-3">
+              <Skeleton className="h-6 w-32" />
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+                <Separator />
+                <div className="flex justify-between">
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-20" />
+                </div>
+              </div>
+              <Skeleton className="h-10 w-full rounded-md" />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Desktop skeletons (visible on large) */}
+        <div className="hidden lg:grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="grid grid-cols-12 gap-4 pb-2 border-b">
+              <Skeleton className="col-span-6 h-4 w-16" />
+              <Skeleton className="col-span-2 h-4 w-12 text-center" />
+              <Skeleton className="col-span-2 h-4 w-12 text-center" />
+              <Skeleton className="col-span-2 h-4 w-16 text-right" />
+            </div>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="grid grid-cols-12 gap-4 items-center py-3 border-b last:border-0">
+                <div className="col-span-6 flex items-center gap-3">
+                  <Skeleton className="h-14 w-14 rounded-md" />
+                  <div>
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-20 mt-1" />
+                    <Skeleton className="h-3 w-16 mt-2" />
+                  </div>
+                </div>
+                <Skeleton className="col-span-2 h-4 w-16 justify-self-center" />
+                <div className="col-span-2 flex items-center justify-center gap-2">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <Skeleton className="h-4 w-6" />
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                </div>
+                <Skeleton className="col-span-2 h-4 w-16 justify-self-end" />
+              </div>
+            ))}
+          </div>
+          <div>
+            <Card>
+              <CardContent className="p-6 space-y-4">
+                <Skeleton className="h-6 w-32" />
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <Skeleton className="h-5 w-16" />
+                    <Skeleton className="h-5 w-20" />
+                  </div>
+                </div>
+                <Skeleton className="h-10 w-full rounded-md" />
+                <Skeleton className="h-4 w-3/4 mx-auto" />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Mobile summary skeleton (visible on small) */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-background border-t px-4 py-3 shadow-lg">
+          <div className="flex items-center justify-between mb-1.5">
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="h-5 w-20" />
+          </div>
+          <Skeleton className="h-10 w-full rounded-md" />
+          <Skeleton className="h-3 w-48 mx-auto mt-1" />
+        </div>
       </div>
     )
   }
@@ -202,9 +342,11 @@ export default function CartPage() {
           <span className="text-sm font-medium">Total</span>
           <span className="text-lg font-bold">₱{subtotal.toFixed(2)}</span>
         </div>
-        <Button className="w-full" size="default">
-          Proceed to Checkout
-        </Button>
+        <Link href="/checkout">
+          <Button className="w-full" size="default">
+            Proceed to Checkout
+          </Button>
+        </Link>
         <div className="text-xs text-muted-foreground text-center mt-1">
           Shipping & taxes calculated at checkout
         </div>
@@ -244,7 +386,11 @@ export default function CartPage() {
                   <span>₱{subtotal.toFixed(2)}</span>
                 </div>
               </div>
-              <Button className="w-full">Proceed to Checkout</Button>
+              <Link href="/checkout">
+                <Button className="w-full" size="default">
+                  Proceed to Checkout
+                </Button>
+              </Link>
               <p className="text-xs text-muted-foreground text-center">
                 Shipping & taxes calculated at checkout
               </p>
@@ -280,7 +426,11 @@ export default function CartPage() {
                 <span>₱{subtotal.toFixed(2)}</span>
               </div>
             </div>
-            <Button className="w-full">Proceed to Checkout</Button>
+            <Link href="/checkout">
+              <Button className="w-full" size="default">
+                Proceed to Checkout
+              </Button>
+            </Link>
             <p className="text-xs text-muted-foreground text-center">
               Shipping & taxes calculated at checkout
             </p>
@@ -306,7 +456,7 @@ function CartItemMobile({ item, onUpdateQuantity, onRemove, updating }: any) {
 
   return (
     <Card>
-      <CardContent className="px-3 flex gap-3">
+      <CardContent className="p-3 flex gap-3">
         <div className="relative h-20 w-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
           {imageUrl ? (
             <img

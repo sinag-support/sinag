@@ -1,14 +1,16 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import Image from 'next/image'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
-import { X, Calendar, Package, Truck, CheckCircle, XCircle, Clock, MapPin, CreditCard } from 'lucide-react'
+import { 
+  X, Calendar, Package, Truck, CheckCircle, XCircle, Clock, 
+  MapPin, CreditCard, Loader2, Moon, Globe, Map
+} from 'lucide-react'
 import { useMediaQuery } from 'react-responsive'
 
 declare global {
@@ -17,162 +19,383 @@ declare global {
   }
 }
 
-interface OrderItem {
-  id: string
-  name: string
-  price: number
-  quantity: number
-  image: string
+// Store / Warehouse location
+const STORE_LOCATION = {
+  lat: 13.9419,
+  lng: 121.1644,
+  name: 'iPrime Dispatch Hub',
 }
 
-interface Order {
-  id: string
-  orderNumber: string
-  date: string
-  status: 'pending' | 'confirmed' | 'preparing' | 'packed' | 'ready_for_pickup' | 'assigned_rider' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'refunded'
-  total: number
-  items: OrderItem[]
-  shippingAddress: string
-  paymentMethod: string
-  location?: {
-    lat: number
-    lng: number
+// Tile Layer Configurations
+const TILE_LAYERS = {
+  street: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    options: {
+      maxZoom: 19,
+      subdomains: ['a', 'b', 'c'],
+    },
+  },
+  dark: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    options: {
+      maxZoom: 20,
+      subdomains: 'abcd',
+    },
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    options: {
+      maxZoom: 19,
+    },
+  },
+}
+
+// Multi-tier fallback geocoding
+async function getCoordinates(address: string, city: string, province: string) {
+  try {
+    const headers = { 'Accept-Language': 'en', 'User-Agent': 'OrderTrackingApp/1.0' }
+
+    // Tier 1: Exact address search
+    const primaryQuery = `${address}, ${city}, ${province}, Philippines`
+    let response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(primaryQuery)}&limit=1`,
+      { headers }
+    )
+    let data = await response.json()
+
+    if (data && data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+    }
+
+    // Tier 2: City and Province fallback
+    const fallbackQuery = `${city}, ${province}, Philippines`
+    response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fallbackQuery)}&limit=1`,
+      { headers }
+    )
+    data = await response.json()
+
+    if (data && data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+    }
+
+    // Tier 3: Default location fallback
+    return { lat: 13.9419, lng: 121.1644 }
+  } catch (error) {
+    console.error('Geocoding error:', error)
+    return { lat: 13.9419, lng: 121.1644 }
   }
 }
 
-interface OrderDetailSheetProps {
-  order: Order | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
+// Helper to fetch road routing from OSRM
+async function getRouteGeometry(
+  start: { lat: number; lng: number },
+  end: { lat: number; lng: number }
+) {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`
+    const res = await fetch(url)
+    const data = await res.json()
+
+    if (data.routes && data.routes.length > 0) {
+      return data.routes[0].geometry.coordinates.map((coord: [number, number]) => [
+        coord[1],
+        coord[0],
+      ]) as [number, number][]
+    }
+  } catch (err) {
+    console.error('OSRM route error, falling back to direct line:', err)
+  }
+
+  return [
+    [start.lat, start.lng],
+    [end.lat, end.lng],
+  ] as [number, number][]
 }
 
-const statusColors = {
-  pending: 'bg-[#8EC801]/10 text-[#429801] border-[#8EC801]/20',
-  confirmed: 'bg-[#8EC801]/10 text-[#429801] border-[#8EC801]/20',
-  preparing: 'bg-[#8EC801]/10 text-[#429801] border-[#8EC801]/20',
-  packed: 'bg-[#8EC801]/10 text-[#429801] border-[#8EC801]/20',
-  ready_for_pickup: 'bg-[#8EC801]/10 text-[#429801] border-[#8EC801]/20',
-  assigned_rider: 'bg-[#8EC801]/10 text-[#429801] border-[#8EC801]/20',
-  out_for_delivery: 'bg-[#8EC801]/10 text-[#429801] border-[#8EC801]/20',
-  delivered: 'bg-[#8EC801]/10 text-[#429801] border-[#8EC801]/20',
-  cancelled: 'bg-red-500/10 text-red-600 border-red-500/20',
-  refunded: 'bg-gray-500/10 text-gray-600 border-gray-500/20',
-}
-
-const statusIcons = {
-  pending: Clock,
-  confirmed: Package,
-  preparing: Package,
-  packed: Package,
-  ready_for_pickup: Truck,
-  assigned_rider: Truck,
-  out_for_delivery: Truck,
-  delivered: CheckCircle,
-  cancelled: XCircle,
-  refunded: XCircle,
-}
-
-const statusLabels = {
-  pending: 'Pending',
-  confirmed: 'Confirmed',
-  preparing: 'Preparing',
-  packed: 'Packed',
-  ready_for_pickup: 'Ready for Pickup',
-  assigned_rider: 'Assigned Rider',
-  out_for_delivery: 'Out for Delivery',
-  delivered: 'Delivered',
-  cancelled: 'Cancelled',
-  refunded: 'Refunded',
-}
-
-function OrderDetailContent({ order, loading, onClose }: { order: Order | null; loading: boolean; onClose: () => void }) {
+function OrderDetailContent({ order, loading, onClose }: { order: any; loading: boolean; onClose: () => void }) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
+  const tileLayerRef = useRef<any>(null)
+  const animationFrameRef = useRef<number | null>(null)
 
+  const [mapTheme, setMapTheme] = useState<'street' | 'dark' | 'satellite'>('street')
+  const [mapReady, setMapReady] = useState(false)
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null)
+  const [mapError, setMapError] = useState(false)
+  const [leafletLoaded, setLeafletLoaded] = useState(false)
+
+  // 1. Dynamically load Leaflet & Lottie Player scripts
   useEffect(() => {
-    if (!order?.location || !mapRef.current || mapInstanceRef.current) return
+    if (typeof window === 'undefined') return
 
-    const loadMap = async () => {
+    // Leaflet CSS
+    if (!document.getElementById('leaflet-css')) {
       const link = document.createElement('link')
+      link.id = 'leaflet-css'
       link.rel = 'stylesheet'
       link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
       document.head.appendChild(link)
-
-      const script = document.createElement('script')
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-      script.onload = () => {
-        if (window.L && mapRef.current) {
-          const position: [number, number] = [order.location!.lat, order.location!.lng]
-          
-          const map = window.L.map(mapRef.current, {
-            center: position,
-            zoom: 14,
-            zoomControl: false,
-            attributionControl: false,
-            dragging: false,
-            scrollWheelZoom: false,
-          })
-
-          window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            subdomains: 'abcd',
-            maxZoom: 20,
-          }).addTo(map)
-
-          window.L.marker(position).addTo(map)
-          mapInstanceRef.current = map
-        }
-      }
-      document.body.appendChild(script)
     }
 
-    loadMap()
+    // Leaflet JS
+    if (!window.L && !document.getElementById('leaflet-js')) {
+      const script = document.createElement('script')
+      script.id = 'leaflet-js'
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+      script.onload = () => setLeafletLoaded(true)
+      script.onerror = () => setMapError(true)
+      document.body.appendChild(script)
+    } else if (window.L) {
+      setLeafletLoaded(true)
+    }
+
+    // DotLottie Player Web Component Script
+    if (!document.getElementById('lottie-player-js')) {
+      const lottieScript = document.createElement('script')
+      lottieScript.id = 'lottie-player-js'
+      lottieScript.src = 'https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs'
+      lottieScript.type = 'module'
+      document.body.appendChild(lottieScript)
+    }
+  }, [])
+
+  // 2. Fetch destination coordinates when order details change
+  useEffect(() => {
+    if (!order?.address) {
+      setMapReady(false)
+      return
+    }
+
+    let isMounted = true
+    const fetchCoordinates = async () => {
+      const coords = await getCoordinates(
+        order.address.address,
+        order.address.city,
+        order.address.province
+      )
+      if (isMounted) setCoordinates(coords)
+    }
+
+    fetchCoordinates()
+    return () => { isMounted = false }
+  }, [order])
+
+  // 3. Initialize Leaflet Map, Route, and Animated Markers
+  useEffect(() => {
+    if (!leafletLoaded || !coordinates || !mapRef.current) return
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+    }
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove()
+      mapInstanceRef.current = null
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        if (!mapRef.current) return
+
+        const customerPos: [number, number] = [coordinates.lat, coordinates.lng]
+        const storePos: [number, number] = [STORE_LOCATION.lat, STORE_LOCATION.lng]
+
+        // Create Map Instance
+        const map = window.L.map(mapRef.current, {
+          zoomControl: true,
+          dragging: true,
+          scrollWheelZoom: false,
+          attributionControl: false,
+        })
+
+        // Active Tile Layer
+        const activeConfig = TILE_LAYERS[mapTheme]
+        const tileLayer = window.L.tileLayer(activeConfig.url, activeConfig.options).addTo(map)
+        tileLayerRef.current = tileLayer
+
+        // Store Pin Icon (72x72)
+        const storeIcon = window.L.divIcon({
+          className: 'custom-leaflet-animated-icon',
+          html: `
+            <div style="width: 72px; height: 72px; display: flex; align-items: center; justify-content: center;">
+              <dotlottie-player
+                src="/animations/store.json"
+                background="transparent"
+                speed="1"
+                style="width: 72px; height: 72px;"
+                loop
+                autoplay
+              ></dotlottie-player>
+            </div>
+          `,
+          iconSize: [72, 72],
+          iconAnchor: [36, 36],
+          popupAnchor: [0, -36],
+        })
+
+        const storeMarker = window.L.marker(storePos, { icon: storeIcon }).addTo(map)
+        storeMarker.bindPopup(`<b>${STORE_LOCATION.name}</b><br/>Dispatch Point`)
+
+        // Hide store icon initially to prevent rider overlap
+        storeMarker.setOpacity(0)
+
+        // Customer Destination Icon (64x64)
+        const customerIcon = window.L.divIcon({
+          className: 'custom-leaflet-animated-icon',
+          html: `
+            <div style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center;">
+              <dotlottie-player
+                src="/animations/location.json"
+                background="transparent"
+                speed="1"
+                style="width: 64px; height: 64px;"
+                loop
+                autoplay
+              ></dotlottie-player>
+            </div>
+          `,
+          iconSize: [64, 64],
+          iconAnchor: [32, 64],
+          popupAnchor: [0, -64],
+        })
+
+        const customerMarker = window.L.marker(customerPos, { icon: customerIcon }).addTo(map)
+        if (order?.address) {
+          customerMarker.bindPopup(`
+            <div style="font-size: 13px;">
+              <strong>Delivery Destination</strong><br/>
+              ${order.address.address}<br/>
+              ${order.address.city}, ${order.address.province}
+            </div>
+          `)
+        }
+
+        // Fetch street route geometry
+        const routePoints = await getRouteGeometry(STORE_LOCATION, coordinates)
+
+        // Render Solid Route Polyline
+        window.L.polyline(routePoints, {
+          color: '#3b82f6',
+          weight: 5,
+          opacity: 0.85,
+        }).addTo(map)
+
+        // Fit boundaries
+        const bounds = window.L.latLngBounds([storePos, customerPos])
+        map.fitBounds(bounds, { padding: [50, 50] })
+
+        // Delivery Rider Icon (80x80)
+        const riderIcon = window.L.divIcon({
+          className: 'custom-leaflet-animated-icon',
+          html: `
+            <div style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+              <dotlottie-player
+                src="/animations/rider.json"
+                background="transparent"
+                speed="1"
+                style="width: 80px; height: 80px;"
+                loop
+                autoplay
+              ></dotlottie-player>
+            </div>
+          `,
+          iconSize: [80, 80],
+          iconAnchor: [40, 40],
+          popupAnchor: [0, -40],
+        })
+
+        const activeRiderStatus = ['ASSIGNED_RIDER', 'OUT_FOR_DELIVERY'].includes(order.status)
+        const riderMarker = window.L.marker(routePoints[0], { 
+          icon: riderIcon,
+          zIndexOffset: 1000 
+        }).addTo(map)
+        riderMarker.bindPopup(`<b>Delivery Rider</b><br/>Status: ${order.status}`)
+
+        // Animate Rider along path and reveal store marker when rider moves away
+        if (activeRiderStatus && routePoints.length > 1) {
+          let stepIndex = 0
+          let progress = 0
+          const speed = 0.012
+
+          const animateRider = () => {
+            if (stepIndex >= routePoints.length - 1) {
+              stepIndex = 0
+              progress = 0
+            }
+
+            const p1 = routePoints[stepIndex]
+            const p2 = routePoints[stepIndex + 1]
+
+            const currentLat = p1[0] + (p2[0] - p1[0]) * progress
+            const currentLng = p1[1] + (p2[1] - p1[1]) * progress
+
+            riderMarker.setLatLng([currentLat, currentLng])
+
+            // Show store marker once rider has moved away from starting point
+            if (stepIndex > 0 || progress > 0.1) {
+              storeMarker.setOpacity(1)
+            } else {
+              storeMarker.setOpacity(0)
+            }
+
+            progress += speed
+            if (progress >= 1) {
+              progress = 0
+              stepIndex++
+            }
+
+            animationFrameRef.current = requestAnimationFrame(animateRider)
+          }
+
+          animateRider()
+        } else {
+          storeMarker.setOpacity(1)
+        }
+
+        mapInstanceRef.current = map
+        setMapReady(true)
+        setMapError(false)
+
+        setTimeout(() => {
+          map.invalidateSize()
+        }, 300)
+
+      } catch (error) {
+        console.error('Map initialization error:', error)
+        setMapError(true)
+      }
+    }, 250)
 
     return () => {
+      clearTimeout(timer)
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove()
         mapInstanceRef.current = null
       }
     }
-  }, [order])
+  }, [leafletLoaded, coordinates, order])
+
+  // 4. Dynamic Theme Switcher Effect
+  useEffect(() => {
+    if (!mapInstanceRef.current || !tileLayerRef.current) return
+
+    const map = mapInstanceRef.current
+    const activeConfig = TILE_LAYERS[mapTheme]
+
+    map.removeLayer(tileLayerRef.current)
+    const newTileLayer = window.L.tileLayer(activeConfig.url, activeConfig.options).addTo(map)
+    tileLayerRef.current = newTileLayer
+  }, [mapTheme])
 
   if (loading) {
     return (
-      <div className="flex-1 space-y-4">
-        <Skeleton className="h-48 w-full rounded-none" />
-        <div className="p-4 sm:p-6 space-y-4">
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <Skeleton className="h-7 w-48" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-            <Skeleton className="h-7 w-24 rounded-full" />
-          </div>
-          <Separator />
-          <Skeleton className="h-5 w-24" />
-          <div className="space-y-3">
-            {[1, 2].map((i) => (
-              <div key={i} className="flex items-center gap-3">
-                <Skeleton className="h-14 w-14 rounded-md" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/4" />
-                </div>
-                <Skeleton className="h-4 w-16" />
-              </div>
-            ))}
-          </div>
-          <Separator />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-          <Separator />
-          <div className="grid grid-cols-2 gap-4">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-          </div>
-          <Skeleton className="h-11 w-full" />
-        </div>
+      <div className="flex-1 space-y-4 p-4">
+        <Skeleton className="h-48 w-full rounded-md" />
+        <Skeleton className="h-7 w-48" />
+        <Skeleton className="h-4 w-32" />
       </div>
     )
   }
@@ -185,57 +408,150 @@ function OrderDetailContent({ order, loading, onClose }: { order: Order | null; 
     )
   }
 
+  const subtotal = order.items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) || 0
+  const paymentMethod = order.payments?.[0]?.method || 'N/A'
+  const paymentStatus = order.payments?.[0]?.status || 'PENDING'
+
+  const statusLabels: Record<string, string> = {
+    PENDING: 'Pending',
+    CONFIRMED: 'Confirmed',
+    PREPARING: 'Preparing',
+    PACKED: 'Packed',
+    READY_FOR_PICKUP: 'Ready for Pickup',
+    ASSIGNED_RIDER: 'Assigned Rider',
+    OUT_FOR_DELIVERY: 'Out for Delivery',
+    DELIVERED: 'Delivered',
+    CANCELLED: 'Cancelled',
+    REFUNDED: 'Refunded',
+  }
+
+  const statusColors: Record<string, string> = {
+    PENDING: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
+    CONFIRMED: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+    PREPARING: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
+    PACKED: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+    READY_FOR_PICKUP: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+    ASSIGNED_RIDER: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+    OUT_FOR_DELIVERY: 'bg-green-500/10 text-green-600 border-green-500/20',
+    DELIVERED: 'bg-green-600/10 text-green-700 border-green-600/20',
+    CANCELLED: 'bg-red-500/10 text-red-600 border-red-500/20',
+    REFUNDED: 'bg-gray-500/10 text-gray-600 border-gray-500/20',
+  }
+
+  const statusIcons: Record<string, any> = {
+    PENDING: Clock,
+    CONFIRMED: Package,
+    PREPARING: Package,
+    PACKED: Package,
+    READY_FOR_PICKUP: Truck,
+    ASSIGNED_RIDER: Truck,
+    OUT_FOR_DELIVERY: Truck,
+    DELIVERED: CheckCircle,
+    CANCELLED: XCircle,
+    REFUNDED: XCircle,
+  }
+
   const StatusIcon = statusIcons[order.status] || Clock
   const statusColor = statusColors[order.status] || 'bg-gray-500/10 text-gray-600 border-gray-200'
-  const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
 
   return (
-    <div className="w-full">
-      {/* Edge-to-Edge Map Header */}
-      {order.location && (
-        <div className="relative w-full h-48 bg-muted">
-          <div ref={mapRef} className="w-full h-full z-0" />
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-background/90 px-3 py-1 rounded-full text-xs shadow-sm z-10">
-            📍 Delivery Location
+    <div className="w-full flex flex-col lg:flex-row min-h-0 h-full">
+      {/* Left Column: Map Container */}
+      <div className="relative w-full lg:w-[50%] h-64 lg:h-full lg:min-h-[400px] bg-muted overflow-hidden shrink-0">
+        {/* Dynamic Theme Switcher Overlay */}
+        {mapReady && !mapError && (
+          <div className="absolute top-3 right-3 z-[1000] bg-background/80 backdrop-blur-md p-1 rounded-lg border shadow-md flex gap-1">
+            <Button
+              size="sm"
+              variant={mapTheme === 'street' ? 'default' : 'ghost'}
+              onClick={() => setMapTheme('street')}
+              className="h-7 text-xs font-medium px-2 gap-1"
+            >
+              <Map className="w-3.5 h-3.5" />
+              Street
+            </Button>
+            <Button
+              size="sm"
+              variant={mapTheme === 'dark' ? 'default' : 'ghost'}
+              onClick={() => setMapTheme('dark')}
+              className="h-7 text-xs font-medium px-2 gap-1"
+            >
+              <Moon className="w-3.5 h-3.5" />
+              Dark
+            </Button>
+            <Button
+              size="sm"
+              variant={mapTheme === 'satellite' ? 'default' : 'ghost'}
+              onClick={() => setMapTheme('satellite')}
+              className="h-7 text-xs font-medium px-2 gap-1"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              Satellite
+            </Button>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="p-4 sm:p-6 space-y-4">
-        {/* Header */}
+        {!mapReady && !mapError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        {mapError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted z-10 p-4 text-center">
+            <MapPin className="h-8 w-8 text-muted-foreground mb-1" />
+            <p className="text-sm text-muted-foreground font-medium">Map unavailable</p>
+            <p className="text-xs text-muted-foreground">
+              {order.address?.address}, {order.address?.city}
+            </p>
+          </div>
+        )}
+        <div ref={mapRef} className="w-full h-full z-0" />
+      </div>
+
+      {/* Right Column: Order Information */}
+      <div className="w-full lg:w-[50%] p-4 sm:p-5 space-y-4 lg:overflow-y-auto lg:max-h-[70vh] scrollbar-hide">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Order #{order.orderNumber}</h2>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
+            Order #{String(order.orderNumber || 0).padStart(4, '0')}
+          </h2>
           <div className="flex items-center justify-between mt-1">
             <span className="text-sm text-muted-foreground flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5" />
-              {new Date(order.date).toLocaleDateString('en-PH', {
+              {new Date(order.createdAt).toLocaleDateString('en-PH', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
               })}
             </span>
-
-            {/* Pushed completely to the right */}
             <Badge className={`${statusColor} inline-flex items-center border px-2.5 py-0.5 text-xs font-medium shrink-0`}>
               <StatusIcon className="h-3.5 w-3.5 mr-1" />
-              {statusLabels[order.status]}
+              {statusLabels[order.status] || order.status}
             </Badge>
           </div>
         </div>
 
         <Separator />
 
-        {/* Items */}
         <div>
-          <h3 className="font-semibold text-sm mb-3">Order Items</h3>
-          <div className="space-y-3">
-            {order.items.map((item) => (
+          <h3 className="font-semibold text-sm mb-2.5">Order Items</h3>
+          <div className="space-y-2.5">
+            {order.items?.map((item: any) => (
               <div key={item.id} className="flex items-center gap-3">
-                <div className="relative h-14 w-14 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                  <Image src={item.image} alt={item.name} fill className="object-cover" />
+                <div className="relative h-12 w-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                  {item.product?.images?.[0] ? (
+                    <img
+                      src={item.product.images[0]}
+                      alt={item.product.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-muted flex items-center justify-center">
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{item.name}</p>
+                  <p className="font-medium text-sm truncate">{item.product?.title}</p>
                   <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
                 </div>
                 <span className="text-sm font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
@@ -246,47 +562,65 @@ function OrderDetailContent({ order, loading, onClose }: { order: Order | null; 
 
         <Separator />
 
-        {/* Summary */}
         <div>
-          <h3 className="font-semibold text-sm mb-3">Order Summary</h3>
-          <div className="space-y-2 text-sm">
+          <h3 className="font-semibold text-sm mb-2">Order Summary</h3>
+          <div className="space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
               <span>₱{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Shipping</span>
-              <span>₱0.00</span>
+              <span>₱{(order.shipping || 0).toFixed(2)}</span>
             </div>
-            <Separator className="my-2" />
+            {order.discount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Discount</span>
+                <span className="text-green-600">-₱{order.discount.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Tax</span>
+              <span>₱{(order.tax || 0).toFixed(2)}</span>
+            </div>
+            <Separator className="my-1.5" />
             <div className="flex justify-between font-bold">
               <span>Total</span>
-              <span>₱{order.total.toFixed(2)}</span>
+              <span>₱{(order.payable || 0).toFixed(2)}</span>
             </div>
           </div>
         </div>
 
         <Separator />
 
-        {/* Delivery & Payment */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <h4 className="font-medium text-sm mb-1 flex items-center gap-1.5">
               <MapPin className="h-4 w-4 text-muted-foreground" />
               Shipping Address
             </h4>
-            <p className="text-sm text-muted-foreground">{order.shippingAddress}</p>
+            {order.address ? (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {order.address.address}, {order.address.city}, {order.address.province} {order.address.postalCode}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">No address provided</p>
+            )}
           </div>
           <div>
             <h4 className="font-medium text-sm mb-1 flex items-center gap-1.5">
               <CreditCard className="h-4 w-4 text-muted-foreground" />
               Payment Method
             </h4>
-            <p className="text-sm text-muted-foreground">{order.paymentMethod}</p>
+            <div className="space-y-0.5">
+              <p className="text-xs text-muted-foreground">{paymentMethod}</p>
+              <Badge variant="outline" className="text-[10px]">
+                {paymentStatus}
+              </Badge>
+            </div>
           </div>
         </div>
 
-        {/* Close Button */}
         <div className="pt-2">
           <Button className="w-full" variant="outline" onClick={onClose}>
             Close
@@ -297,24 +631,21 @@ function OrderDetailContent({ order, loading, onClose }: { order: Order | null; 
   )
 }
 
-export function OrderDetailSheet({ order, open, onOpenChange }: OrderDetailSheetProps) {
+export function OrderDetailSheet({ order, open, onOpenChange }: any) {
   const isDesktop = useMediaQuery({ minWidth: 1024 })
-  const [loading, setLoading] = useState(false)
 
   if (!isDesktop) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="bottom" className="h-[85vh] sm:h-[80vh] rounded-t-2xl p-0 overflow-hidden">
-          <div className="relative h-full flex flex-col">
+          <div className="relative h-full flex flex-col overflow-y-auto scrollbar-hide">
             <button
               onClick={() => onOpenChange(false)}
               className="absolute right-3 top-3 z-50 p-2 rounded-full bg-background/90 hover:bg-background transition-colors shadow-md border"
             >
               <X className="h-5 w-5 text-foreground" />
             </button>
-            <div className="flex-1 overflow-y-auto min-h-0 scrollbar-hide">
-              <OrderDetailContent order={order} loading={loading} onClose={() => onOpenChange(false)} />
-            </div>
+            <OrderDetailContent order={order} loading={false} onClose={() => onOpenChange(false)} />
           </div>
         </SheetContent>
       </Sheet>
@@ -323,18 +654,16 @@ export function OrderDetailSheet({ order, open, onOpenChange }: OrderDetailSheet
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-2xl p-0 overflow-hidden rounded-xl border-0 shadow-2xl [&>button]:hidden"
-      >
-        <div className="relative max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-xl border-0 shadow-2xl [&>button]:hidden">
+        <div className="relative max-h-[70vh] flex flex-col">
           <button
             onClick={() => onOpenChange(false)}
             className="absolute right-3 top-3 z-50 p-2 rounded-full bg-background/90 hover:bg-background transition-colors shadow-md border"
           >
             <X className="h-5 w-5 text-foreground" />
           </button>
-          <div className="flex-1 overflow-y-auto min-h-0 scrollbar-hide">
-            <OrderDetailContent order={order} loading={loading} onClose={() => onOpenChange(false)} />
+          <div className="flex-1 overflow-hidden min-h-0">
+            <OrderDetailContent order={order} loading={false} onClose={() => onOpenChange(false)} />
           </div>
         </div>
       </DialogContent>

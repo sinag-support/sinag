@@ -10,7 +10,8 @@ interface Product {
   name: string
   price: number
   image: string
-  rating: number
+  rating?: number
+  reviewCount?: number
   discount?: number
   category?: string
 }
@@ -32,14 +33,9 @@ export function ProductGrid({
   const [sheetOpen, setSheetOpen] = useState(false)
   const [wishlist, setWishlist] = useState<Set<string>>(new Set())
 
-  // Open sheet if initialProductId is provided and the product exists
   useEffect(() => {
     if (!initialProductId) return
-
-    const productExists = products.some(
-      (product) => product.id === initialProductId
-    )
-
+    const productExists = products.some((p) => p.id === initialProductId)
     if (productExists) {
       setSelectedProductId(initialProductId)
       setSheetOpen(true)
@@ -57,11 +53,8 @@ export function ProductGrid({
     e.stopPropagation()
     setWishlist((prev) => {
       const newSet = new Set(prev)
-      if (newSet.has(productId)) {
-        newSet.delete(productId)
-      } else {
-        newSet.add(productId)
-      }
+      if (newSet.has(productId)) newSet.delete(productId)
+      else newSet.add(productId)
       return newSet
     })
   }
@@ -77,7 +70,7 @@ export function ProductGrid({
 
   return (
     <>
-      {/* Desktop: Grid */}
+      {/* Desktop Grid */}
       <div
         className="hidden lg:grid gap-4 pb-0"
         style={{
@@ -91,6 +84,8 @@ export function ProductGrid({
           const hasDiscount = discount > 0
           const finalPrice = product.price - (product.price * discount) / 100
           const isWishlisted = wishlist.has(product.id)
+          const rating = product.rating ?? 0
+          const reviewCount = product.reviewCount ?? 0
 
           return (
             <Card
@@ -117,9 +112,7 @@ export function ProductGrid({
                     alt={product.name}
                     className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     loading="lazy"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
+                    onError={(e) => (e.currentTarget.style.display = 'none')}
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-gray-200 dark:bg-gray-700">
@@ -137,16 +130,9 @@ export function ProductGrid({
                 <h3 className="font-medium text-sm sm:text-base line-clamp-1">
                   {product.name}
                 </h3>
-
                 {product.category && (
                   <p className="text-xs text-muted-foreground">{product.category}</p>
                 )}
-
-                <div className="flex items-center gap-1">
-                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                  <span className="text-xs font-medium">{product.rating.toFixed(1)}</span>
-                </div>
-
                 <div className="flex items-center gap-2">
                   {hasDiscount ? (
                     <>
@@ -163,13 +149,22 @@ export function ProductGrid({
                     </span>
                   )}
                 </div>
+
+                {/* Rating always shown */}
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  <span className="text-xs font-medium">{rating.toFixed(1)}</span>
+                  <span className="text-xs text-muted-foreground ml-1">
+                    {reviewCount > 0 ? `(${reviewCount})` : '(No reviews)'}
+                  </span>
+                </div>
               </CardContent>
             </Card>
           )
         })}
       </div>
 
-      {/* Mobile/Tablet */}
+      {/* Mobile/Tablet – scrollable or grid */}
       <div className="lg:hidden pb-0">
         {scrollable ? (
           <div
@@ -181,6 +176,8 @@ export function ProductGrid({
               const hasDiscount = discount > 0
               const finalPrice = product.price - (product.price * discount) / 100
               const isWishlisted = wishlist.has(product.id)
+              const rating = product.rating ?? 0
+              const reviewCount = product.reviewCount ?? 0
 
               return (
                 <div key={product.id} className="flex-shrink-0 w-[150px] sm:w-[180px]">
@@ -191,7 +188,6 @@ export function ProductGrid({
                     <button
                       onClick={(e) => toggleWishlist(e, product.id)}
                       className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/80 hover:bg-white dark:bg-black/50 dark:hover:bg-black/70 transition-colors"
-                      aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
                     >
                       <Heart
                         className={`h-4 w-4 transition-colors ${
@@ -199,7 +195,6 @@ export function ProductGrid({
                         }`}
                       />
                     </button>
-
                     <div className="relative aspect-square w-full bg-white dark:bg-black overflow-hidden rounded-t-lg">
                       {product.image ? (
                         <img
@@ -207,9 +202,7 @@ export function ProductGrid({
                           alt={product.name}
                           className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                           loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none'
-                          }}
+                          onError={(e) => (e.currentTarget.style.display = 'none')}
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center bg-gray-200 dark:bg-gray-700">
@@ -222,21 +215,13 @@ export function ProductGrid({
                         </div>
                       )}
                     </div>
-
                     <CardContent className="p-2.5 space-y-1">
                       <h3 className="font-medium text-xs line-clamp-1">{product.name}</h3>
-
                       {product.category && (
                         <p className="text-[10px] text-muted-foreground truncate">
                           {product.category}
                         </p>
                       )}
-
-                      <div className="flex items-center gap-1">
-                        <Star className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
-                        <span className="text-[10px] font-medium">{product.rating.toFixed(1)}</span>
-                      </div>
-
                       <div className="flex items-center gap-2">
                         {hasDiscount ? (
                           <>
@@ -253,6 +238,13 @@ export function ProductGrid({
                           </span>
                         )}
                       </div>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
+                        <span className="text-[10px] font-medium">{rating.toFixed(1)}</span>
+                        <span className="text-[10px] text-muted-foreground ml-0.5">
+                          {reviewCount > 0 ? `(${reviewCount})` : '(No reviews)'}
+                        </span>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -266,6 +258,8 @@ export function ProductGrid({
               const hasDiscount = discount > 0
               const finalPrice = product.price - (product.price * discount) / 100
               const isWishlisted = wishlist.has(product.id)
+              const rating = product.rating ?? 0
+              const reviewCount = product.reviewCount ?? 0
 
               return (
                 <Card
@@ -276,7 +270,6 @@ export function ProductGrid({
                   <button
                     onClick={(e) => toggleWishlist(e, product.id)}
                     className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/80 hover:bg-white dark:bg-black/50 dark:hover:bg-black/70 transition-colors"
-                    aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
                   >
                     <Heart
                       className={`h-4 w-4 transition-colors ${
@@ -284,7 +277,6 @@ export function ProductGrid({
                       }`}
                     />
                   </button>
-
                   <div className="relative aspect-square w-full bg-white dark:bg-black overflow-hidden rounded-t-lg">
                     {product.image ? (
                       <img
@@ -292,9 +284,7 @@ export function ProductGrid({
                         alt={product.name}
                         className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                         loading="lazy"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none'
-                        }}
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center bg-gray-200 dark:bg-gray-700">
@@ -307,23 +297,15 @@ export function ProductGrid({
                       </div>
                     )}
                   </div>
-
                   <CardContent className="p-3 space-y-1">
                     <h3 className="font-medium text-xs sm:text-sm line-clamp-1">
                       {product.name}
                     </h3>
-
                     {product.category && (
                       <p className="text-[10px] text-muted-foreground truncate">
                         {product.category}
                       </p>
                     )}
-
-                    <div className="flex items-center gap-1">
-                      <Star className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
-                      <span className="text-[10px] font-medium">{product.rating.toFixed(1)}</span>
-                    </div>
-
                     <div className="flex items-center gap-2">
                       {hasDiscount ? (
                         <>
@@ -339,6 +321,13 @@ export function ProductGrid({
                           ₱{product.price.toFixed(2)}
                         </span>
                       )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
+                      <span className="text-[10px] font-medium">{rating.toFixed(1)}</span>
+                      <span className="text-[10px] text-muted-foreground ml-0.5">
+                        {reviewCount > 0 ? `(${reviewCount})` : '(No reviews)'}
+                      </span>
                     </div>
                   </CardContent>
                 </Card>

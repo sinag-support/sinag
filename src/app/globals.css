@@ -132,6 +132,13 @@
    font-family: var(--font-work-sans);
 }
 
+/* Custom Leaflet Animated Marker CSS Fix */
+.custom-leaflet-animated-icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
