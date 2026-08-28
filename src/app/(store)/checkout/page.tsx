@@ -69,6 +69,8 @@ interface BuyNowItem {
   } | null
 }
 
+export const dynamic = 'force-dynamic'
+
 export default function CheckoutPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
