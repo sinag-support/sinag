@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Clock, Search } from 'lucide-react'
+import { Calendar, Clock, Search, Heart, MessageCircle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import prisma from '@/lib/prisma'
 import { safeQuery } from '@/lib/safe-query'
 import { BackButton } from '@/components/ui/back-button'
+import { cn } from '@/lib/utils'
 
 export const metadata = {
   title: 'Blog - SINAG',
@@ -23,7 +24,7 @@ export default async function BlogPage({
   const params = await searchParams
   const searchQuery = params.search || ''
 
-  // Fetch blog posts from database with search filter
+  // Fetch blog posts from database with search filter and include likes/comments count
   const blogPosts = await safeQuery(
     () =>
       prisma.blogPost.findMany({
@@ -53,6 +54,12 @@ export default async function BlogPage({
           createdAt: true,
           tags: true,
           author: true,
+          _count: {
+            select: {
+              likes: true,
+              comments: true,
+            },
+          },
         },
       }),
     []
@@ -68,7 +75,9 @@ export default async function BlogPage({
     slug: post.slug,
     readTime: 5,
     tags: post.tags || [],
-    author: post.author,
+    author: post.author || 'SINAG Editorial',
+    likeCount: post._count.likes || 0,
+    commentCount: post._count.comments || 0,
   }))
 
   return (
@@ -185,6 +194,22 @@ export default async function BlogPage({
                   <p className="text-sm text-muted-foreground line-clamp-3 flex-1">
                     {post.excerpt}
                   </p>
+
+                  {/* Like & Comment Count */}
+                  <div className="flex items-center gap-4 pt-2">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Heart className={cn(
+                        "h-3.5 w-3.5",
+                        post.likeCount > 0 ? "fill-red-500 text-red-500" : "text-muted-foreground"
+                      )} />
+                      <span>{post.likeCount}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{post.commentCount}</span>
+                    </div>
+                  </div>
+
                   <div className="flex flex-wrap items-center justify-between pt-2 gap-2">
                     <span className="text-xs text-muted-foreground">By {post.author}</span>
                     <Link

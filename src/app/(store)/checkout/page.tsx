@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2, ChevronLeft, MapPin, Plus } from 'lucide-react'
+import { Loader2, ChevronLeft, MapPin, Plus, ShoppingBag, X } from 'lucide-react'
 
 interface CartItem {
   id: string
@@ -50,11 +50,33 @@ interface Address {
   isDefault: boolean
 }
 
+interface BuyNowItem {
+  productId: string
+  quantity: number
+  optionId: string | null
+  product: {
+    id: string
+    title: string
+    price: number
+    discount: number
+    images: string[]
+  }
+  option?: {
+    id: string
+    name: string
+    price: number
+    stock: number
+  } | null
+}
+
 export default function CheckoutPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [buyNowItem, setBuyNowItem] = useState<BuyNowItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [placingOrder, setPlacingOrder] = useState(false)
+  const [isBuyNow, setIsBuyNow] = useState(false)
 
   // Selected address
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
@@ -67,10 +89,53 @@ export default function CheckoutPage() {
   // Payment
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'GCASH'>('COD')
 
+  // Check if this is a buy now purchase
   useEffect(() => {
-    fetchCart()
-    fetchAddresses()
-  }, [])
+    const isBuyNowParam = searchParams.get('buyNow')
+    const productId = searchParams.get('productId')
+    const quantity = parseInt(searchParams.get('quantity') || '1')
+    const optionId = searchParams.get('optionId') || null
+
+    if (isBuyNowParam === 'true' && productId) {
+      setIsBuyNow(true)
+      fetchBuyNowProduct(productId, quantity, optionId)
+    } else {
+      fetchCart()
+      fetchAddresses()
+    }
+  }, [searchParams])
+
+  const fetchBuyNowProduct = async (productId: string, quantity: number, optionId: string | null) => {
+    try {
+      const response = await fetch('/api/checkout/buy-now', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, quantity, optionId }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to fetch product')
+      }
+
+      const data = await response.json()
+      setBuyNowItem({
+        productId: data.product.id,
+        quantity: data.quantity,
+        optionId: optionId,
+        product: data.product,
+        option: data.option,
+      })
+      
+      // Still fetch addresses
+      await fetchAddresses()
+      setLoading(false)
+    } catch (error: any) {
+      console.error('Error fetching buy now product:', error)
+      toast.error(error.message || 'Failed to load product')
+      setLoading(false)
+    }
+  }
 
   const fetchCart = async () => {
     try {
@@ -84,10 +149,11 @@ export default function CheckoutPage() {
       if (!response.ok) throw new Error('Failed to fetch cart')
       const data = await response.json()
       setCartItems(data.items || [])
+      await fetchAddresses()
+      setLoading(false)
     } catch (error) {
       console.error(error)
       toast.error('Failed to load cart')
-    } finally {
       setLoading(false)
     }
   }
@@ -96,6 +162,7 @@ export default function CheckoutPage() {
     try {
       const response = await fetch('/api/addresses')
       if (!response.ok) {
+        setAddressesLoaded(true)
         return
       }
       const data = await response.json()
@@ -125,8 +192,26 @@ export default function CheckoutPage() {
     if (addr) setSelectedAddress(addr)
   }
 
+  // Get items for checkout (either cart items or buy now item)
+  const getCheckoutItems = () => {
+    if (isBuyNow && buyNowItem) {
+      // Convert buy now item to cart item format
+      return [{
+        id: 'buy-now-' + Date.now(),
+        productId: buyNowItem.productId,
+        quantity: buyNowItem.quantity,
+        optionId: buyNowItem.optionId,
+        product: buyNowItem.product,
+        option: buyNowItem.option,
+      }]
+    }
+    return cartItems
+  }
+
+  const checkoutItems = getCheckoutItems()
+
   // Compute totals
-  const subtotal = cartItems.reduce((sum, item) => {
+  const subtotal = checkoutItems.reduce((sum, item) => {
     const basePrice = item.option ? item.option.price : item.product.price
     const price = item.product.discount > 0
       ? basePrice * (1 - item.product.discount / 100)
@@ -144,26 +229,36 @@ export default function CheckoutPage() {
       return
     }
 
-    if (cartItems.length === 0) {
-      toast.error('Your cart is empty')
+    if (checkoutItems.length === 0) {
+      toast.error('No items to checkout')
       return
     }
 
     setPlacingOrder(true)
     try {
+      // For buy now, we need to use a different API endpoint or pass the items directly
+      const orderPayload = {
+        address: selectedAddress.address,
+        city: selectedAddress.city,
+        province: selectedAddress.province,
+        postalCode: selectedAddress.postalCode,
+        country: selectedAddress.country,
+        paymentMethod,
+        shipping,
+        vat,
+        isBuyNow,
+        items: isBuyNow ? checkoutItems.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          optionId: item.optionId,
+          price: item.option ? item.option.price : item.product.price,
+        })) : undefined,
+      }
+
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          address: selectedAddress.address,
-          city: selectedAddress.city,
-          province: selectedAddress.province,
-          postalCode: selectedAddress.postalCode,
-          country: selectedAddress.country,
-          paymentMethod,
-          shipping,
-          vat,
-        }),
+        body: JSON.stringify(orderPayload),
       })
 
       const data = await response.json()
@@ -255,11 +350,11 @@ export default function CheckoutPage() {
     )
   }
 
-  // --- Empty cart ---
-  if (cartItems.length === 0) {
+  // --- Empty checkout ---
+  if (checkoutItems.length === 0) {
     return (
       <div className="container mx-auto px-4 py-12 max-w-4xl text-center">
-        <h1 className="text-2xl font-bold">Your cart is empty</h1>
+        <h1 className="text-2xl font-bold">No items to checkout</h1>
         <p className="text-muted-foreground mt-2">Add items before checking out.</p>
         <Link href="/products">
           <Button className="mt-4">Continue Shopping</Button>
@@ -273,7 +368,7 @@ export default function CheckoutPage() {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl pb-24 md:pb-8">
         <div className="flex items-center gap-2 mb-6">
-          <Link href="/cart" className="text-muted-foreground hover:text-foreground">
+          <Link href={isBuyNow ? '/products' : '/cart'} className="text-muted-foreground hover:text-foreground">
             <ChevronLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-2xl font-bold">Checkout</h1>
@@ -304,10 +399,15 @@ export default function CheckoutPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl pb-24 md:pb-8">
       <div className="flex items-center gap-2 mb-6">
-        <Link href="/cart" className="text-muted-foreground hover:text-foreground">
+        <Link href={isBuyNow ? '/products' : '/cart'} className="text-muted-foreground hover:text-foreground">
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <h1 className="text-2xl font-bold">Checkout</h1>
+        {isBuyNow && (
+          <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+            Buy Now
+          </span>
+        )}
       </div>
 
       <div className="grid md:grid-cols-3 gap-8">
@@ -389,7 +489,37 @@ export default function CheckoutPage() {
         <div className="md:col-span-1">
           <Card>
             <CardContent className="p-6 space-y-4">
-              <h2 className="font-semibold text-lg">Order Summary</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-lg">Order Summary</h2>
+                {isBuyNow && (
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                    Buy Now
+                  </span>
+                )}
+              </div>
+
+              {/* Show items in checkout */}
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {checkoutItems.map((item) => {
+                  const basePrice = item.option ? item.option.price : item.product.price
+                  const price = item.product.discount > 0
+                    ? basePrice * (1 - item.product.discount / 100)
+                    : basePrice
+                  
+                  return (
+                    <div key={item.id} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground truncate">
+                        {item.quantity}x {item.product.title}
+                        {item.option && ` (${item.option.name})`}
+                      </span>
+                      <span>₱{(price * item.quantity).toFixed(2)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <Separator />
+
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>

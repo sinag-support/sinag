@@ -108,6 +108,8 @@ export async function POST(request: Request) {
       paymentMethod,
       shipping,
       vat,
+      isBuyNow,
+      items: buyNowItems,
     } = await request.json()
 
     if (!address || !city || !province || !postalCode) {
@@ -117,67 +119,145 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 })
     }
 
-    // Get the user's cart
-    const cart = await prisma.cart.findUnique({
-      where: { userId: dbUser.id },
-      include: {
-        items: {
-          include: {
-            product: true,
-            option: true,
-          },
-        },
-      },
-    })
-
-    if (!cart || cart.items.length === 0) {
-      return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
-    }
-
-    // Verify stock and compute totals
     let subtotal = 0
     let totalDiscount = 0
-    const orderItemsData = []
+    let orderItemsData = []
+    let cartId = null
 
-    for (const item of cart.items) {
-      const product = item.product
-      const option = item.option
-      const quantity = item.quantity
+    // Handle Buy Now flow (does NOT clear cart)
+    if (isBuyNow && buyNowItems && buyNowItems.length > 0) {
+      // Process buy now items directly
+      for (const item of buyNowItems) {
+        const product = await prisma.product.findUnique({
+          where: { id: item.productId },
+          include: {
+            options: true,
+          },
+        })
 
-      const basePrice = option ? option.price : product.price
-      const discount = product.discount || 0
-      const discountedPrice = discount > 0 ? basePrice * (1 - discount / 100) : basePrice
-      const stock = option ? option.stock : product.stock
+        if (!product) {
+          return NextResponse.json(
+            { error: `Product not found` },
+            { status: 404 }
+          )
+        }
 
-      if (stock < quantity) {
-        return NextResponse.json(
-          { error: `Insufficient stock for ${product.title}` },
-          { status: 400 }
-        )
+        // Check if option exists and has stock
+        let option = null
+        let stock = product.stock
+        let price = product.price
+
+        if (item.optionId) {
+          option = product.options.find((opt: any) => opt.id === item.optionId)
+          if (!option) {
+            return NextResponse.json(
+            { error: `Option not found` },
+            { status: 404 }
+          )
+          }
+          stock = option.stock
+          price = option.price
+        }
+
+        // Check stock
+        if (stock < item.quantity) {
+          return NextResponse.json(
+            { error: `Insufficient stock for ${product.title}${option ? ` (${option.name})` : ''}` },
+            { status: 400 }
+          )
+        }
+
+        // Reduce stock
+        if (option) {
+          await prisma.productOption.update({
+            where: { id: option.id },
+            data: { stock: { decrement: item.quantity } },
+          })
+        } else {
+          await prisma.product.update({
+            where: { id: product.id },
+            data: { stock: { decrement: item.quantity } },
+          })
+        }
+
+        const discount = product.discount || 0
+        const discountedPrice = discount > 0 ? price * (1 - discount / 100) : price
+
+        subtotal += discountedPrice * item.quantity
+        totalDiscount += (price - discountedPrice) * item.quantity
+
+        orderItemsData.push({
+          productId: product.id,
+          quantity: item.quantity,
+          price: discountedPrice,
+          discount: discount,
+        })
       }
 
-      // Reduce stock
-      if (option) {
-        await prisma.productOption.update({
-          where: { id: option.id },
-          data: { stock: { decrement: quantity } },
-        })
-      } else {
-        await prisma.product.update({
-          where: { id: product.id },
-          data: { stock: { decrement: quantity } },
-        })
-      }
-
-      subtotal += discountedPrice * quantity
-      totalDiscount += (basePrice - discountedPrice) * quantity
-
-      orderItemsData.push({
-        productId: product.id,
-        quantity,
-        price: discountedPrice,
-        discount: discount,
+      // DO NOT clear cart for Buy Now
+    } 
+    // Handle regular cart checkout
+    else {
+      // Get the user's cart
+      const cart = await prisma.cart.findUnique({
+        where: { userId: dbUser.id },
+        include: {
+          items: {
+            include: {
+              product: true,
+              option: true,
+            },
+          },
+        },
       })
+
+      if (!cart || cart.items.length === 0) {
+        return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
+      }
+
+      cartId = cart.id
+
+      // Verify stock and compute totals
+      for (const item of cart.items) {
+        const product = item.product
+        const option = item.option
+        const quantity = item.quantity
+
+        const basePrice = option ? option.price : product.price
+        const discount = product.discount || 0
+        const discountedPrice = discount > 0 ? basePrice * (1 - discount / 100) : basePrice
+        const stock = option ? option.stock : product.stock
+
+        if (stock < quantity) {
+          return NextResponse.json(
+            { error: `Insufficient stock for ${product.title}` },
+            { status: 400 }
+          )
+        }
+
+        // Reduce stock
+        if (option) {
+          await prisma.productOption.update({
+            where: { id: option.id },
+            data: { stock: { decrement: quantity } },
+          })
+        } else {
+          await prisma.product.update({
+            where: { id: product.id },
+            data: { stock: { decrement: quantity } },
+          })
+        }
+
+        subtotal += discountedPrice * quantity
+        totalDiscount += (basePrice - discountedPrice) * quantity
+
+        orderItemsData.push({
+          productId: product.id,
+          quantity,
+          price: discountedPrice,
+          discount: discount,
+        })
+      }
     }
 
     const total = subtotal + shipping + vat
@@ -235,10 +315,12 @@ export async function POST(request: Request) {
       },
     })
 
-    // Clear cart
-    await prisma.cartItem.deleteMany({
-      where: { cartId: cart.id },
-    })
+    // Only clear cart for regular checkout (not Buy Now)
+    if (!isBuyNow && cartId) {
+      await prisma.cartItem.deleteMany({
+        where: { cartId: cartId },
+      })
+    }
 
     return NextResponse.json({
       success: true,

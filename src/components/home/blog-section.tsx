@@ -2,7 +2,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Clock, ArrowUpRight, BookOpen } from 'lucide-react'
+import { Calendar, Clock, ArrowUpRight, BookOpen, Heart, MessageCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface BlogPost {
   id: number | string
@@ -13,6 +14,8 @@ interface BlogPost {
   slug: string
   category?: string
   readTime?: string
+  likeCount?: number
+  commentCount?: number
 }
 
 interface BlogSectionProps {
@@ -40,6 +43,9 @@ export function BlogSection({ posts }: BlogSectionProps) {
       month: 'short',
       day: 'numeric',
     })
+
+    const likeCount = post.likeCount || 0
+    const commentCount = post.commentCount || 0
 
     return (
       <Card
@@ -85,7 +91,22 @@ export function BlogSection({ posts }: BlogSectionProps) {
             {post.excerpt}
           </p>
 
-          <div className="mt-auto pt-4 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
+          {/* Like & Comment Count */}
+          <div className="flex items-center gap-4 mt-3">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Heart className={cn(
+                "h-3.5 w-3.5",
+                likeCount > 0 ? "fill-red-500 text-red-500" : "text-muted-foreground"
+              )} />
+              <span>{likeCount}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>{commentCount}</span>
+            </div>
+          </div>
+
+          <div className="mt-auto pt-4 flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 text-primary/70" />
               <time dateTime={post.date}>{formattedDate}</time>

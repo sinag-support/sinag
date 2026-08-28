@@ -108,27 +108,9 @@ export default function ProfilePage() {
       setName(user.user_metadata?.full_name || user.user_metadata?.name || '')
       setEmail(user.email || '')
       setLoading(false)
-
-      await fetchLatestOrder()
     }
     fetchUser()
   }, [router])
-
-  const fetchLatestOrder = async () => {
-    try {
-      const response = await fetch('/api/orders/latest')
-      if (!response.ok) {
-        setOrdersLoading(false)
-        return
-      }
-      const data: Order = await response.json()
-      setLatestOrder(data)
-    } catch (error) {
-      console.error('Error fetching latest order:', error)
-    } finally {
-      setOrdersLoading(false)
-    }
-  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -172,7 +154,7 @@ export default function ProfilePage() {
     <div className="container mx-auto px-4 py-8 pb-24 md:pb-12 max-w-2xl space-y-6">
       {/* Page Title with Theme Toggle - Mobile Only */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Account</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
         <Button
           variant="ghost"
           size="icon"
@@ -214,62 +196,6 @@ export default function ProfilePage() {
           </Link>
         </CardContent>
       </Card>
-
-      {/* Active Order Widget */}
-      {!ordersLoading && latestOrder && (
-        <Card className="border-primary/20 bg-primary/5 shadow-sm">
-          <CardContent className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-full bg-primary/10 text-primary">
-                  <Truck className="h-4 w-4" />
-                </div>
-                <span className="font-semibold text-sm">Active Order</span>
-              </div>
-              <Badge variant="outline" className={statusColors[latestOrder.status] || ''}>
-                {getStatusLabel(latestOrder.status)}
-              </Badge>
-            </div>
-
-            <div className="flex items-center justify-between text-sm">
-              <div>
-                <p className="font-medium">Order #{latestOrder.orderNumber}</p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(latestOrder.createdAt).toLocaleDateString('en-PH', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </p>
-              </div>
-              <p className="font-bold">₱{latestOrder.payable.toFixed(2)}</p>
-            </div>
-
-            <div className="pt-2 border-t border-border/50 flex items-center justify-between">
-              <div className="flex -space-x-2">
-                {latestOrder.items?.slice(0, 3).map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="h-8 w-8 rounded-full border-2 border-background bg-muted overflow-hidden"
-                    style={{ zIndex: 3 - index }}
-                  >
-                    {item.product.images?.[0] ? (
-                      <img src={item.product.images[0]} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <ShoppingBag className="h-3 w-3 m-auto text-muted-foreground" />
-                    )}
-                  </div>
-                ))}
-              </div>
-              <Link href={`/profile/orders/${latestOrder.id}`}>
-                <Button variant="link" size="sm" className="h-auto p-0 text-xs font-semibold">
-                  Track Order <ChevronRight className="h-3 w-3 ml-0.5" />
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Grouped Navigation Links */}
       <div className="space-y-6">
