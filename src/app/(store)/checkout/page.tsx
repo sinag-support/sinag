@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -68,8 +70,6 @@ interface BuyNowItem {
     stock: number
   } | null
 }
-
-export const dynamic = 'force-dynamic'
 
 export default function CheckoutPage() {
   const router = useRouter()
