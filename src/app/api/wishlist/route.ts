@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
 }
 
 // DELETE - Remove a specific item from wishlist
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
     const userId = await getUserId();
     if (!userId) {
@@ -164,7 +164,6 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // Delete the wishlist item
     await prisma.wishlistItem.deleteMany({
       where: {
         userId,
@@ -172,10 +171,9 @@ export async function DELETE(request: Request) {
       },
     });
 
-    // Always return a JSON response
-    return NextResponse.json({ 
-      removed: true, 
-      message: 'Removed from wishlist' 
+    return NextResponse.json({
+      removed: true,
+      message: 'Removed from wishlist',
     });
   } catch (error) {
     console.error('DELETE /api/wishlist error:', error);

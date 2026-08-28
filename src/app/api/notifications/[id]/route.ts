@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
@@ -39,8 +39,8 @@ async function getUserId() {
 
 // DELETE - Delete a notification
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const userId = await getUserId();
@@ -48,7 +48,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const notificationId = params.id;
+    const { id: notificationId } = await params; // ✅ Await params
 
     // Verify the notification belongs to the user
     const notification = await prisma.notification.findUnique({

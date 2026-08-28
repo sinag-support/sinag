@@ -1,41 +1,46 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
 async function getUserId() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) { return cookieStore.get(name)?.value },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
+  try {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) { return cookieStore.get(name)?.value },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options });
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options });
+          },
         },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options });
-        },
-      },
-    }
-  );
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  
-  const dbUser = await prisma.user.findUnique({
-    where: { email: user.email! },
-    select: { id: true },
-  });
-  
-  return dbUser?.id || null;
+      }
+    );
+    
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return null;
+    
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email! },
+      select: { id: true },
+    });
+    
+    return dbUser?.id || null;
+  } catch (error) {
+    console.error('Error in getUserId:', error);
+    return null;
+  }
 }
 
 // DELETE - Remove a wishlist item by its ID
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const userId = await getUserId();
@@ -43,7 +48,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const wishlistItemId = params.id;
+    const { id: wishlistItemId } = await params; // ✅ Await params
     
     // Verify the item belongs to the user
     const item = await prisma.wishlistItem.findUnique({

@@ -22,8 +22,8 @@ async function getUserId() {
       }
     )
     
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return null
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) return null
     
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email! },
@@ -44,7 +44,7 @@ export async function GET(
 ) {
   try {
     const userId = await getUserId()
-    const { slug } = await params // ✅ Await params
+    const { slug } = await params
 
     // Get the blog post
     const blogPost = await prisma.blogPost.findUnique({
@@ -105,7 +105,7 @@ export async function POST(
       )
     }
 
-    const { slug } = await params // ✅ Await params
+    const { slug } = await params
 
     // Get the blog post
     const blogPost = await prisma.blogPost.findUnique({

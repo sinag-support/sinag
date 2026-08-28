@@ -43,7 +43,7 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = await params // ✅ Await params
+    const { slug } = await params
     
     // Get the blog post
     const blogPost = await prisma.blogPost.findUnique({
@@ -62,7 +62,7 @@ export async function GET(
     const comments = await prisma.blogComment.findMany({
       where: {
         blogPostId: blogPost.id,
-        parentId: null,
+        parentId: null, // Only top-level comments
       },
       include: {
         user: {
@@ -114,7 +114,7 @@ export async function POST(
       )
     }
 
-    const { slug } = await params // ✅ Await params
+    const { slug } = await params
     const { content, parentId } = await request.json()
 
     if (!content || content.trim() === '') {
@@ -181,7 +181,7 @@ export async function DELETE(
       )
     }
 
-    await params // ✅ Await params (even if not used)
+    await params // Await params even if not used
     const { searchParams } = new URL(request.url)
     const commentId = searchParams.get('id')
 

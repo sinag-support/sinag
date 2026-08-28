@@ -4,34 +4,40 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
 async function getUserId() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) { return cookieStore.get(name)?.value },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
+  try {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) { return cookieStore.get(name)?.value },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options });
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options });
+          },
         },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options });
-        },
-      },
-    }
-  );
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  
-  const dbUser = await prisma.user.findUnique({
-    where: { email: user.email! },
-    select: { id: true },
-  });
-  
-  return dbUser?.id || null;
+      }
+    );
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email! },
+      select: { id: true },
+    });
+    
+    return dbUser?.id || null;
+  } catch (error) {
+    console.error('Error in getUserId:', error);
+    return null;
+  }
 }
 
+// GET - Check if a specific product is in the user's wishlist
 export async function GET(request: NextRequest) {
   try {
     const userId = await getUserId();

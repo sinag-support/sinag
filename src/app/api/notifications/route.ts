@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
@@ -38,17 +38,30 @@ async function getUserId() {
 }
 
 // GET - Fetch all notifications for the user
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const userId = await getUserId();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const unreadOnly = searchParams.get('unreadOnly') === 'true';
+    const limit = parseInt(searchParams.get('limit') || '50');
+
     const notifications = await prisma.notification.findMany({
-      where: { userId },
+      where: {
+        userId,
+        ...(unreadOnly ? { read: false } : {}),
+      },
       orderBy: { createdAt: 'desc' },
+      take: limit,
     });
+
+    // If unreadOnly is true, return just the count
+    if (unreadOnly) {
+      return NextResponse.json(notifications.length);
+    }
 
     return NextResponse.json(notifications);
   } catch (error) {
@@ -61,7 +74,7 @@ export async function GET() {
 }
 
 // POST - Create a new notification
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const userId = await getUserId();
     if (!userId) {
@@ -88,7 +101,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(notification);
+    return NextResponse.json(notification, { status: 201 });
   } catch (error) {
     console.error('POST /api/notifications error:', error);
     return NextResponse.json(
@@ -99,7 +112,7 @@ export async function POST(request: Request) {
 }
 
 // PATCH - Mark notifications as read
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
   try {
     const userId = await getUserId();
     if (!userId) {
