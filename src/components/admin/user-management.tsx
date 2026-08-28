@@ -67,8 +67,10 @@ export function UserManagement() {
       const data = await response.json()
       
       if (response.ok) {
+        // ✅ Check if data is an array (API returns array directly)
+        const usersArray = Array.isArray(data) ? data : (data.users || [])
         // ✅ Filter out ADMIN users from the list
-        const filteredUsers = (data.users || []).filter(
+        const filteredUsers = usersArray.filter(
           (user: any) => user.role !== 'ADMIN'
         )
         setUsers(filteredUsers)

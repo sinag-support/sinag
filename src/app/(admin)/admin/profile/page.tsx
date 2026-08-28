@@ -58,7 +58,11 @@ export default function ProfilePage() {
       if (user) {
         const res = await fetch(`/api/admin/users?email=${user.email}`)
         const data = await res.json()
-        const userData = data.users?.find((u: any) => u.email === user.email)
+        
+        const userData = Array.isArray(data) 
+          ? data.find((u: any) => u.email === user.email)
+          : data.users?.find((u: any) => u.email === user.email)
+        
         if (userData) {
           setProfile({
             id: userData.id,
@@ -142,9 +146,9 @@ export default function ProfilePage() {
         <p className="text-muted-foreground">View and manage your account information</p>
       </div>
 
-      {/* Profile Card */}
-      <Card>
-        <CardContent className="pt-6">
+      {/* Profile Card with py-4 px-2 */}
+      <Card className="py-4 px-2">
+        <CardContent className="pt-0">
           <div className="flex flex-col items-center md:flex-row md:items-start gap-6">
             {/* Avatar - without upload button */}
             <div className="relative">
@@ -247,13 +251,13 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Account Info */}
+      {/* Account Info Cards with py-4 px-2 */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
+        <Card className="py-4 px-2">
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Account Details</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="pt-0 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">User ID</span>
               <span className="font-mono text-xs">{profile.id.slice(0, 8)}...</span>
@@ -269,11 +273,11 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
+        <Card className="py-4 px-2">
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="pt-0 space-y-2">
             <Button
               variant="outline"
               className="w-full justify-start gap-2 text-destructive hover:text-destructive"
@@ -313,8 +317,8 @@ function ProfileSkeleton() {
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-4 w-64 mt-1" />
       </div>
-      <Card>
-        <CardContent className="pt-6">
+      <Card className="py-4 px-2">
+        <CardContent className="pt-0">
           <div className="flex flex-col items-center md:flex-row md:items-start gap-6">
             <Skeleton className="h-24 w-24 rounded-full" />
             <div className="flex-1 space-y-2">
@@ -327,8 +331,19 @@ function ProfileSkeleton() {
         </CardContent>
       </Card>
       <div className="grid gap-4 md:grid-cols-2">
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-40 w-full" />
+        <Card className="py-4 px-2">
+          <CardContent className="pt-0 space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-20" />
+          </CardContent>
+        </Card>
+        <Card className="py-4 px-2">
+          <CardContent className="pt-0 space-y-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

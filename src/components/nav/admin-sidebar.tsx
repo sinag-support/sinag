@@ -20,6 +20,7 @@ import {
   ChevronUp,
   Menu,
   X,
+  Newspaper, // ← Add this import
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useEffect, useRef } from 'react'
@@ -75,6 +76,12 @@ const navItems: NavItem[] = [
         href: '/admin/banners',
         label: 'Banners',
         icon: ImageIcon,
+        roles: ['ADMIN'],
+      },
+      {
+        href: '/admin/blog', // ← Add this
+        label: 'Blog',
+        icon: Newspaper,
         roles: ['ADMIN'],
       },
     ],

@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getCurrentUserRole } from '@/lib/role'
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const role = await getCurrentUserRole()
@@ -62,13 +62,21 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const role = await getCurrentUserRole()
   if (role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
+  
+  // First delete all options
+  await prisma.productOption.deleteMany({
+    where: { productId: id },
+  })
+  
+  // Then delete the product
   await prisma.product.delete({ where: { id } })
+  
   return NextResponse.json({ success: true })
 }

@@ -22,6 +22,7 @@ import {
   Map,
 } from 'lucide-react'
 import { useMediaQuery } from 'react-responsive'
+import { useTheme } from 'next-themes'
 
 declare global {
   interface Window {
@@ -44,10 +45,10 @@ const TILE_LAYERS = {
     },
   },
   dark: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
     options: {
       maxZoom: 20,
-      subdomains: 'abcd',
+      subdomains: '',
     },
   },
   satellite: {
@@ -160,9 +161,10 @@ function OrderDetailContent({
   const tileLayerRef = useRef<any>(null)
   const animationFrameRef = useRef<number | null>(null)
 
+  const { theme } = useTheme()
   const [mapTheme, setMapTheme] = useState<
     'street' | 'dark' | 'satellite'
-  >('street')
+  >(theme === 'dark' ? 'dark' : 'street')
 
   const [mapReady, setMapReady] = useState(false)
   const [coordinates, setCoordinates] = useState<{
@@ -172,6 +174,15 @@ function OrderDetailContent({
 
   const [mapError, setMapError] = useState(false)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
+
+  // Update map theme when app theme changes
+  useEffect(() => {
+    if (theme === 'dark') {
+      setMapTheme('dark')
+    } else {
+      setMapTheme('street')
+    }
+  }, [theme])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -397,7 +408,7 @@ function OrderDetailContent({
         window.L.polyline(
           routePoints,
           {
-            color: '#3b82f6',
+            color: mapTheme === 'dark' ? '#60a5fa' : '#3b82f6',
             weight: 5,
             opacity: 0.85,
           }
@@ -556,6 +567,7 @@ function OrderDetailContent({
     leafletLoaded,
     coordinates,
     order,
+    mapTheme,
   ])
 
   useEffect(() => {
@@ -584,6 +596,16 @@ function OrderDetailContent({
 
     tileLayerRef.current =
       newTileLayer
+    
+    // Update polyline color based on theme
+    // Find and update the polyline
+    map.eachLayer((layer: any) => {
+      if (layer instanceof window.L.Polyline) {
+        layer.setStyle({
+          color: mapTheme === 'dark' ? '#60a5fa' : '#3b82f6'
+        })
+      }
+    })
   }, [mapTheme])
 
   if (loading) {

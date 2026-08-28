@@ -1,21 +1,40 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getCurrentUserRole } from '@/lib/role'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const role = await getCurrentUserRole()
   if (role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
   const search = searchParams.get('search') || ''
+  const categoryId = searchParams.get('categoryId') || ''
+  const page = parseInt(searchParams.get('page') || '1')
+  const limit = parseInt(searchParams.get('limit') || '20')
+  const skip = (page - 1) * limit
 
+  // Build where clause
+  const where: any = {}
+  
+  // Search filter
+  if (search) {
+    where.OR = [
+      { title: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
+    ]
+  }
+
+  // Category filter
+  if (categoryId && categoryId !== 'all') {
+    where.categoryId = categoryId
+  }
+
+  // Get total count for pagination
+  const total = await prisma.product.count({ where })
+
+  // Get products with pagination
   const products = await prisma.product.findMany({
-    where: {
-      OR: [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-      ],
-    },
+    where,
     include: {
       category: {
         select: {
@@ -23,15 +42,23 @@ export async function GET(request: Request) {
           title: true,
         },
       },
-      options: true, // ✅ Include product options
+      options: true,
     },
     orderBy: { createdAt: 'desc' },
+    skip,
+    take: limit,
   })
 
-  return NextResponse.json(products)
+  return NextResponse.json({
+    products,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  })
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const role = await getCurrentUserRole()
   if (role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
@@ -57,6 +84,7 @@ export async function POST(request: Request) {
       },
     },
     include: {
+      category: true,
       options: true,
     },
   })

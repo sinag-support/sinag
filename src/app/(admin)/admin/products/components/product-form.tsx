@@ -18,8 +18,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, X, Image as ImageIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 
 // ✅ Simplified schema - NO .default()
 const optionSchema = z.object({
@@ -51,6 +53,8 @@ interface ProductFormProps {
 export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
   const [categories, setCategories] = useState<{ id: string; title: string }[]>([])
   const [categoriesLoaded, setCategoriesLoaded] = useState(false)
+  const [imagePreview, setImagePreview] = useState<string>('')
+  const [isLoading, setIsLoading] = useState(!!initialData)
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -72,6 +76,18 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
     name: 'options',
   })
 
+  // Watch the images field for preview
+  const imagesValue = form.watch('images')
+
+  // Update image preview when images field changes
+  useEffect(() => {
+    if (imagesValue && imagesValue.trim() !== '') {
+      setImagePreview(imagesValue.trim())
+    } else {
+      setImagePreview('')
+    }
+  }, [imagesValue])
+
   // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
@@ -92,7 +108,10 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
 
   // Reset form when editing – wait for categories to load
   useEffect(() => {
-    if (!initialData) return
+    if (!initialData) {
+      setIsLoading(false)
+      return
+    }
     if (!categoriesLoaded) return
 
     const categoryId = initialData.categoryId ?? ''
@@ -103,6 +122,9 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
       stock: Number(opt.stock || 0),
     })) || []
 
+    const imageUrl = initialData.images?.[0] ?? ''
+    setImagePreview(imageUrl)
+
     form.reset({
       title: initialData.title ?? '',
       description: initialData.description ?? '',
@@ -111,9 +133,11 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
       stock: Number(initialData.stock ?? 0),
       isAvailable: Boolean(initialData.isAvailable),
       categoryId: categoryId,
-      images: initialData.images?.[0] ?? '',
+      images: imageUrl,
       options: options,
     })
+
+    setIsLoading(false)
   }, [initialData, form, categoriesLoaded])
 
   const onSubmit = async (data: ProductFormValues) => {
@@ -147,10 +171,30 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
     }
   }
 
-  const getCategoryTitle = (id: string) => {
-    if (!id) return ''
-    const cat = categories.find(c => c.id === id)
-    return cat?.title || id
+  const clearImage = () => {
+    setImagePreview('')
+    form.setValue('images', '')
+  }
+
+  // Show skeleton while loading edit data
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-24 w-full" />
+        <div className="grid grid-cols-2 gap-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+    )
   }
 
   return (
@@ -184,7 +228,7 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="price"
@@ -231,7 +275,7 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="stock"
@@ -267,7 +311,7 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
                   }}
                 >
                   <FormControl>
-                    <SelectTrigger className="max-w-full truncate">
+                    <SelectTrigger className="w-full truncate">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                   </FormControl>
@@ -286,15 +330,72 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
           />
         </div>
 
+        {/* Image URL with Preview */}
         <FormField
           control={form.control}
           name="images"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Image URL</FormLabel>
-              <FormControl>
-                <Input placeholder="https://example.com/image.jpg" {...field} />
-              </FormControl>
+              <div className="space-y-3">
+                <FormControl>
+                  <div className="relative">
+                    <Input 
+                      placeholder="https://example.com/image.jpg" 
+                      {...field} 
+                      className={cn(
+                        "w-full",
+                        imagePreview && "pr-10"
+                      )}
+                    />
+                    {imagePreview && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                        onClick={clearImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </FormControl>
+                
+                {/* Image Preview */}
+                {imagePreview && (
+                  <div className="relative rounded-md overflow-hidden border bg-muted/20 p-2">
+                    <div className="flex items-center gap-4">
+                      <div className="relative h-20 w-20 flex-shrink-0 rounded-md overflow-hidden bg-muted">
+                        <img
+                          src={imagePreview}
+                          alt="Product preview"
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">Image Preview</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {imagePreview}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearImage}
+                        className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="sr-only">Remove image</span>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
               <FormMessage />
             </FormItem>
           )}
@@ -311,7 +412,7 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
                   onCheckedChange={(checked) => field.onChange(checked === true)}
                 />
               </FormControl>
-              <FormLabel className="!mt-0">Available for sale</FormLabel>
+              <FormLabel className="!mt-0 cursor-pointer">Available for sale</FormLabel>
               <FormMessage />
             </FormItem>
           )}
@@ -336,8 +437,7 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
           )}
 
           {fields.map((field, index) => (
-            <Card key={field.id} className="relative">
-              <CardContent className="p-4 space-y-3">
+            <div key={field.id} className="relative border rounded-lg p-4 space-y-3 bg-card">
                 <Button
                   type="button"
                   variant="ghost"
@@ -348,7 +448,7 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name={`options.${index}.name`}
@@ -388,7 +488,7 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name={`options.${index}.stock`}
@@ -425,9 +525,8 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
                       </FormItem>
                     )}
                   />
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
 

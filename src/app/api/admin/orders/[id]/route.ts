@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getCurrentUserRole } from '@/lib/role'
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const role = await getCurrentUserRole()
@@ -27,6 +27,7 @@ export async function GET(
           },
         },
       },
+      payments: true,
     },
   })
 

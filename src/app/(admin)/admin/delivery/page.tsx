@@ -16,97 +16,26 @@ import {
   Search,
   RefreshCw,
   Navigation,
-  Mail,
-  User,
   Truck,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from 'lucide-react'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import dynamic from 'next/dynamic'
-
-// ✅ Import Leaflet CSS only (this is safe for SSR)
-import 'leaflet/dist/leaflet.css'
-
-// ✅ Dynamically import all Leaflet components with ssr: false
-const MapContainer = dynamic<{
-  center: [number, number]
-  zoom: number
-  style: React.CSSProperties
-  children: React.ReactNode
-}>(
-  () => import('react-leaflet').then((mod) => mod.MapContainer),
-  { ssr: false }
-)
-
-const TileLayer = dynamic<any>(
-  () => import('react-leaflet').then((mod) => mod.TileLayer),
-  { ssr: false }
-)
-
-const Marker = dynamic<any>(
-  () => import('react-leaflet').then((mod) => mod.Marker),
-  { ssr: false }
-)
-
-const Polyline = dynamic<any>(
-  () => import('react-leaflet').then((mod) => mod.Polyline),
-  { ssr: false }
-)
-
-const Popup = dynamic<any>(
-  () => import('react-leaflet').then((mod) => mod.Popup),
-  { ssr: false }
-)
-
-// ✅ Only import Leaflet icons on the client
-let L: any
-let riderIcon: any
-let destinationIcon: any
-
-// This runs only on the client
-if (typeof window !== 'undefined') {
-  // Dynamically import Leaflet
-  import('leaflet').then((module) => {
-    L = module.default
-
-    // Fix default marker icons
-    delete (L.Icon.Default.prototype as any)._getIconUrl
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    })
-
-    riderIcon = new L.Icon({
-      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41],
-    })
-
-    destinationIcon = new L.Icon({
-      iconUrl: 'https://cdn.rawgit.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41],
-    })
-  })
-}
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { DeliveryOrderDetail } from '@/components/admin/delivery-order-detail'
 
 interface DeliveryOrder {
   id: string
   orderNumber: number
   user: { name: string | null; email: string; phone?: string }
+  rider?: { id: string; name: string | null; email: string } | null
   address: {
     address: string
     city: string
@@ -131,6 +60,20 @@ interface DeliveryOrder {
   }[]
 }
 
+interface Rider {
+  id: string
+  name: string | null
+  email: string
+}
+
+interface PaginatedResponse {
+  orders: DeliveryOrder[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
 const cityCoordinates: Record<string, { lat: number; lng: number }> = {
   'Lipa City': { lat: 13.9411, lng: 121.1633 },
   'Batangas City': { lat: 13.7565, lng: 121.0583 },
@@ -140,8 +83,6 @@ const cityCoordinates: Record<string, { lat: number; lng: number }> = {
   'Bauan': { lat: 13.7916, lng: 121.0088 },
   'San Jose': { lat: 13.8781, lng: 121.1063 },
 }
-
-const RIDER_LOCATION = { lat: 13.9500, lng: 121.1500 }
 
 const statusColors: Record<string, string> = {
   PENDING: 'bg-yellow-100 text-yellow-800',
@@ -159,27 +100,61 @@ const statusColors: Record<string, string> = {
 export default function DeliveryPage() {
   const { role } = useRole()
   const [orders, setOrders] = useState<DeliveryOrder[]>([])
+  const [riders, setRiders] = useState<Rider[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingRiders, setLoadingRiders] = useState(false)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
+  const limit = 20
   const [selectedOrder, setSelectedOrder] = useState<DeliveryOrder | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
-  const [isMounted, setIsMounted] = useState(false)
+  
+  // Admin specific states
+  const [selectedRiderId, setSelectedRiderId] = useState<string>('all')
 
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
+  const fetchRiders = async () => {
+    if (role !== 'ADMIN') return
+    setLoadingRiders(true)
+    try {
+      const res = await fetch('/api/admin/users?role=RIDER')
+      if (res.ok) {
+        const data = await res.json()
+        setRiders(Array.isArray(data) ? data : [])
+      } else {
+        setRiders([])
+      }
+    } catch (error) {
+      console.error('Error fetching riders:', error)
+      setRiders([])
+    } finally {
+      setLoadingRiders(false)
+    }
+  }
 
   const fetchDeliveryOrders = async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
+      
       if (role === 'RIDER') {
-        params.append('status', 'ASSIGNED_RIDER,OUT_FOR_DELIVERY')
+        params.append('status', 'ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP')
       }
+      
+      if (role === 'ADMIN' && selectedRiderId !== 'all') {
+        params.append('riderId', selectedRiderId)
+        params.append('status', 'ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP')
+      }
+      
+      params.append('page', page.toString())
+      params.append('limit', limit.toString())
+      
       const res = await fetch(`/api/admin/orders?${params.toString()}`)
-      const data = await res.json()
-      const ordersWithCoords = data.map((order: DeliveryOrder) => ({
+      const data: PaginatedResponse = await res.json()
+      
+      const ordersWithCoords = (data.orders || []).map((order: DeliveryOrder) => ({
         ...order,
         address: {
           ...order.address,
@@ -187,7 +162,10 @@ export default function DeliveryPage() {
           lng: cityCoordinates[order.address?.city]?.lng || 121.1633,
         },
       }))
+      
       setOrders(ordersWithCoords)
+      setTotal(data.total || 0)
+      setTotalPages(data.totalPages || 1)
     } catch {
       toast.error('Failed to load delivery orders')
     } finally {
@@ -196,8 +174,24 @@ export default function DeliveryPage() {
   }
 
   useEffect(() => {
-    fetchDeliveryOrders()
+    if (role === 'ADMIN') {
+      fetchRiders()
+    }
   }, [role])
+
+  useEffect(() => {
+    setPage(1)
+  }, [search, selectedRiderId])
+
+  useEffect(() => {
+    fetchDeliveryOrders()
+  }, [role, page, selectedRiderId])
+
+  const goToPage = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage)
+    }
+  }
 
   const updateStatus = async (orderId: string, status: string) => {
     setIsUpdating(true)
@@ -236,55 +230,9 @@ export default function DeliveryPage() {
   const outForDelivery = orders.filter((o) => o.status === 'OUT_FOR_DELIVERY').length
   const deliveredOrders = orders.filter((o) => o.status === 'DELIVERED').length
 
-  const OrderMap = ({ order }: { order: DeliveryOrder }) => {
-    if (!isMounted) return null
-
-    const destination = {
-      lat: order.address?.lat || 13.9411,
-      lng: order.address?.lng || 121.1633,
-    }
-
-    const iconRider = riderIcon
-    const iconDest = destinationIcon
-
-    return (
-      <div className="h-64 w-full rounded-lg overflow-hidden border">
-        <MapContainer
-          center={[RIDER_LOCATION.lat, RIDER_LOCATION.lng]}
-          zoom={12}
-          style={{ height: '100%', width: '100%' }}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          {iconRider && (
-            <Marker position={[RIDER_LOCATION.lat, RIDER_LOCATION.lng]} icon={iconRider}>
-              <Popup>📍 Rider Location</Popup>
-            </Marker>
-          )}
-          {iconDest && (
-            <Marker position={[destination.lat, destination.lng]} icon={iconDest}>
-              <Popup>
-                📦 Delivery: {order.address?.address}
-                <br />
-                {order.address?.city}, {order.address?.province}
-              </Popup>
-            </Marker>
-          )}
-          <Polyline
-            positions={[
-              [RIDER_LOCATION.lat, RIDER_LOCATION.lng],
-              [destination.lat, destination.lng],
-            ]}
-            color="#3b82f6"
-            weight={3}
-            opacity={0.8}
-            dashArray="8, 8"
-          />
-        </MapContainer>
-      </div>
-    )
+  const getRiderName = (rider: { name: string | null; email: string } | null | undefined) => {
+    if (!rider) return 'Not assigned'
+    return rider.name || rider.email || 'Unknown Rider'
   }
 
   if (loading) {
@@ -297,302 +245,306 @@ export default function DeliveryPage() {
         <h1 className="text-3xl font-bold">Delivery Management</h1>
         <p className="text-muted-foreground">
           {role === 'ADMIN'
-            ? 'Manage all deliveries'
+            ? 'Manage all deliveries and filter by rider'
             : role === 'RIDER'
             ? 'Manage your assigned deliveries'
             : 'Delivery management'}
         </p>
       </div>
 
+      {/* Stats Cards with py-4 px-2 on Card */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="py-4 px-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <div className="text-2xl font-bold">{totalOrders}</div>
             <p className="text-xs text-muted-foreground">All deliveries</p>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card className="py-4 px-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Assigned</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <div className="text-2xl font-bold">{assignedOrders}</div>
             <p className="text-xs text-muted-foreground">Ready to pick up</p>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card className="py-4 px-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Out for Delivery</CardTitle>
             <Navigation className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <div className="text-2xl font-bold">{outForDelivery}</div>
             <p className="text-xs text-muted-foreground">On the way</p>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card className="py-4 px-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Delivered</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <div className="text-2xl font-bold">{deliveredOrders}</div>
             <p className="text-xs text-muted-foreground">Completed</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Search className="h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by order #, customer, or city..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <Button variant="outline" onClick={fetchDeliveryOrders}>
+      {/* Search and Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by order #, customer, or city..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8 w-full"
+          />
+        </div>
+        
+        {/* Rider Filter - Admin only */}
+        {role === 'ADMIN' && (
+          <div className="flex items-center gap-2">
+            <Select
+              value={selectedRiderId}
+              onValueChange={(value) => setSelectedRiderId(value)}
+            >
+              <SelectTrigger className="w-[200px] h-8">
+                <SelectValue placeholder="All Riders" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Riders</SelectItem>
+                {Array.isArray(riders) && riders.map((rider) => (
+                  <SelectItem key={rider.id} value={rider.id}>
+                    {rider.name || rider.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedRiderId !== 'all' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedRiderId('all')}
+                className="h-8 px-2"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        )}
+        
+        <Button variant="outline" onClick={fetchDeliveryOrders} className="ml-auto">
           <RefreshCw className="h-4 w-4 mr-2" /> Refresh
         </Button>
       </div>
 
+      {/* Results count with rider filter info */}
+      {!loading && (
+        <p className="text-sm text-muted-foreground">
+          {total} {total === 1 ? 'delivery' : 'deliveries'} found
+          {selectedRiderId !== 'all' && ` for ${riders.find(r => r.id === selectedRiderId)?.name || 'selected rider'}`}
+          {search && ` matching "${search}"`}
+        </p>
+      )}
+
+      {/* Table */}
       <div className="border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Order #</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Address</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredOrders.length === 0 ? (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  {search ? 'No deliveries found matching your search' : 'No deliveries found'}
-                </TableCell>
+                <TableHead>Order #</TableHead>
+                <TableHead>Customer</TableHead>
+                {role === 'ADMIN' && <TableHead>Rider</TableHead>}
+                <TableHead>Address</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">#{order.orderNumber}</TableCell>
-                  <TableCell>{order.user?.name || order.user?.email}</TableCell>
-                  <TableCell>{order.address?.city}</TableCell>
-                  <TableCell>₱{order.payable.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Badge className={statusColors[order.status] || 'bg-gray-100 text-gray-800'}>
-                      {order.status.replace('_', ' ')}
-                    </Badge>
+            </TableHeader>
+            <TableBody>
+              {filteredOrders.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={role === 'ADMIN' ? 7 : 6} className="text-center py-8 text-muted-foreground">
+                    {search ? 'No deliveries found matching your search' : 'No deliveries found'}
                   </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedOrder(order)
-                        setDetailOpen(true)
-                      }}
-                    >
-                      <MapPin className="h-4 w-4" />
-                    </Button>
-
-                    {/* Rider actions */}
-                    {role === 'RIDER' && order.status === 'ASSIGNED_RIDER' && (
-                      <Button
-                        size="sm"
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
-                        onClick={() => updateStatus(order.id, 'OUT_FOR_DELIVERY')}
-                        disabled={isUpdating}
-                      >
-                        {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Start Delivery'}
-                      </Button>
+                </TableRow>
+              ) : (
+                filteredOrders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">#{order.orderNumber}</TableCell>
+                    <TableCell>{order.user?.name || order.user?.email}</TableCell>
+                    
+                    {/* Rider column - Admin only */}
+                    {role === 'ADMIN' && (
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {getRiderName(order.rider)}
+                        </Badge>
+                      </TableCell>
                     )}
-                    {role === 'RIDER' && order.status === 'OUT_FOR_DELIVERY' && (
-                      <Button
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700 text-white font-medium"
-                        onClick={() => updateStatus(order.id, 'DELIVERED')}
-                        disabled={isUpdating}
-                      >
-                        {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Mark Delivered'}
-                      </Button>
-                    )}
-
-                    {/* Admin actions */}
-                    {role === 'ADMIN' && order.status === 'ASSIGNED_RIDER' && (
+                    
+                    <TableCell>{order.address?.city}</TableCell>
+                    <TableCell>₱{order.payable.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge className={statusColors[order.status] || 'bg-gray-100 text-gray-800'}>
+                        {order.status.replace('_', ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right space-x-2 whitespace-nowrap">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-blue-600 border-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                        onClick={() => updateStatus(order.id, 'OUT_FOR_DELIVERY')}
-                        disabled={isUpdating}
+                        onClick={() => {
+                          setSelectedOrder(order)
+                          setDetailOpen(true)
+                        }}
                       >
-                        Start
+                        <MapPin className="h-4 w-4" />
                       </Button>
-                    )}
-                    {role === 'ADMIN' && order.status === 'OUT_FOR_DELIVERY' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700"
-                        onClick={() => updateStatus(order.id, 'DELIVERED')}
-                        disabled={isUpdating}
-                      >
-                        Complete
-                      </Button>
-                    )}
 
-                    {/* Admin: Assign Rider button for pending/preparing statuses */}
-                    {role === 'ADMIN' &&
-                      ['PENDING', 'CONFIRMED', 'PREPARING', 'PACKED', 'READY_FOR_PICKUP'].includes(
-                        order.status
-                      ) && (
+                      {/* Rider actions */}
+                      {role === 'RIDER' && order.status === 'ASSIGNED_RIDER' && (
+                        <Button
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                          onClick={() => updateStatus(order.id, 'OUT_FOR_DELIVERY')}
+                          disabled={isUpdating}
+                        >
+                          {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Start'}
+                        </Button>
+                      )}
+                      {role === 'RIDER' && order.status === 'OUT_FOR_DELIVERY' && (
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 text-white font-medium"
+                          onClick={() => updateStatus(order.id, 'DELIVERED')}
+                          disabled={isUpdating}
+                        >
+                          {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Deliver'}
+                        </Button>
+                      )}
+
+                      {/* Admin actions */}
+                      {role === 'ADMIN' && order.status === 'ASSIGNED_RIDER' && (
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-orange-600 border-orange-600 hover:bg-orange-50 hover:text-orange-700"
-                          onClick={() => updateStatus(order.id, 'ASSIGNED_RIDER')}
+                          className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                          onClick={() => updateStatus(order.id, 'OUT_FOR_DELIVERY')}
                           disabled={isUpdating}
                         >
-                          Assign Rider
+                          Start
                         </Button>
                       )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+                      {role === 'ADMIN' && order.status === 'OUT_FOR_DELIVERY' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-green-600 border-green-600 hover:bg-green-50"
+                          onClick={() => updateStatus(order.id, 'DELIVERED')}
+                          disabled={isUpdating}
+                        >
+                          Complete
+                        </Button>
+                      )}
+
+                      {/* Admin: Assign Rider - Show for orders that are ready but not assigned */}
+                      {role === 'ADMIN' &&
+                        order.status === 'READY_FOR_PICKUP' &&
+                        !order.rider && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-orange-600 border-orange-600 hover:bg-orange-50"
+                            onClick={() => {
+                              toast.info('Assign a rider from the Orders page')
+                            }}
+                          >
+                            Assign
+                          </Button>
+                        )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
-      {/* Order Detail Dialog with Map */}
-      <Dialog open={detailOpen} onOpenChange={(open: boolean) => setDetailOpen(open)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Delivery Details
-            </DialogTitle>
-          </DialogHeader>
-          {selectedOrder && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium">Order #{selectedOrder.orderNumber}</span>
-                  <Badge className={statusColors[selectedOrder.status] || 'bg-gray-100 text-gray-800'}>
-                    {selectedOrder.status.replace('_', ' ')}
-                  </Badge>
-                </div>
-                <span className="text-sm font-semibold text-muted-foreground">
-                  ₱{selectedOrder.payable.toFixed(2)}
-                </span>
-              </div>
-
-              {/* Map - only rendered on client */}
-              {isMounted && <OrderMap order={selectedOrder} />}
-
-              {/* Customer Info */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="border rounded-lg p-3 space-y-1">
-                  <p className="text-xs text-muted-foreground">Customer</p>
-                  <div className="flex items-center gap-2 text-sm">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span>{selectedOrder.user?.name || selectedOrder.user?.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs truncate">{selectedOrder.user?.email}</span>
-                  </div>
-                </div>
-                <div className="border rounded-lg p-3 space-y-1">
-                  <p className="text-xs text-muted-foreground">Delivery Address</p>
-                  <div className="flex items-start gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p>{selectedOrder.address?.address}</p>
-                      <p>{selectedOrder.address?.city}, {selectedOrder.address?.province}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Items */}
-              <div className="border rounded-lg p-3 space-y-2">
-                <p className="text-sm font-medium">Items ({selectedOrder.items?.length || 0})</p>
-                <div className="max-h-32 overflow-y-auto space-y-1">
-                  {selectedOrder.items && selectedOrder.items.length > 0 ? (
-                    selectedOrder.items.map((item) => (
-                      <div key={item.id} className="flex justify-between text-sm border-b pb-1">
-                        <span>{item.product?.title || 'Unknown Product'}</span>
-                        <span className="text-muted-foreground">×{item.quantity}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No items found</p>
-                  )}
-                </div>
-              </div>
-
-              {/* ✅ FIXED: Button for all statuses */}
-              {(role === 'ADMIN' || role === 'RIDER') && (
-                <Button
-                  className="w-full font-medium bg-primary text-primary-foreground hover:bg-primary/90"
-                  onClick={() => {
-                    if (selectedOrder.status === 'ASSIGNED_RIDER') {
-                      updateStatus(selectedOrder.id, 'OUT_FOR_DELIVERY')
-                    } else if (selectedOrder.status === 'OUT_FOR_DELIVERY') {
-                      updateStatus(selectedOrder.id, 'DELIVERED')
-                    } else if (
-                      ['PENDING', 'CONFIRMED', 'PREPARING', 'PACKED', 'READY_FOR_PICKUP'].includes(
-                        selectedOrder.status
-                      )
-                    ) {
-                      updateStatus(selectedOrder.id, 'ASSIGNED_RIDER')
-                    } else {
-                      toast.info('This order cannot be updated')
-                    }
-                  }}
-                  disabled={
-                    selectedOrder.status === 'DELIVERED' ||
-                    selectedOrder.status === 'CANCELLED' ||
-                    selectedOrder.status === 'REFUNDED' ||
-                    isUpdating
-                  }
-                >
-                  {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {selectedOrder.status === 'ASSIGNED_RIDER' && 'Start Delivery'}
-                  {selectedOrder.status === 'OUT_FOR_DELIVERY' && 'Mark as Delivered'}
-                  {['PENDING', 'CONFIRMED', 'PREPARING', 'PACKED', 'READY_FOR_PICKUP'].includes(
-                    selectedOrder.status
-                  ) && 'Assign Rider'}
-                  {selectedOrder.status === 'DELIVERED' && '✓ Delivered'}
-                  {selectedOrder.status === 'CANCELLED' && 'Cancelled'}
-                  {selectedOrder.status === 'REFUNDED' && 'Refunded'}
-                  {![
-                    'ASSIGNED_RIDER',
-                    'OUT_FOR_DELIVERY',
-                    'DELIVERED',
-                    'CANCELLED',
-                    'REFUNDED',
-                    'PENDING',
-                    'CONFIRMED',
-                    'PREPARING',
-                    'PACKED',
-                    'READY_FOR_PICKUP',
-                  ].includes(selectedOrder.status) && 'Update Status'}
-                </Button>
-              )}
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-4 py-2">
+          <p className="text-sm text-muted-foreground">
+            Showing {(page - 1) * limit + 1} - {Math.min(page * limit, total)} of {total}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(page - 1)}
+              disabled={page === 1}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum
+                if (totalPages <= 5) {
+                  pageNum = i + 1
+                } else if (page <= 3) {
+                  pageNum = i + 1
+                } else if (page >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i
+                } else {
+                  pageNum = page - 2 + i
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={page === pageNum ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => goToPage(pageNum)}
+                    className="h-8 w-8 p-0 text-sm"
+                  >
+                    {pageNum}
+                  </Button>
+                )
+              })}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(page + 1)}
+              disabled={page === totalPages}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Order Detail Dialog - Using extracted component */}
+      <DeliveryOrderDetail
+        order={selectedOrder}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onStatusUpdate={updateStatus}
+        isUpdating={isUpdating}
+      />
     </div>
   )
 }
@@ -612,7 +564,8 @@ function DeliverySkeleton() {
       <div className="flex items-center gap-2">
         <Skeleton className="h-4 w-4" />
         <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-10 w-24" />
+        <Skeleton className="h-10 w-40" />
+        <Skeleton className="h-10 w-24 ml-auto" />
       </div>
       <div className="border rounded-lg overflow-hidden">
         <Skeleton className="h-96 w-full" />

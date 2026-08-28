@@ -11,9 +11,20 @@ export async function PUT(
 
   const { id } = await params
   const { title, description } = await request.json()
+  
   const category = await prisma.category.update({
     where: { id },
     data: { title, description },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      _count: {
+        select: {
+          products: true,
+        },
+      },
+    },
   })
   return NextResponse.json(category)
 }

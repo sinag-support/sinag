@@ -1,72 +1,102 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-async function getAuthenticatedUser() {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options })
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options })
-        },
-      },
-    }
-  )
-
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) {
-    return null
-  }
-  return user
-}
-
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+async function getUserId() {
   try {
-    const user = await getAuthenticatedUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+    const cookieStore = await cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) { return cookieStore.get(name)?.value },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options })
+          },
+        },
+      }
+    )
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email! },
       select: { id: true },
     })
-    if (!dbUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    
+    return dbUser?.id || null
+  } catch (error) {
+    console.error('Error in getUserId:', error)
+    return null
+  }
+}
+
+// PUT - Update an address
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const userId = await getUserId()
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
+    const { 
+      address, 
+      city, 
+      province, 
+      postalCode, 
+      country, 
+      latitude, 
+      longitude, 
+      landmark, 
+      isDefault 
+    } = await request.json()
 
-    const existing = await prisma.address.findFirst({
-      where: { id, userId: dbUser.id },
-    })
-    if (!existing) {
-      return NextResponse.json({ error: 'Address not found' }, { status: 404 })
+    if (!address || !city || !province || !postalCode) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      )
     }
 
-    const { address, city, province, postalCode, country, isDefault } = await request.json()
+    // Check if address belongs to user
+    const existing = await prisma.address.findUnique({
+      where: { id },
+      select: { userId: true },
+    })
 
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Address not found' },
+        { status: 404 }
+      )
+    }
+
+    if (existing.userId !== userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 403 }
+      )
+    }
+
+    // If setting as default, unset other defaults
     if (isDefault) {
       await prisma.address.updateMany({
-        where: { userId: dbUser.id, isDefault: true },
+        where: { userId, isDefault: true },
         data: { isDefault: false },
       })
     }
 
-    const updated = await prisma.address.update({
+    const updatedAddress = await prisma.address.update({
       where: { id },
       data: {
         address,
@@ -74,13 +104,16 @@ export async function PUT(
         province,
         postalCode,
         country: country || 'Philippines',
+        latitude: latitude || null,
+        longitude: longitude || null,
+        landmark: landmark || null,
         isDefault: isDefault || false,
       },
     })
 
-    return NextResponse.json(updated)
+    return NextResponse.json(updatedAddress)
   } catch (error) {
-    console.error('Error updating address:', error)
+    console.error('PUT /api/addresses/[id] error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -88,38 +121,46 @@ export async function PUT(
   }
 }
 
+// DELETE - Delete an address
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getAuthenticatedUser()
-    if (!user) {
+    const userId = await getUserId()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const dbUser = await prisma.user.findUnique({
-      where: { email: user.email! },
-      select: { id: true },
-    })
-    if (!dbUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     const { id } = await params
 
-    const existing = await prisma.address.findFirst({
-      where: { id, userId: dbUser.id },
+    // Check if address belongs to user
+    const existing = await prisma.address.findUnique({
+      where: { id },
+      select: { userId: true },
     })
+
     if (!existing) {
-      return NextResponse.json({ error: 'Address not found' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Address not found' },
+        { status: 404 }
+      )
     }
 
-    await prisma.address.delete({ where: { id } })
+    if (existing.userId !== userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 403 }
+      )
+    }
+
+    await prisma.address.delete({
+      where: { id },
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting address:', error)
+    console.error('DELETE /api/addresses/[id] error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

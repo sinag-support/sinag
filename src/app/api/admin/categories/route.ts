@@ -13,6 +13,11 @@ export async function GET() {
         id: true,
         title: true,
         description: true,
+        _count: {
+          select: {
+            products: true, // ✅ Add this to count products
+          },
+        },
       },
     })
     return NextResponse.json(categories)

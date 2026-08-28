@@ -1,20 +1,31 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getCurrentUserRole } from '@/lib/role'
 import { createClient } from '@supabase/supabase-js'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const role = await getCurrentUserRole()
   if (!role || role === 'USER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
   const email = searchParams.get('email')
   const search = searchParams.get('search') || ''
+  const userRole = searchParams.get('role') // 👈 Add this to filter by role
 
   const where: any = {}
+  
+  // Filter by email
   if (email) {
     where.email = email
-  } else if (search) {
+  }
+  
+  // Filter by role
+  if (userRole) {
+    where.role = userRole
+  }
+  
+  // Search filter
+  if (search && !email) {
     where.OR = [
       { name: { contains: search, mode: 'insensitive' } },
       { email: { contains: search, mode: 'insensitive' } },
@@ -34,10 +45,11 @@ export async function GET(request: Request) {
     orderBy: { createdAt: 'desc' },
   })
 
-  return NextResponse.json({ users })
+  // 👇 Return the array directly, not wrapped in an object
+  return NextResponse.json(users)
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const role = await getCurrentUserRole()
   if (role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
