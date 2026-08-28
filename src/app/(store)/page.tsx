@@ -5,9 +5,7 @@ import { BannerCarousel } from '@/components/home/banner-carousel'
 import { ProductGrid } from '@/components/home/product-grid'
 import { BlogSection } from '@/components/home/blog-section'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
-import { Truck, Shield, CreditCard, Headphones, Zap, Clock, Tag } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -104,22 +102,6 @@ export default async function HomePage() {
     }
   })
 
-  // Get products with discounts for flash sales (minimum 5% discount)
-  const flashSaleProducts = products
-    .filter(p => p.discount >= 5)
-    .sort((a, b) => b.discount - a.discount) // Sort by highest discount
-    .slice(0, 4)
-
-  // If no discounted products, get some products to show as "Deals" (with random discounts for display)
-  let displayFlashProducts = flashSaleProducts
-  if (displayFlashProducts.length === 0 && products.length > 0) {
-    // Show some products as "deals" with simulated discounts for demo
-    displayFlashProducts = products.slice(0, 4).map((p, index) => ({
-      ...p,
-      discount: [15, 20, 10, 25][index % 4] || 10 // Simulate discounts
-    }))
-  }
-
   // Fetch blog posts with likes and comments count
   const dbBlogPosts = await safeQuery(
     () =>
@@ -162,106 +144,11 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen pb-12 md:pb-0">
-      {/* Banner Carousel */}
       <section className="w-full -mt-[1px]">
         <BannerCarousel banners={finalBanners} />
       </section>
 
-      {/* Why Choose Us - Features Section */}
-      <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 border-b">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {[
-            { 
-              icon: Truck, 
-              title: 'Free Shipping', 
-              desc: 'On orders over ₱1,000',
-              color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/30'
-            },
-            { 
-              icon: Shield, 
-              title: 'Secure Payment', 
-              desc: '100% safe checkout',
-              color: 'text-green-500 bg-green-50 dark:bg-green-950/30'
-            },
-            { 
-              icon: CreditCard, 
-              title: 'Easy Returns', 
-              desc: '30-day return policy',
-              color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/30'
-            },
-            { 
-              icon: Headphones, 
-              title: '24/7 Support', 
-              desc: 'We\'re here to help',
-              color: 'text-orange-500 bg-orange-50 dark:bg-orange-950/30'
-            },
-          ].map((feature, i) => (
-            <div 
-              key={i} 
-              className="text-center p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-all duration-300 hover:shadow-md group"
-            >
-              <div className={`w-12 h-12 mx-auto rounded-full ${feature.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300`}>
-                <feature.icon className="h-6 w-6" />
-              </div>
-              <h3 className="font-semibold text-sm">{feature.title}</h3>
-              <p className="text-xs text-muted-foreground">{feature.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Flash Sales / Deals Section */}
-      <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 border-b">
-        <div className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 rounded-2xl p-6 sm:p-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <div className="flex items-center gap-2">
-                <Zap className="h-6 w-6 text-red-500" />
-                <h2 className="text-xl sm:text-2xl font-bold">Flash Sale</h2>
-              </div>
-              <p className="text-sm text-muted-foreground">Limited time offers - Grab them before they're gone!</p>
-            </div>
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <span className="text-muted-foreground">Ends in:</span>
-              <div className="flex items-center gap-1">
-                <div className="bg-red-500 text-white px-2 py-1 rounded-md text-xs font-bold min-w-[32px] text-center">
-                  02
-                </div>
-                <span className="text-red-500 font-bold">:</span>
-                <div className="bg-red-500 text-white px-2 py-1 rounded-md text-xs font-bold min-w-[32px] text-center">
-                  14
-                </div>
-                <span className="text-red-500 font-bold">:</span>
-                <div className="bg-red-500 text-white px-2 py-1 rounded-md text-xs font-bold min-w-[32px] text-center">
-                  45
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {displayFlashProducts.length > 0 ? (
-            <>
-              <ProductGrid products={displayFlashProducts} limit={4} scrollable={true} />
-              <div className="text-center mt-6">
-                <Link href="/products">
-                  <Button variant="outline" className="gap-2">
-                    View All Products <span className="text-xs">→</span>
-                  </Button>
-                </Link>
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-8">
-              <Tag className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">No flash sales available right now.</p>
-              <p className="text-sm text-muted-foreground">Check back later for amazing deals!</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Featured Products */}
-      <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 border-b">
+      <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="flex items-center justify-between mb-6 sm:mb-8">
           <h2 className="text-xl sm:text-2xl font-bold">Featured Products</h2>
           <Link href="/products">
@@ -271,8 +158,7 @@ export default async function HomePage() {
         <ProductGrid products={products} limit={5} scrollable={true} />
       </section>
 
-      {/* Blog Section */}
-      <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+      <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border-t">
         <div className="flex items-center justify-between mb-6 sm:mb-8">
           <h2 className="text-xl sm:text-2xl font-bold">Latest from Our Blog</h2>
           <Link href="/blog">
