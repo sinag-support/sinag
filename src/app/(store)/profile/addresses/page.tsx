@@ -200,11 +200,9 @@ async function reverseGeocode(lat: number, lng: number) {
       addr.province ||
       ''
 
-    const postalCode =
-      addr.postcode || ''
+    const postalCode = addr.postcode || ''
 
-    const country =
-      addr.country || 'Philippines'
+    const country = addr.country || 'Philippines'
 
     return {
       address: road,
@@ -221,11 +219,13 @@ async function reverseGeocode(lat: number, lng: number) {
 function AddressMapPicker({
   formData,
   onLocationChange,
+  addressChanged,
 }: {
   formData: FormDataState
   onLocationChange: (
     data: Partial<FormDataState>
   ) => void
+  addressChanged: number
 }) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
@@ -235,11 +235,11 @@ function AddressMapPicker({
     useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const requestIdRef = useRef(0)
+
   const isUserDraggingRef = useRef(false)
   const isProgrammaticMoveRef = useRef(false)
-  const isUserTypingRef = useRef(false)
 
-  const formDataRef = useRef(formData)
+  const initializedFromCoordinatesRef = useRef(false)
 
   const { theme, resolvedTheme } = useTheme()
 
@@ -259,12 +259,7 @@ function AddressMapPicker({
     useState(false)
 
   useEffect(() => {
-    formDataRef.current = formData
-  }, [formData])
-
-  useEffect(() => {
-    const activeTheme =
-      resolvedTheme || theme
+    const activeTheme = resolvedTheme || theme
 
     if (activeTheme === 'dark') {
       setMapTheme('dark')
@@ -404,7 +399,11 @@ function AddressMapPicker({
           lat: formData.latitude,
           lng: formData.longitude,
         }
+
+        initializedFromCoordinatesRef.current = true
       } else {
+        initializedFromCoordinatesRef.current = false
+
         initialCoords = await getCoordinates(
           formData.address,
           formData.city,
@@ -470,12 +469,14 @@ function AddressMapPicker({
 
         map.on('dragstart', () => {
           isUserDraggingRef.current = true
-          isUserTypingRef.current = false
+          isProgrammaticMoveRef.current = false
 
           if (typingTimerRef.current) {
             clearTimeout(typingTimerRef.current)
             typingTimerRef.current = null
           }
+
+          requestIdRef.current++
         })
 
         map.on('drag', () => {
@@ -577,21 +578,16 @@ function AddressMapPicker({
   useEffect(() => {
     if (
       !mapInstanceRef.current ||
-      !mapReady
+      !mapReady ||
+      !addressChanged
     ) {
       return
     }
 
-    const activeElement = document.activeElement
-
-    const isInput =
-      activeElement?.tagName === 'INPUT'
-
-    if (!isInput) {
+    if (initializedFromCoordinatesRef.current) {
+      initializedFromCoordinatesRef.current = false
       return
     }
-
-    isUserTypingRef.current = true
 
     if (typingTimerRef.current) {
       clearTimeout(typingTimerRef.current)
@@ -615,6 +611,10 @@ function AddressMapPicker({
           return
         }
 
+        if (isUserDraggingRef.current) {
+          return
+        }
+
         setIsGeocoding(true)
 
         const coords =
@@ -628,6 +628,7 @@ function AddressMapPicker({
           currentRequest !==
           requestIdRef.current
         ) {
+          setIsGeocoding(false)
           return
         }
 
@@ -635,6 +636,11 @@ function AddressMapPicker({
           !coords ||
           !mapInstanceRef.current
         ) {
+          setIsGeocoding(false)
+          return
+        }
+
+        if (isUserDraggingRef.current) {
           setIsGeocoding(false)
           return
         }
@@ -664,7 +670,7 @@ function AddressMapPicker({
             map.getZoom(),
             {
               animate: true,
-              duration: 2.2,
+              duration: 1.5,
               easeLinearity: 0.08,
               noMoveStart: true,
             }
@@ -685,6 +691,7 @@ function AddressMapPicker({
       }
     }
   }, [
+    addressChanged,
     formData.address,
     formData.city,
     formData.province,
@@ -889,6 +896,9 @@ export default function AddressesPage() {
       isDefault: false,
     })
 
+  const [addressChanged, setAddressChanged] =
+    useState(0)
+
   const [submitting, setSubmitting] =
     useState(false)
 
@@ -952,6 +962,7 @@ export default function AddressesPage() {
     })
 
     setEditingId(null)
+    setAddressChanged(0)
   }
 
   const openAddDialog = () => {
@@ -978,6 +989,7 @@ export default function AddressesPage() {
         address.isDefault,
     })
 
+    setAddressChanged(0)
     setEditingId(address.id)
     setDialogOpen(true)
   }
@@ -989,6 +1001,24 @@ export default function AddressesPage() {
       ...prev,
       ...partialData,
     }))
+  }
+
+  const handleTextChange = (
+    field: keyof FormDataState,
+    value: string
+  ) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value,
+    }))
+
+    if (
+      field === 'address' ||
+      field === 'city' ||
+      field === 'province'
+    ) {
+      setAddressChanged(prev => prev + 1)
+    }
   }
 
   const handleSubmit = async () => {
@@ -1342,6 +1372,9 @@ export default function AddressesPage() {
                     onLocationChange={
                       handleLocationChange
                     }
+                    addressChanged={
+                      addressChanged
+                    }
                   />
                 )}
               </div>
@@ -1366,11 +1399,10 @@ export default function AddressesPage() {
                     formData.address
                   }
                   onChange={e =>
-                    setFormData(prev => ({
-                      ...prev,
-                      address:
-                        e.target.value,
-                    }))
+                    handleTextChange(
+                      'address',
+                      e.target.value
+                    )
                   }
                   placeholder="123 Main St"
                   className="h-10"
@@ -1390,11 +1422,10 @@ export default function AddressesPage() {
                     id="city"
                     value={formData.city}
                     onChange={e =>
-                      setFormData(prev => ({
-                        ...prev,
-                        city:
-                          e.target.value,
-                      }))
+                      handleTextChange(
+                        'city',
+                        e.target.value
+                      )
                     }
                     placeholder="Lipa"
                     className="h-10"
@@ -1415,11 +1446,10 @@ export default function AddressesPage() {
                       formData.province
                     }
                     onChange={e =>
-                      setFormData(prev => ({
-                        ...prev,
-                        province:
-                          e.target.value,
-                      }))
+                      handleTextChange(
+                        'province',
+                        e.target.value
+                      )
                     }
                     placeholder="Batangas"
                     className="h-10"
@@ -1442,11 +1472,10 @@ export default function AddressesPage() {
                       formData.postalCode
                     }
                     onChange={e =>
-                      setFormData(prev => ({
-                        ...prev,
-                        postalCode:
-                          e.target.value,
-                      }))
+                      handleTextChange(
+                        'postalCode',
+                        e.target.value
+                      )
                     }
                     placeholder="4217"
                     className="h-10"
@@ -1467,11 +1496,10 @@ export default function AddressesPage() {
                       formData.country
                     }
                     onChange={e =>
-                      setFormData(prev => ({
-                        ...prev,
-                        country:
-                          e.target.value,
-                      }))
+                      handleTextChange(
+                        'country',
+                        e.target.value
+                      )
                     }
                     placeholder="Philippines"
                     className="h-10"
@@ -1494,11 +1522,10 @@ export default function AddressesPage() {
                     formData.landmark
                   }
                   onChange={e =>
-                    setFormData(prev => ({
-                      ...prev,
-                      landmark:
-                        e.target.value,
-                    }))
+                    handleTextChange(
+                      'landmark',
+                      e.target.value
+                    )
                   }
                   placeholder="e.g., Near Barangay Hall, Yellow gate"
                   className="h-10"

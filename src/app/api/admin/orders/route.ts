@@ -75,6 +75,13 @@ export async function GET(request: NextRequest) {
               images: true,
             },
           },
+          option: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+            },
+          },
         },
       },
     },

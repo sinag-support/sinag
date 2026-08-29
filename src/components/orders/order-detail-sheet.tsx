@@ -20,6 +20,7 @@ import {
   Moon,
   Globe,
   Map,
+  Flag,
 } from 'lucide-react'
 import { useMediaQuery } from 'react-responsive'
 import { useTheme } from 'next-themes'
@@ -978,16 +979,20 @@ function OrderDetailContent({
             </h4>
 
             {order.address ? (
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {order.address.address},{' '}
-                {order.address.city},{' '}
-                {order.address.province}{' '}
-                {order.address.postalCode}
-              </p>
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {order.address.address}, {order.address.city},{' '}
+                  {order.address.province} {order.address.postalCode}
+                </p>
+                {order.address.landmark && (
+                  <p className="text-xs text-muted-foreground/70 flex items-center gap-1 mt-0.5">
+                    <Flag className="h-3 w-3 text-muted-foreground" />
+                    Landmark: {order.address.landmark}
+                  </p>
+                )}
+              </div>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                No address provided
-              </p>
+              <p className="text-xs text-muted-foreground">No address provided</p>
             )}
           </div>
 

@@ -100,6 +100,7 @@ model ProductOption {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   cartItems CartItem[]
+  orderItems OrderItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -151,6 +152,10 @@ model OrderItem {
   order     Order   @relation(fields: [orderId], references: [id])
   productId String
   product   Product @relation(fields: [productId], references: [id])
+  
+  optionId  String?
+  option    ProductOption? @relation(fields: [optionId], references: [id])
+  
   quantity  Int
   price     Float
   discount  Float   @default(0)
@@ -180,10 +185,9 @@ model Address {
   postalCode String
   country    String   @default("Philippines")
   
-  // Map pinning & landmark additions
   latitude   Float?
   longitude  Float?
-  landmark   String?  // e.g., "Near Barangay Hall", "Yellow gate"
+  landmark   String?
 
   isDefault  Boolean  @default(false)
 

@@ -105,6 +105,7 @@ export async function POST(request: Request) {
       province,
       postalCode,
       country,
+      landmark,
       paymentMethod,
       shipping,
       vat,
@@ -262,7 +263,7 @@ export async function POST(request: Request) {
 
     const total = subtotal + shipping + vat
 
-    // Create address
+    // Create address with landmark
     const addressRecord = await prisma.address.create({
       data: {
         userId: dbUser.id,
@@ -270,7 +271,8 @@ export async function POST(request: Request) {
         city,
         province,
         postalCode,
-        country,
+        country: country || 'Philippines',
+        landmark: landmark || null,
         isDefault: false,
       },
     })

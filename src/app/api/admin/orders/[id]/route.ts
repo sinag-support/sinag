@@ -25,6 +25,13 @@ export async function GET(
               images: true,
             },
           },
+          option: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+            },
+          },
         },
       },
       payments: true,
