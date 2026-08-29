@@ -76,10 +76,11 @@ interface DeliveryOrderDetailProps {
   isUpdating: boolean;
 }
 
+// Updated store location
 const STORE_LOCATION = {
-  lat: 13.9419,
-  lng: 121.1644,
-  name: "iPrime Dispatch Hub",
+  lat: 14.5995,
+  lng: 120.9842,
+  name: "123 SINAG Street, Metro Manila, Philippines",
 };
 
 const TILE_LAYERS = {
@@ -433,32 +434,6 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
         ).addTo(map);
         tileLayerRef.current = tileLayer;
 
-        const storeIcon = window.L.divIcon({
-          className: "custom-leaflet-animated-icon",
-          html: `
-            <div style="width:72px;height:72px;display:flex;align-items:center;justify-content:center;">
-              <dotlottie-player
-                src="/animations/store.json"
-                background="transparent"
-                speed="1"
-                style="width:72px;height:72px;"
-                loop
-                autoplay
-              ></dotlottie-player>
-            </div>
-          `,
-          iconSize: [72, 72],
-          iconAnchor: [36, 36],
-          popupAnchor: [0, -36],
-        });
-
-        const storeMarker = window.L.marker(storePos, {
-          icon: storeIcon,
-        }).addTo(map);
-        storeMarker.bindPopup(
-          `<b>${STORE_LOCATION.name}</b><br/>Dispatch Point`,
-        );
-
         const customerIcon = window.L.divIcon({
           className: "custom-leaflet-animated-icon",
           html: `
@@ -491,14 +466,15 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
           `);
         }
 
+        // Get route from store to customer
         const routePoints = await getRouteGeometry(STORE_LOCATION, coordinates);
         polylineRef.current = window.L.polyline(routePoints, {
-          color: mapTheme === "dark" ? "#60a5fa" : "#3b82f6",
+          color: "#dc2626",
           weight: 5,
           opacity: 0.85,
-          dashArray: "8, 8",
         }).addTo(map);
 
+        // Fit bounds to show both store and customer
         const bounds = window.L.latLngBounds([storePos, customerPos]);
         map.fitBounds(bounds, { padding: [50, 50] });
 
@@ -507,7 +483,7 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
           html: `
             <div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;">
               <dotlottie-player
-                src="/animations/rider.json"
+                src="/animations/truck.json"
                 background="transparent"
                 speed="1"
                 style="width:80px;height:80px;"
@@ -521,9 +497,10 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
           popupAnchor: [0, -40],
         });
 
+        // 🚀 Rider starts at STORE_LOCATION
         const initialRiderPos: [number, number] = [
-          order.address.lat || STORE_LOCATION.lat,
-          order.address.lng || STORE_LOCATION.lng,
+          STORE_LOCATION.lat,
+          STORE_LOCATION.lng,
         ];
 
         riderMarkerRef.current = window.L.marker(initialRiderPos, {
@@ -598,7 +575,7 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
 
     if (polylineRef.current) {
       polylineRef.current.setStyle({
-        color: mapTheme === "dark" ? "#60a5fa" : "#3b82f6",
+        color: "#dc2626",
       });
     }
   }, [mapTheme]);
