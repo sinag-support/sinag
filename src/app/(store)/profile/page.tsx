@@ -1,15 +1,15 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import type { User as SupabaseUser } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Button } from '@/components/ui/button'
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   User,
   Package,
@@ -27,117 +27,198 @@ import {
   Truck,
   Moon,
   Sun,
-} from 'lucide-react'
-import { useTheme } from 'next-themes'
+} from "lucide-react";
+import { useTheme } from "next-themes";
 
 interface OrderItem {
-  id: string
-  quantity: number
-  price: number
+  id: string;
+  quantity: number;
+  price: number;
   product: {
-    id: string
-    title: string
-    images: string[]
-  }
+    id: string;
+    title: string;
+    images: string[];
+  };
 }
 
 interface Order {
-  id: string
-  orderNumber: number
-  status: string
-  total: number
-  payable: number
-  createdAt: string
-  items: OrderItem[]
+  id: string;
+  orderNumber: number;
+  status: string;
+  total: number;
+  payable: number;
+  createdAt: string;
+  items: OrderItem[];
 }
 
 const menuGroups = [
   {
-    title: 'Shopping & Orders',
+    title: "Shopping & Orders",
     items: [
-      { href: '/profile/orders', label: 'My Orders', icon: Package, desc: 'Track, return, or buy again' },
-      { href: '/profile/wishlist', label: 'Wishlist', icon: Heart, desc: 'Items saved for later' },
-      { href: '/profile/addresses', label: 'Saved Addresses', icon: MapPin, desc: 'Manage delivery locations' },
-      { href: '/profile/payments', label: 'Payment Methods', icon: CreditCard, desc: 'Saved cards & digital wallets' },
+      {
+        href: "/profile/orders",
+        label: "My Orders",
+        icon: Package,
+        desc: "Track, return, or buy again",
+      },
+      {
+        href: "/profile/wishlist",
+        label: "Wishlist",
+        icon: Heart,
+        desc: "Items saved for later",
+      },
+      {
+        href: "/profile/addresses",
+        label: "Saved Addresses",
+        icon: MapPin,
+        desc: "Manage delivery locations",
+      },
+      {
+        href: "/profile/payments",
+        label: "Payment Methods",
+        icon: CreditCard,
+        desc: "Saved cards & digital wallets",
+      },
     ],
   },
   {
-    title: 'Account Settings',
+    title: "Account Settings",
     items: [
-      { href: '/profile/settings', label: 'Personal Information', icon: User, desc: 'Update name, email & phone' },
-      { href: '/profile/security', label: 'Security & Password', icon: Lock, desc: '2FA and password updates' },
-      { href: '/profile/notifications', label: 'Notifications', icon: Bell, desc: 'Promotions & order alerts' },
+      {
+        href: "/profile/settings",
+        label: "Personal Information",
+        icon: User,
+        desc: "Update name, email & phone",
+      },
+      {
+        href: "/profile/security",
+        label: "Security & Password",
+        icon: Lock,
+        desc: "2FA and password updates",
+      },
+      {
+        href: "/profile/notifications",
+        label: "Notifications",
+        icon: Bell,
+        desc: "Promotions & order alerts",
+      },
     ],
   },
   {
-    title: 'Support & Legal',
+    title: "Support & Legal",
     items: [
-      { href: '/profile/help', label: 'Help Center & FAQ', icon: HelpCircle, desc: 'Customer service & assistance' },
-      { href: '/profile/privacy', label: 'Privacy Policy', icon: ShieldCheck, desc: 'Data protection and usage' },
+      {
+        href: "/profile/help",
+        label: "Help Center & FAQ",
+        icon: HelpCircle,
+        desc: "Customer service & assistance",
+      },
+      {
+        href: "/profile/privacy",
+        label: "Privacy Policy",
+        icon: ShieldCheck,
+        desc: "Data protection and usage",
+      },
     ],
   },
-]
+];
 
 const statusColors: Record<string, string> = {
-  PENDING: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-  CONFIRMED: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-  PREPARING: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
-  PACKED: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
-  DELIVERED: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-  CANCELLED: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
-}
+  PENDING:
+    "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+  CONFIRMED:
+    "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+  PREPARING:
+    "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
+  PACKED:
+    "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
+  DELIVERED:
+    "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+  CANCELLED:
+    "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
+};
 
 export default function ProfilePage() {
-  const router = useRouter()
-  const { theme, setTheme } = useTheme()
-  const [user, setUser] = useState<SupabaseUser | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [latestOrder, setLatestOrder] = useState<Order | null>(null)
-  const [ordersLoading, setOrdersLoading] = useState(true)
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+  const router = useRouter();
+  const { theme, setTheme } = useTheme();
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [latestOrder, setLatestOrder] = useState<Order | null>(null);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        router.push('/login')
-        return
+        router.push("/login");
+        return;
       }
-      setUser(user)
-      setName(user.user_metadata?.full_name || user.user_metadata?.name || '')
-      setEmail(user.email || '')
-      setLoading(false)
-    }
-    fetchUser()
-  }, [router])
+      setUser(user);
+      setName(user.user_metadata?.full_name || user.user_metadata?.name || "");
+      setEmail(user.email || "");
+      setLoading(false);
+    };
+    fetchUser();
+  }, [router]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
+    try {
+      // Call logout API first
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+
+      // Sign out from Supabase client
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Supabase signout error:", error);
+      }
+
+      // Clear any client-side auth data
+      localStorage.removeItem("supabase-auth-token");
+      localStorage.removeItem("sb-access-token");
+      localStorage.removeItem("sb-refresh-token");
+      sessionStorage.clear();
+
+      // Clear all cookies manually (client-side)
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+
+      // Force hard navigation
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout error:", error);
+      await supabase.auth.signOut();
+      window.location.href = "/";
+    }
+  };
 
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark')
-  }
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
 
   const getInitials = (nameStr: string) => {
-    if (!nameStr) return 'U'
+    if (!nameStr) return "U";
     return nameStr
-      .split(' ')
+      .split(" ")
       .filter(Boolean)
       .map((n) => n[0])
-      .join('')
+      .join("")
       .toUpperCase()
-      .slice(0, 2)
-  }
+      .slice(0, 2);
+  };
 
   const getStatusLabel = (status: string) => {
     return status
-      .split('_')
+      .split("_")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ')
-  }
+      .join(" ");
+  };
 
   if (loading) {
     return (
@@ -147,7 +228,7 @@ export default function ProfilePage() {
         <Skeleton className="h-32 w-full rounded-xl" />
         <Skeleton className="h-64 w-full rounded-xl" />
       </div>
-    )
+    );
   }
 
   return (
@@ -162,7 +243,7 @@ export default function ProfilePage() {
           className="h-9 w-9 md:hidden rounded-full"
           aria-label="Toggle theme"
         >
-          {theme === 'dark' ? (
+          {theme === "dark" ? (
             <Sun className="h-5 w-5" />
           ) : (
             <Moon className="h-5 w-5" />
@@ -181,10 +262,13 @@ export default function ProfilePage() {
               </AvatarFallback>
             </Avatar>
             <div className="space-y-1">
-              <h2 className="font-semibold text-lg leading-none">{name || 'Member'}</h2>
+              <h2 className="font-semibold text-lg leading-none">
+                {name || "Member"}
+              </h2>
               <p className="text-xs text-muted-foreground">{email}</p>
               <span className="text-[11px] text-muted-foreground block pt-0.5">
-                Member since {new Date(user?.created_at || Date.now()).getFullYear()}
+                Member since{" "}
+                {new Date(user?.created_at || Date.now()).getFullYear()}
               </span>
             </div>
           </div>
@@ -206,7 +290,7 @@ export default function ProfilePage() {
             </h3>
             <Card className="shadow-sm divide-y divide-border overflow-hidden">
               {group.items.map((item) => {
-                const Icon = item.icon
+                const Icon = item.icon;
                 return (
                   <Link
                     key={item.href}
@@ -218,13 +302,17 @@ export default function ProfilePage() {
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-sm leading-none">{item.label}</p>
-                        <p className="text-xs text-muted-foreground truncate mt-1">{item.desc}</p>
+                        <p className="font-medium text-sm leading-none">
+                          {item.label}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate mt-1">
+                          {item.desc}
+                        </p>
                       </div>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 ml-2" />
                   </Link>
-                )
+                );
               })}
             </Card>
           </div>
@@ -244,12 +332,14 @@ export default function ProfilePage() {
             </div>
             <div className="min-w-0">
               <p className="font-medium text-sm leading-none">Sign Out</p>
-              <p className="text-xs text-muted-foreground truncate mt-1">Log out of your account on this device</p>
+              <p className="text-xs text-muted-foreground truncate mt-1">
+                Log out of your account on this device
+              </p>
             </div>
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 ml-2" />
         </button>
       </Card>
     </div>
-  )
+  );
 }

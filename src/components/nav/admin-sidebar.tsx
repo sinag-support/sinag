@@ -280,6 +280,7 @@ export default function AdminSidebar() {
     }));
   };
 
+  // ✅ Updated handleLogout with full cleanup
   const handleLogout = async () => {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
@@ -291,12 +292,24 @@ export default function AdminSidebar() {
       // Call logout API first
       const response = await fetch("/api/auth/logout", { method: "POST" });
 
-      // Always sign out from Supabase client
-      await supabase.auth.signOut();
+      // Sign out from Supabase client
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Supabase signout error:", error);
+      }
 
-      // ✅ Clear any client-side auth data
+      // Clear any client-side auth data
       localStorage.removeItem("supabase-auth-token");
+      localStorage.removeItem("sb-access-token");
+      localStorage.removeItem("sb-refresh-token");
       sessionStorage.clear();
+
+      // Clear all cookies manually (client-side)
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
 
       // Force hard navigation
       window.location.href = "/";
@@ -513,6 +526,13 @@ export default function AdminSidebar() {
     const mobileItems = getMobileNavItems(normalizedRole);
     const isAnyPopoverOpen = storePopoverOpen || profilePopoverOpen;
 
+    // ✅ Calculate grid columns based on number of items
+    const getGridCols = () => {
+      const count = mobileItems.length;
+      if (count <= 4) return `grid-cols-${count}`;
+      return "grid-cols-5";
+    };
+
     return (
       <>
         {isAnyPopoverOpen && (
@@ -533,7 +553,14 @@ export default function AdminSidebar() {
               : "bg-background border-t border-border",
           )}
         >
-          <nav className="grid grid-cols-5 w-full h-16 items-center">
+          <nav
+            className={cn(
+              "grid w-full h-16 items-center",
+              mobileItems.length <= 4
+                ? `grid-cols-${mobileItems.length}`
+                : "grid-cols-5",
+            )}
+          >
             {mobileItems.map((item) => {
               const Icon = item.icon;
               const active = isParentActive(item);

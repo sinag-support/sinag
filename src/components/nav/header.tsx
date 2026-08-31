@@ -148,37 +148,64 @@ export default function Header() {
     fetchUser();
   }, [pathname]);
 
+  // ✅ Listen for auth state changes and update user state
   useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session?.user?.email);
+
       if (event === "SIGNED_OUT") {
         setUser(null);
-      } else if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        setLoading(false);
+        // ✅ Force a re-render to update navigation
+        router.refresh();
+      } else if (
+        event === "SIGNED_IN" ||
+        event === "USER_UPDATED" ||
+        event === "TOKEN_REFRESHED"
+      ) {
         setUser(session?.user || null);
+        setLoading(false);
       }
-      setLoading(false);
     });
     return () => subscription?.unsubscribe();
-  }, []);
+  }, [router]);
 
   const handleLogout = async () => {
     try {
       // Call logout API first
       const response = await fetch("/api/auth/logout", { method: "POST" });
 
-      // Always sign out from Supabase client
-      await supabase.auth.signOut();
+      // Sign out from Supabase client
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Supabase signout error:", error);
+      }
 
-      // ✅ Clear any client-side auth data
+      // Clear any client-side auth data
       localStorage.removeItem("supabase-auth-token");
+      localStorage.removeItem("sb-access-token");
+      localStorage.removeItem("sb-refresh-token");
       sessionStorage.clear();
+
+      // Clear all cookies manually (client-side)
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+
+      // ✅ Clear user state immediately
+      setUser(null);
+      setLoading(false);
 
       // Force hard navigation
       window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);
       await supabase.auth.signOut();
+      setUser(null);
       window.location.href = "/";
     }
   };

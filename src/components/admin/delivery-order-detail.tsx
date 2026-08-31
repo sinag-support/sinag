@@ -20,6 +20,7 @@ import {
   MapPin,
   Ban,
   RotateCcw,
+  Phone,
 } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { toast } from "sonner";
@@ -944,9 +945,7 @@ export function DeliveryOrderDetail({
             <OrderMap order={order} />
           </div>
 
-          {/* RIGHT COLUMN */}
           <div className="space-y-4 flex flex-col">
-            {/* Customer & Address - 2 columns */}
             <div className="grid grid-cols-2 gap-4">
               <div className="border border-border rounded-lg p-4 !bg-background shadow-sm">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
@@ -957,7 +956,7 @@ export function DeliveryOrderDetail({
                   {order.user?.name || "Guest Customer"}
                 </p>
                 {order.user?.phone && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
                     {order.user.phone}
                   </p>
                 )}

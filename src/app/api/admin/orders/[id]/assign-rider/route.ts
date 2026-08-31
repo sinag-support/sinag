@@ -42,7 +42,13 @@ export async function POST(
           )),
       },
       include: {
-        user: { select: { name: true, email: true } },
+        user: {
+          select: {
+            name: true,
+            email: true,
+            phone: true, // ✅ Add phone to user select
+          },
+        },
         rider: { select: { id: true, name: true, email: true } },
         address: true,
       },
@@ -77,7 +83,13 @@ export async function POST(
       status: "ASSIGNED_RIDER",
     },
     include: {
-      user: { select: { name: true, email: true } },
+      user: {
+        select: {
+          name: true,
+          email: true,
+          phone: true, // ✅ Add phone to user select
+        },
+      },
       rider: { select: { id: true, name: true, email: true } },
       address: true,
     },

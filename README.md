@@ -71,20 +71,20 @@
 
 ## 🛠️ Tech Stack
 
-| Category | Technology |
-|----------|------------|
-| **Framework** | Next.js 16.3.1 (App Router + Server Components) |
-| **Language** | TypeScript 5.6.3 |
-| **Database** | PostgreSQL (Supabase) |
-| **ORM** | Prisma 5.22.0 |
-| **Authentication** | Supabase Auth (JWT + OAuth) |
-| **Styling** | Tailwind CSS 4 + shadcn/ui |
-| **Forms** | React Hook Form + Zod validation |
-| **State Management** | Zustand + React Context |
-| **Charts** | Recharts |
-| **PWA** | next-pwa |
-| **Email** | Nodemailer + React Email |
-| **Deployment** | Vercel |
+| Category             | Technology                                      |
+| -------------------- | ----------------------------------------------- |
+| **Framework**        | Next.js 16.3.1 (App Router + Server Components) |
+| **Language**         | TypeScript 5.6.3                                |
+| **Database**         | PostgreSQL (Supabase)                           |
+| **ORM**              | Prisma 5.22.0                                   |
+| **Authentication**   | Supabase Auth (JWT + OAuth)                     |
+| **Styling**          | Tailwind CSS 4 + shadcn/ui                      |
+| **Forms**            | React Hook Form + Zod validation                |
+| **State Management** | Zustand + React Context                         |
+| **Charts**           | Recharts                                        |
+| **PWA**              | next-pwa                                        |
+| **Email**            | Nodemailer + React Email                        |
+| **Deployment**       | Vercel                                          |
 
 ---
 
@@ -198,12 +198,12 @@ NODE_ENV="development"
 
 ## 🧪 Testing Accounts
 
-| Role | Email | Password |
-|------|-------|----------|
+| Role  | Email           | Password   |
+| ----- | --------------- | ---------- |
 | Admin | admin@sinag.com | Admin@1234 |
 | Staff | staff@sinag.com | Staff@1234 |
 | Rider | rider@sinag.com | Rider@1234 |
-| User | user@sinag.com | User@1234 |
+| User  | user@sinag.com  | User@1234  |
 
 ---
 
@@ -247,6 +247,7 @@ npm start
 ## 📦 Database Schema
 
 Key models:
+
 - **User** – roles (ADMIN, STAFF, RIDER, USER)
 - **Product** – with categories, brands, images, discount
 - **Order** – status, payments, shipping
@@ -371,88 +372,89 @@ Here's the updated `README.md` with all the new features and improvements we've 
 
 ## 🛠️ Tech Stack
 
-| Category | Technology |
-|----------|------------|
-| **Framework** | Next.js 16.3.1 (App Router + Server Components) |
-| **Language** | TypeScript 5.6.3 |
-| **Database** | PostgreSQL (Supabase) |
-| **ORM** | Prisma 5.22.0 |
-| **Authentication** | Supabase Auth (JWT + OAuth) |
-| **Styling** | Tailwind CSS 4 + shadcn/ui |
-| **Forms** | React Hook Form + Zod validation |
-| **State Management** | Zustand + React Context |
-| **Charts** | Recharts |
-| **PWA** | next-pwa |
-| **Email** | Nodemailer + React Email |
-| **Deployment** | Vercel |
+| Category             | Technology                                      |
+| -------------------- | ----------------------------------------------- |
+| **Framework**        | Next.js 16.3.1 (App Router + Server Components) |
+| **Language**         | TypeScript 5.6.3                                |
+| **Database**         | PostgreSQL (Supabase)                           |
+| **ORM**              | Prisma 5.22.0                                   |
+| **Authentication**   | Supabase Auth (JWT + OAuth)                     |
+| **Styling**          | Tailwind CSS 4 + shadcn/ui                      |
+| **Forms**            | React Hook Form + Zod validation                |
+| **State Management** | Zustand + React Context                         |
+| **Charts**           | Recharts                                        |
+| **PWA**              | next-pwa                                        |
+| **Email**            | Nodemailer + React Email                        |
+| **Deployment**       | Vercel                                          |
 
 ---
 
 ## 📁 Project Structure
-
 ```
+
 sinag-ecommerce/
 ├── src/
-│   ├── app/
-│   │   ├── (store)/          # Storefront routes
-│   │   ├── (admin)/          # Admin dashboard routes
-│   │   │   ├── admin/        # Admin pages
-│   │   │   │   ├── banners/  # Banner management
-│   │   │   │   ├── categories/ # Category management
-│   │   │   │   ├── orders/   # Order management
-│   │   │   │   ├── products/ # Product management
-│   │   │   │   └── users/    # User management
-│   │   │   └── layout.tsx    # Admin layout with sidebar
-│   │   ├── api/              # API routes
-│   │   │   ├── admin/        # Admin API endpoints
-│   │   │   │   ├── banners/  # Banner CRUD
-│   │   │   │   ├── categories/ # Category CRUD
-│   │   │   │   ├── orders/   # Order management
-│   │   │   │   ├── products/ # Product CRUD
-│   │   │   │   ├── stats/    # Dashboard stats
-│   │   │   │   └── users/    # User management
-│   │   │   └── auth/         # Authentication endpoints
-│   │   ├── login/            # Login page
-│   │   ├── register/         # Register page
-│   │   ├── verify-otp/       # OTP verification page
-│   │   ├── forgot-password/  # Password reset page
-│   │   ├── layout.tsx        # Root layout
-│   │   └── globals.css       # Global styles
-│   ├── components/
-│   │   ├── ui/               # shadcn components
-│   │   │   ├── collapsible.tsx # Collapsible sidebar
-│   │   │   └── tooltip.tsx   # Tooltips
-│   │   ├── nav/              # Navigation components
-│   │   │   ├── admin-sidebar.tsx # Admin sidebar with role-based filtering
-│   │   │   └── header.tsx    # Store header
-│   │   ├── admin/            # Admin components
-│   │   │   └── user-management.tsx # User management component
-│   │   ├── home/             # Home page components
-│   │   ├── products/         # Product-related components
-│   │   ├── notifications/    # Notification components
-│   │   └── orders/           # Order components
-│   ├── hooks/
-│   │   └── use-role.ts       # Role fetching hook
-│   ├── lib/
-│   │   ├── prisma.ts         # Prisma client
-│   │   ├── supabase.ts       # Supabase client
-│   │   ├── role.ts           # Server-side role utilities
-│   │   ├── jwt.ts            # JWT utilities
-│   │   ├── validation.ts     # Form validation
-│   │   ├── safe-query.ts     # Database query wrapper
-│   │   └── utils.ts          # General utilities
-│   ├── types/                # TypeScript type definitions
-│   └── proxy.ts              # Next.js middleware
+│ ├── app/
+│ │ ├── (store)/ # Storefront routes
+│ │ ├── (admin)/ # Admin dashboard routes
+│ │ │ ├── admin/ # Admin pages
+│ │ │ │ ├── banners/ # Banner management
+│ │ │ │ ├── categories/ # Category management
+│ │ │ │ ├── orders/ # Order management
+│ │ │ │ ├── products/ # Product management
+│ │ │ │ └── users/ # User management
+│ │ │ └── layout.tsx # Admin layout with sidebar
+│ │ ├── api/ # API routes
+│ │ │ ├── admin/ # Admin API endpoints
+│ │ │ │ ├── banners/ # Banner CRUD
+│ │ │ │ ├── categories/ # Category CRUD
+│ │ │ │ ├── orders/ # Order management
+│ │ │ │ ├── products/ # Product CRUD
+│ │ │ │ ├── stats/ # Dashboard stats
+│ │ │ │ └── users/ # User management
+│ │ │ └── auth/ # Authentication endpoints
+│ │ ├── login/ # Login page
+│ │ ├── register/ # Register page
+│ │ ├── verify-otp/ # OTP verification page
+│ │ ├── forgot-password/ # Password reset page
+│ │ ├── layout.tsx # Root layout
+│ │ └── globals.css # Global styles
+│ ├── components/
+│ │ ├── ui/ # shadcn components
+│ │ │ ├── collapsible.tsx # Collapsible sidebar
+│ │ │ └── tooltip.tsx # Tooltips
+│ │ ├── nav/ # Navigation components
+│ │ │ ├── admin-sidebar.tsx # Admin sidebar with role-based filtering
+│ │ │ └── header.tsx # Store header
+│ │ ├── admin/ # Admin components
+│ │ │ └── user-management.tsx # User management component
+│ │ ├── home/ # Home page components
+│ │ ├── products/ # Product-related components
+│ │ ├── notifications/ # Notification components
+│ │ └── orders/ # Order components
+│ ├── hooks/
+│ │ └── use-role.ts # Role fetching hook
+│ ├── lib/
+│ │ ├── prisma.ts # Prisma client
+│ │ ├── supabase.ts # Supabase client
+│ │ ├── role.ts # Server-side role utilities
+│ │ ├── jwt.ts # JWT utilities
+│ │ ├── validation.ts # Form validation
+│ │ ├── safe-query.ts # Database query wrapper
+│ │ └── utils.ts # General utilities
+│ ├── types/ # TypeScript type definitions
+│ └── proxy.ts # Next.js middleware
 ├── prisma/
-│   ├── schema.prisma         # Database schema
-│   └── seed.ts               # Seed script
-├── public/                   # Static assets
-├── .env.local                # Environment variables
+│ ├── schema.prisma # Database schema
+│ └── seed.ts # Seed script
+├── public/ # Static assets
+├── .env.local # Environment variables
 ├── package.json
 ├── tailwind.config.js
 ├── next.config.ts
 └── vercel.json
-```
+
+````
 
 ---
 
@@ -487,7 +489,7 @@ npx prisma db seed
 
 # Run the development server
 npm run dev
-```
+````
 
 ---
 
@@ -521,12 +523,12 @@ NODE_ENV="development"
 
 ## 🧪 Testing Accounts
 
-| Role | Email | Password |
-|------|-------|----------|
+| Role  | Email           | Password   |
+| ----- | --------------- | ---------- |
 | Admin | admin@sinag.com | Admin@1234 |
 | Staff | staff@sinag.com | Staff@1234 |
 | Rider | rider@sinag.com | Rider@1234 |
-| User | user@sinag.com | User@1234 |
+| User  | user@sinag.com  | User@1234  |
 
 ---
 
@@ -570,6 +572,7 @@ npm start
 ## 📦 Database Schema
 
 Key models:
+
 - **User** – roles (ADMIN, STAFF, RIDER, USER)
 - **Product** – with categories, images, discount, stock
 - **Order** – status, payments, shipping, order items
@@ -587,11 +590,13 @@ Full schema in `prisma/schema.prisma`.
 ## 🎨 Admin Panel Features
 
 ### Role-Based Access
+
 - **Admin**: Full access to all pages (Dashboard, Products, Orders, Users, Categories, Banners)
 - **Staff**: Access to Orders page for processing orders
 - **Rider**: Access to Orders page for managing deliveries
 
 ### Pages
+
 - **Dashboard**: Revenue stats, order charts, low stock alerts, recent orders
 - **Products**: List, create, edit, delete products with category selection and image URLs
 - **Orders**: List all orders with status filtering, update order status, view order details with product images
@@ -600,6 +605,7 @@ Full schema in `prisma/schema.prisma`.
 - **Banners**: List, create, edit, delete banners with image preview and active toggle
 
 ### Search & Filtering
+
 - **Products**: Search by title or description
 - **Orders**: Search by order number or customer name, filter by status
 - **Users**: Search by name, email, or role
@@ -637,6 +643,7 @@ MIT © SINAG
 ## 📬 Contact
 
 **SINAG Support** – [support@sinag.com](mailto:support@sinag.com)
+
 ```
 
 ---
@@ -650,3 +657,5 @@ MIT © SINAG
 5. **Added Database Schema details** – includes OrderItem model
 6. **Updated Tech Stack** – added Recharts for charts
 7. **Added Search & Filtering** – detailed search capabilities across all admin pages
+
+```

@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
+        { phone: { contains: search, mode: "insensitive" } },
         { role: { contains: search, mode: "insensitive" } },
       ];
     }
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         email: true,
+        phone: true, // ✅ Added phone
         name: true,
         role: true,
         avatar: true,
@@ -86,7 +88,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { email, password, name, role: userRole } = await request.json();
+    const {
+      email,
+      phone,
+      password,
+      name,
+      role: userRole,
+    } = await request.json();
 
     if (!email || !password || !name || !userRole) {
       return NextResponse.json(
@@ -105,6 +113,19 @@ export async function POST(request: NextRequest) {
         { error: "User already exists" },
         { status: 400 },
       );
+    }
+
+    // Check if phone already exists (if provided)
+    if (phone) {
+      const existingPhone = await prisma.user.findUnique({
+        where: { phone },
+      });
+      if (existingPhone) {
+        return NextResponse.json(
+          { error: "Phone number already in use" },
+          { status: 400 },
+        );
+      }
     }
 
     // Create in Supabase Auth
@@ -133,6 +154,7 @@ export async function POST(request: NextRequest) {
     const newUser = await prisma.user.create({
       data: {
         email,
+        phone: phone || null, // ✅ Added phone
         name,
         role: userRole as "STAFF" | "RIDER",
         avatar: null,

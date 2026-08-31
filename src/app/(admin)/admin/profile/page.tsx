@@ -141,11 +141,11 @@ export default function AdminProfilePage() {
       });
 
       // Force hard navigation
-      window.location.href = "/login";
+      window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);
       await supabase.auth.signOut();
-      window.location.href = "/login";
+      window.location.href = "/";
     }
   };
 

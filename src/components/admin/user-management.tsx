@@ -22,15 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { isEmailValid, isPasswordValid } from "@/lib/validation";
-import {
-  Loader2,
-  Plus,
-  Trash2,
-  Search,
-  Pencil,
-  X,
-  User as UserIcon,
-} from "lucide-react";
+import { Loader2, Plus, Trash2, Search, Pencil, X, Phone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -60,6 +52,7 @@ interface User {
   id: string;
   email: string;
   name: string | null;
+  phone: string | null;
   role: UserRole;
   avatar: string | null;
   createdAt: string;
@@ -79,6 +72,7 @@ export function UserManagement() {
 
   const [formData, setFormData] = useState({
     email: "",
+    phone: "",
     password: "",
     name: "",
     role: "STAFF" as "STAFF" | "RIDER",
@@ -86,6 +80,7 @@ export function UserManagement() {
 
   const [touched, setTouched] = useState({
     email: false,
+    phone: false,
     password: false,
     name: false,
   });
@@ -131,6 +126,7 @@ export function UserManagement() {
     const matchesSearch =
       user.name?.toLowerCase().includes(searchLower) ||
       user.email.toLowerCase().includes(searchLower) ||
+      (user.phone && user.phone.toLowerCase().includes(searchLower)) ||
       user.role.toLowerCase().includes(searchLower);
 
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
@@ -169,6 +165,7 @@ export function UserManagement() {
         },
         body: JSON.stringify({
           email: formData.email,
+          phone: formData.phone || undefined,
           password: formData.password,
           name: formData.name,
           role: formData.role,
@@ -184,8 +181,14 @@ export function UserManagement() {
       }
 
       setIsDialogOpen(false);
-      setFormData({ email: "", password: "", name: "", role: "STAFF" });
-      setTouched({ email: false, password: false, name: false });
+      setFormData({
+        email: "",
+        phone: "",
+        password: "",
+        name: "",
+        role: "STAFF",
+      });
+      setTouched({ email: false, phone: false, password: false, name: false });
       fetchUsers();
     } catch (error) {
       setError("Failed to create user");
@@ -221,6 +224,7 @@ export function UserManagement() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
+          phone: formData.phone || null,
           role: formData.role,
           ...(formData.password ? { password: formData.password } : {}),
         }),
@@ -236,8 +240,14 @@ export function UserManagement() {
 
       setIsEditDialogOpen(false);
       setEditingUser(null);
-      setFormData({ email: "", password: "", name: "", role: "STAFF" });
-      setTouched({ email: false, password: false, name: false });
+      setFormData({
+        email: "",
+        phone: "",
+        password: "",
+        name: "",
+        role: "STAFF",
+      });
+      setTouched({ email: false, phone: false, password: false, name: false });
       fetchUsers();
     } catch (error) {
       setError("Failed to update user");
@@ -254,37 +264,14 @@ export function UserManagement() {
       const response = await fetch(`/api/admin/users/${deleteId}`, {
         method: "DELETE",
       });
-
-      // ✅ Try to get error message from response
-      let errorMessage = "Failed to delete user";
-      let data;
-
-      try {
-        data = await response.json();
-      } catch {
-        // If response is not JSON
-      }
-
       if (response.ok) {
         toast.success("User deleted successfully");
         fetchUsers();
         setDeleteId(null);
-        return;
+      } else {
+        const data = await response.json();
+        toast.error(data.error || "Failed to delete user");
       }
-
-      // ✅ Handle different status codes
-      if (response.status === 403) {
-        errorMessage = "You don't have permission to delete users";
-      } else if (response.status === 404) {
-        errorMessage = "User not found";
-      } else if (data?.error) {
-        errorMessage = data.error;
-      } else if (response.statusText) {
-        errorMessage = response.statusText;
-      }
-
-      toast.error(errorMessage);
-      console.error("Delete user error:", errorMessage);
     } catch (error) {
       console.error("Error deleting user:", error);
       toast.error("An unexpected error occurred while deleting the user");
@@ -328,6 +315,9 @@ export function UserManagement() {
           <Skeleton className="h-4 w-48" />
         </TableCell>
         <TableCell>
+          <Skeleton className="h-4 w-32" />
+        </TableCell>
+        <TableCell>
           <Skeleton className="h-5 w-20" />
         </TableCell>
         <TableCell>
@@ -356,7 +346,7 @@ export function UserManagement() {
         <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search users by name, email, or role..."
+            placeholder="Search users by name, email, phone, or role..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8 w-full !bg-background"
@@ -393,8 +383,19 @@ export function UserManagement() {
         <Button
           onClick={() => {
             setIsDialogOpen(true);
-            setFormData({ email: "", password: "", name: "", role: "STAFF" });
-            setTouched({ email: false, password: false, name: false });
+            setFormData({
+              email: "",
+              phone: "",
+              password: "",
+              name: "",
+              role: "STAFF",
+            });
+            setTouched({
+              email: false,
+              phone: false,
+              password: false,
+              name: false,
+            });
           }}
           className="w-full sm:w-auto sm:ml-auto gap-2"
         >
@@ -419,6 +420,7 @@ export function UserManagement() {
             <TableRow>
               <TableHead>User</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Phone</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -430,7 +432,7 @@ export function UserManagement() {
             ) : filteredUsers.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {search || roleFilter !== "all"
@@ -456,6 +458,7 @@ export function UserManagement() {
                     </div>
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
+                  <TableCell>{user.phone || "—"}</TableCell>
                   <TableCell>
                     <Badge variant={getRoleBadgeVariant(user.role)}>
                       {user.role}
@@ -473,9 +476,9 @@ export function UserManagement() {
                         setEditingUser(user);
                         setFormData({
                           email: user.email,
+                          phone: user.phone || "",
                           password: "",
                           name: user.name || "",
-                          // ✅ Only allow STAFF or RIDER, default to STAFF if ADMIN
                           role:
                             user.role === "STAFF" || user.role === "RIDER"
                               ? user.role
@@ -483,6 +486,7 @@ export function UserManagement() {
                         });
                         setTouched({
                           email: false,
+                          phone: false,
                           password: false,
                           name: false,
                         });
@@ -564,6 +568,26 @@ export function UserManagement() {
               {emailError && (
                 <p className="text-sm text-destructive">{emailError}</p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-sm font-medium">
+                Phone Number{" "}
+                <span className="text-muted-foreground text-xs">
+                  (optional)
+                </span>
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="+63 912 345 6789"
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+                onBlur={() => setTouched({ ...touched, phone: true })}
+                className="!bg-background"
+              />
             </div>
 
             <div className="space-y-2">
@@ -725,6 +749,26 @@ export function UserManagement() {
               {emailError && (
                 <p className="text-sm text-destructive">{emailError}</p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone" className="text-sm font-medium">
+                Phone Number{" "}
+                <span className="text-muted-foreground text-xs">
+                  (optional)
+                </span>
+              </Label>
+              <Input
+                id="edit-phone"
+                type="tel"
+                placeholder="+63 912 345 6789"
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+                onBlur={() => setTouched({ ...touched, phone: true })}
+                className="!bg-background"
+              />
             </div>
 
             <div className="space-y-2">

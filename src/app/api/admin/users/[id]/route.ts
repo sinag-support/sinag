@@ -15,7 +15,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { name, email, role: newRole, password } = body;
+    const { name, email, phone, role: newRole, password } = body;
 
     // Get the current user to check old email
     const currentUser = await prisma.user.findUnique({
@@ -84,6 +84,7 @@ export async function PUT(
       data: {
         name,
         email,
+        phone: phone || null, // ✅ Added phone
         role: newRole,
       },
     });
@@ -154,7 +155,7 @@ export async function DELETE(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // ✅ Try to delete from Supabase Auth (if exists) - but DON'T fail if it doesn't
+    // Try to delete from Supabase Auth (if exists) - but DON'T fail if it doesn't
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -197,7 +198,6 @@ export async function DELETE(
         "Auth operation error (continuing with Prisma deletion):",
         authError,
       );
-      // ✅ Continue with Prisma deletion
     }
 
     // ✅ ALWAYS delete from Prisma - this is the main goal
