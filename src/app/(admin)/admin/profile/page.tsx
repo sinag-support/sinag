@@ -22,13 +22,6 @@ import {
   X,
   Check,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 interface UserProfile {
   id: string;
@@ -39,7 +32,7 @@ interface UserProfile {
   createdAt: string;
 }
 
-export default function ProfilePage() {
+export default function AdminProfilePage() {
   const { role } = useRole();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -128,12 +121,24 @@ export default function ProfilePage() {
       // Call logout API first
       const response = await fetch("/api/auth/logout", { method: "POST" });
 
-      // Always sign out from Supabase client
-      await supabase.auth.signOut();
+      // Sign out from Supabase client
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Supabase signout error:", error);
+      }
 
       // Clear any client-side auth data
       localStorage.removeItem("supabase-auth-token");
+      localStorage.removeItem("sb-access-token");
+      localStorage.removeItem("sb-refresh-token");
       sessionStorage.clear();
+
+      // Clear all cookies manually (client-side)
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
 
       // Force hard navigation
       window.location.href = "/login";
@@ -188,7 +193,7 @@ export default function ProfilePage() {
       <Card className="py-4 px-2">
         <CardContent className="pt-0">
           <div className="flex flex-col items-center md:flex-row md:items-start gap-6">
-            {/* Avatar - without upload button */}
+            {/* Avatar */}
             <div className="relative">
               {profile.avatar ? (
                 <Image
@@ -245,7 +250,7 @@ export default function ProfilePage() {
             </Button>
           </div>
 
-          {/* Edit Form - shows when editing */}
+          {/* Edit Form */}
           {isEditing && (
             <div className="mt-6 border-t pt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -295,7 +300,7 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Account Info Cards with py-4 px-2 */}
+      {/* Account Info Cards */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="py-4 px-2">
           <CardHeader className="pb-2">
@@ -328,7 +333,7 @@ export default function ProfilePage() {
           <CardContent className="pt-0 space-y-2">
             <Button
               variant="outline"
-              className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+              className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
               onClick={handleLogout}
             >
               <LogOut className="h-4 w-4" /> Sign Out
@@ -337,13 +342,7 @@ export default function ProfilePage() {
               variant="outline"
               className="w-full justify-start gap-2"
               onClick={() => {
-                if (profile.role === "ADMIN") {
-                  window.location.href = "/admin";
-                } else if (profile.role === "RIDER") {
-                  window.location.href = "/admin/delivery";
-                } else {
-                  window.location.href = "/admin/orders";
-                }
+                window.location.href = "/admin";
               }}
             >
               <Shield className="h-4 w-4" /> Go to Dashboard
