@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DeliveryOrderDetail } from "@/components/admin/delivery-order-detail";
+import { cn } from "@/lib/utils";
 
 interface DeliveryOrder {
   id: string;
@@ -105,6 +106,13 @@ const statusColors: Record<string, string> = {
   CANCELLED: "bg-red-100 text-red-800",
   RETURNED: "bg-gray-100 text-gray-800",
 };
+
+function formatStatus(status: string) {
+  return status
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
 export default function DeliveryPage() {
   const { role } = useRole();
@@ -260,9 +268,75 @@ export default function DeliveryPage() {
     return rider.name || rider.email || "Unknown Rider";
   };
 
-  if (loading) {
-    return <DeliverySkeleton />;
-  }
+  // Render skeleton rows for table
+  const renderSkeletonRows = () => {
+    return Array.from({ length: 5 }).map((_, i) => (
+      <TableRow key={i}>
+        <TableCell>
+          <Skeleton className="h-4 w-16" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-4 w-24" />
+        </TableCell>
+        {role === "ADMIN" && (
+          <TableCell>
+            <Skeleton className="h-4 w-20" />
+          </TableCell>
+        )}
+        <TableCell>
+          <Skeleton className="h-4 w-24" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-4 w-16" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-5 w-20" />
+        </TableCell>
+        <TableCell className="text-right">
+          <div className="flex items-center justify-end gap-2">
+            <Skeleton className="h-8 w-8" />
+            <Skeleton className="h-8 w-8" />
+          </div>
+        </TableCell>
+      </TableRow>
+    ));
+  };
+
+  // Show loading state for stats cards only
+  const renderStatCard = (
+    title: string,
+    value: number | string,
+    icon: React.ElementType,
+    subtitle: string,
+  ) => {
+    const Icon = icon;
+    if (loading) {
+      return (
+        <Card className="py-4 px-2 !bg-background">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            <Icon className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="pt-0">
+            <Skeleton className="h-8 w-16" />
+            <Skeleton className="h-3 w-20 mt-1" />
+          </CardContent>
+        </Card>
+      );
+    }
+    return (
+      <Card className="py-4 px-2 !bg-background">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="text-2xl font-bold">{value}</div>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -277,64 +351,43 @@ export default function DeliveryPage() {
         </p>
       </div>
 
-      {/* Stats Cards with py-4 px-2 on Card */}
+      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="py-4 px-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold">{totalOrders}</div>
-            <p className="text-xs text-muted-foreground">All deliveries</p>
-          </CardContent>
-        </Card>
-
-        <Card className="py-4 px-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Assigned</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold">{assignedOrders}</div>
-            <p className="text-xs text-muted-foreground">Ready to pick up</p>
-          </CardContent>
-        </Card>
-
-        <Card className="py-4 px-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Out for Delivery
-            </CardTitle>
-            <Navigation className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold">{outForDelivery}</div>
-            <p className="text-xs text-muted-foreground">On the way</p>
-          </CardContent>
-        </Card>
-
-        <Card className="py-4 px-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Delivered</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold">{deliveredOrders}</div>
-            <p className="text-xs text-muted-foreground">Completed</p>
-          </CardContent>
-        </Card>
+        {renderStatCard(
+          "Total",
+          loading ? "" : totalOrders,
+          Package,
+          "All deliveries",
+        )}
+        {renderStatCard(
+          "Assigned",
+          loading ? "" : assignedOrders,
+          Truck,
+          "Ready to pick up",
+        )}
+        {renderStatCard(
+          "Out for Delivery",
+          loading ? "" : outForDelivery,
+          Navigation,
+          "On the way",
+        )}
+        {renderStatCard(
+          "Delivered",
+          loading ? "" : deliveredOrders,
+          CheckCircle,
+          "Completed",
+        )}
       </div>
 
       {/* Search and Filters */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by order #, customer, or city..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 w-full"
+            className="pl-8 w-full !bg-background"
           />
         </div>
 
@@ -345,10 +398,10 @@ export default function DeliveryPage() {
               value={selectedRiderId}
               onValueChange={(value) => setSelectedRiderId(value)}
             >
-              <SelectTrigger className="w-[200px] h-8">
+              <SelectTrigger className="w-[200px] h-8 !bg-background">
                 <SelectValue placeholder="All Riders" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="!bg-background">
                 <SelectItem value="all">All Riders</SelectItem>
                 {Array.isArray(riders) &&
                   riders.map((rider) => (
@@ -363,7 +416,7 @@ export default function DeliveryPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedRiderId("all")}
-                className="h-8 px-2"
+                className="h-8 px-2 !bg-background hover:!bg-accent"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -374,21 +427,25 @@ export default function DeliveryPage() {
         <Button
           variant="outline"
           onClick={fetchDeliveryOrders}
-          className="ml-auto"
+          className="ml-auto !bg-background hover:!bg-accent"
         >
           <RefreshCw className="h-4 w-4 mr-2" /> Refresh
         </Button>
       </div>
 
-      {/* Results count with rider filter info */}
-      {!loading && (
-        <p className="text-sm text-muted-foreground">
-          {total} {total === 1 ? "delivery" : "deliveries"} found
-          {selectedRiderId !== "all" &&
-            ` for ${riders.find((r) => r.id === selectedRiderId)?.name || "selected rider"}`}
-          {search && ` matching "${search}"`}
-        </p>
-      )}
+      {/* Results count */}
+      <div className="text-sm text-muted-foreground">
+        {loading ? (
+          <Skeleton className="h-4 w-48 inline-block" />
+        ) : (
+          <>
+            {total} {total === 1 ? "delivery" : "deliveries"} found
+            {selectedRiderId !== "all" &&
+              ` for ${riders.find((r) => r.id === selectedRiderId)?.name || "selected rider"}`}
+            {search && ` matching "${search}"`}
+          </>
+        )}
+      </div>
 
       {/* Table */}
       <div className="border rounded-lg overflow-hidden">
@@ -406,7 +463,9 @@ export default function DeliveryPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.length === 0 ? (
+              {loading ? (
+                renderSkeletonRows()
+              ) : filteredOrders.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={role === "ADMIN" ? 7 : 6}
@@ -445,7 +504,7 @@ export default function DeliveryPage() {
                           "bg-gray-100 text-gray-800"
                         }
                       >
-                        {order.status.replace("_", " ")}
+                        {formatStatus(order.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-2 whitespace-nowrap">
@@ -453,6 +512,7 @@ export default function DeliveryPage() {
                       <Button
                         size="sm"
                         variant="outline"
+                        className="!bg-background hover:!bg-accent"
                         onClick={() => {
                           setSelectedOrder(order);
                           setDetailOpen(true);
@@ -469,7 +529,7 @@ export default function DeliveryPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700"
+                              className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700 !bg-background"
                               onClick={() =>
                                 updateStatus(order.id, "CANCELLED")
                               }
@@ -523,7 +583,7 @@ export default function DeliveryPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700"
+                                className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700 !bg-background"
                                 onClick={() =>
                                   updateStatus(order.id, "CANCELLED")
                                 }
@@ -535,7 +595,7 @@ export default function DeliveryPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                                className="text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
                                 onClick={() =>
                                   updateStatus(order.id, "RETURNED")
                                 }
@@ -552,7 +612,7 @@ export default function DeliveryPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                              className="text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
                               onClick={() => updateStatus(order.id, "RETURNED")}
                               disabled={isUpdating}
                             >
@@ -574,16 +634,19 @@ export default function DeliveryPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between gap-4 py-2">
-          <p className="text-sm text-muted-foreground">
-            Showing {(page - 1) * limit + 1} - {Math.min(page * limit, total)}{" "}
-            of {total}
-          </p>
+          <div className="text-sm text-muted-foreground">
+            {loading ? (
+              <Skeleton className="h-4 w-32 inline-block" />
+            ) : (
+              `Showing ${(page - 1) * limit + 1} - ${Math.min(page * limit, total)} of ${total}`
+            )}
+          </div>
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="sm"
               onClick={() => goToPage(page - 1)}
-              disabled={page === 1}
+              disabled={page === 1 || loading}
               className="h-8 w-8 p-0"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -606,6 +669,7 @@ export default function DeliveryPage() {
                     variant={page === pageNum ? "default" : "outline"}
                     size="sm"
                     onClick={() => goToPage(pageNum)}
+                    disabled={loading}
                     className="h-8 w-8 p-0 text-sm"
                   >
                     {pageNum}
@@ -617,7 +681,7 @@ export default function DeliveryPage() {
               variant="outline"
               size="sm"
               onClick={() => goToPage(page + 1)}
-              disabled={page === totalPages}
+              disabled={page === totalPages || loading}
               className="h-8 w-8 p-0"
             >
               <ChevronRight className="h-4 w-4" />
@@ -634,31 +698,6 @@ export default function DeliveryPage() {
         onStatusUpdate={updateStatus}
         isUpdating={isUpdating}
       />
-    </div>
-  );
-}
-
-function DeliverySkeleton() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-4 w-64 mt-1" />
-      </div>
-      <div className="grid gap-4 md:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-24 w-full" />
-        ))}
-      </div>
-      <div className="flex items-center gap-2">
-        <Skeleton className="h-4 w-4" />
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-10 w-40" />
-        <Skeleton className="h-10 w-24 ml-auto" />
-      </div>
-      <div className="border rounded-lg overflow-hidden">
-        <Skeleton className="h-96 w-full" />
-      </div>
     </div>
   );
 }

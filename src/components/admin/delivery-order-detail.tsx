@@ -28,6 +28,7 @@ import { useTheme } from "next-themes";
 
 // Import Leaflet CSS
 import "leaflet/dist/leaflet.css";
+import { cn } from "@/lib/utils";
 
 // Initialize Supabase Client
 const supabase = createClient(
@@ -258,6 +259,7 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
   const mapInstanceRef = useRef<any>(null);
   const tileLayerRef = useRef<any>(null);
   const riderMarkerRef = useRef<any>(null);
+  const customerMarkerRef = useRef<any>(null);
   const polylineRef = useRef<any>(null);
 
   const { theme } = useTheme();
@@ -270,7 +272,73 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
     lng: number;
   } | null>(null);
   const [mapError, setMapError] = useState(false);
-  const [leafletLoaded, setLeafletLoaded] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Function to create icons based on zoom level
+  const createRiderIcon = (zoom: number) => {
+    const baseSize = 80;
+    const minSize = 40;
+    const maxSize = 120;
+    const scale = Math.min(Math.max(zoom / 15, 0.6), 1.5);
+    const size = Math.min(Math.max(baseSize * scale, minSize), maxSize);
+
+    return window.L.divIcon({
+      className: "custom-leaflet-animated-icon",
+      html: `
+        <div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: all 0.2s ease;">
+          <dotlottie-player
+            src="/animations/truck.json"
+            background="transparent"
+            speed="1"
+            style="width:${size}px;height:${size}px;"
+            loop
+            autoplay
+          ></dotlottie-player>
+        </div>
+      `,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+      popupAnchor: [0, -(size / 2)],
+    });
+  };
+
+  const createCustomerIcon = (zoom: number) => {
+    const baseSize = 64;
+    const minSize = 32;
+    const maxSize = 96;
+    const scale = Math.min(Math.max(zoom / 15, 0.6), 1.5);
+    const size = Math.min(Math.max(baseSize * scale, minSize), maxSize);
+
+    return window.L.divIcon({
+      className: "custom-leaflet-animated-icon",
+      html: `
+        <div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: all 0.2s ease;">
+          <dotlottie-player
+            src="/animations/location.json"
+            background="transparent"
+            speed="1"
+            style="width:${size}px;height:${size}px;"
+            loop
+            autoplay
+          ></dotlottie-player>
+        </div>
+      `,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size],
+      popupAnchor: [0, -size],
+    });
+  };
+
+  const updateMarkerIcons = (zoom: number) => {
+    if (riderMarkerRef.current) {
+      const newIcon = createRiderIcon(zoom);
+      riderMarkerRef.current.setIcon(newIcon);
+    }
+    if (customerMarkerRef.current) {
+      const newIcon = createCustomerIcon(zoom);
+      customerMarkerRef.current.setIcon(newIcon);
+    }
+  };
 
   useEffect(() => {
     if (theme === "dark") {
@@ -281,63 +349,12 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
   }, [theme]);
 
   useEffect(() => {
-    if (!document.getElementById("leaflet-dark-filter")) {
-      const style = document.createElement("style");
-      style.id = "leaflet-dark-filter";
-      style.textContent = `
-        .leaflet-dark-tiles {
-          filter: invert(1) hue-rotate(180deg) brightness(0.78) contrast(0.9) saturate(0.65);
-        }
-        .leaflet-normal-tiles {
-          filter: none;
-        }
-        .leaflet-satellite-tiles {
-          filter: none;
-        }
-      `;
-      document.head.appendChild(style);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    if (!document.getElementById("leaflet-css")) {
-      const link = document.createElement("link");
-      link.id = "leaflet-css";
-      link.rel = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(link);
-    }
-
-    if (!window.L && !document.getElementById("leaflet-js")) {
-      const script = document.createElement("script");
-      script.id = "leaflet-js";
-      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-      script.onload = () => setLeafletLoaded(true);
-      script.onerror = () => setMapError(true);
-      document.body.appendChild(script);
-    } else if (window.L) {
-      setLeafletLoaded(true);
-    }
-
-    if (!document.getElementById("lottie-player-js")) {
-      const lottieScript = document.createElement("script");
-      lottieScript.id = "lottie-player-js";
-      lottieScript.src =
-        "https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs";
-      lottieScript.type = "module";
-      document.body.appendChild(lottieScript);
-    }
-  }, []);
-
-  useEffect(() => {
     if (!order?.address) {
       setMapReady(false);
       return;
     }
 
-    let isMounted = true;
+    let mounted = true;
 
     const fetchCoordinates = async () => {
       const coords = await getCoordinates(
@@ -345,7 +362,7 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
         order.address.city,
         order.address.province,
       );
-      if (isMounted) {
+      if (mounted) {
         setCoordinates(coords);
       }
     };
@@ -353,55 +370,15 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
     fetchCoordinates();
 
     return () => {
-      isMounted = false;
+      mounted = false;
     };
   }, [order]);
 
-  const animateMarkerTo = (
-    targetLat: number,
-    targetLng: number,
-    duration: number = 1000,
-  ) => {
-    if (!riderMarkerRef.current) return;
-
-    const startPos = riderMarkerRef.current.getLatLng();
-    const startTime = performance.now();
-
-    const step = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-
-      const currentLat = startPos.lat + (targetLat - startPos.lat) * progress;
-      const currentLng = startPos.lng + (targetLng - startPos.lng) * progress;
-
-      riderMarkerRef.current.setLatLng([currentLat, currentLng]);
-
-      if (progress < 1) {
-        requestAnimationFrame(step);
-      }
-    };
-
-    requestAnimationFrame(step);
-  };
-
-  const updateRoute = async (
-    currentRiderLat: number,
-    currentRiderLng: number,
-  ) => {
-    if (!coordinates) return;
-    const newRoute = await getRouteGeometry(
-      { lat: currentRiderLat, lng: currentRiderLng },
-      coordinates,
-    );
-
-    if (polylineRef.current) {
-      polylineRef.current.setLatLngs(newRoute);
-    }
-  };
-
+  // Initialize map
   useEffect(() => {
-    if (!leafletLoaded || !coordinates || !mapRef.current) return;
+    if (!coordinates || !mapRef.current) return;
 
+    // Clean up existing map instance
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
@@ -434,28 +411,16 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
         ).addTo(map);
         tileLayerRef.current = tileLayer;
 
-        const customerIcon = window.L.divIcon({
-          className: "custom-leaflet-animated-icon",
-          html: `
-            <div style="width:64px;height:64px;display:flex;align-items:center;justify-content:center;">
-              <dotlottie-player
-                src="/animations/location.json"
-                background="transparent"
-                speed="1"
-                style="width:64px;height:64px;"
-                loop
-                autoplay
-              ></dotlottie-player>
-            </div>
-          `,
-          iconSize: [64, 64],
-          iconAnchor: [32, 64],
-          popupAnchor: [0, -64],
-        });
+        // Get initial zoom level
+        const initialZoom = map.getZoom();
 
+        // Create customer marker with initial zoom
+        const customerIcon = createCustomerIcon(initialZoom);
         const customerMarker = window.L.marker(customerPos, {
           icon: customerIcon,
         }).addTo(map);
+        customerMarkerRef.current = customerMarker;
+
         if (order?.address) {
           customerMarker.bindPopup(`
             <div style="font-size:13px;">
@@ -478,50 +443,42 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
         const bounds = window.L.latLngBounds([storePos, customerPos]);
         map.fitBounds(bounds, { padding: [50, 50] });
 
-        const riderIcon = window.L.divIcon({
-          className: "custom-leaflet-animated-icon",
-          html: `
-            <div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;">
-              <dotlottie-player
-                src="/animations/truck.json"
-                background="transparent"
-                speed="1"
-                style="width:80px;height:80px;"
-                loop
-                autoplay
-              ></dotlottie-player>
-            </div>
-          `,
-          iconSize: [80, 80],
-          iconAnchor: [40, 40],
-          popupAnchor: [0, -40],
-        });
+        // Create rider marker with initial zoom after fitBounds
+        const currentZoom = map.getZoom();
+        const riderIcon = createRiderIcon(currentZoom);
 
-        // 🚀 Rider starts at STORE_LOCATION
-        const initialRiderPos: [number, number] = [
-          STORE_LOCATION.lat,
-          STORE_LOCATION.lng,
-        ];
+        const riderMarker = window.L.marker(
+          [STORE_LOCATION.lat, STORE_LOCATION.lng],
+          {
+            icon: riderIcon,
+            zIndexOffset: 1000,
+          },
+        ).addTo(map);
 
-        riderMarkerRef.current = window.L.marker(initialRiderPos, {
-          icon: riderIcon,
-          zIndexOffset: 1000,
-        }).addTo(map);
-
-        riderMarkerRef.current.bindPopup(
+        riderMarkerRef.current = riderMarker;
+        riderMarker.bindPopup(
           `<b>Delivery Rider</b><br/>Status: ${order.status}`,
         );
+
+        // Update customer icon to match new zoom
+        const updatedCustomerIcon = createCustomerIcon(currentZoom);
+        customerMarkerRef.current.setIcon(updatedCustomerIcon);
 
         mapInstanceRef.current = map;
         setMapReady(true);
         setMapError(false);
+        map.invalidateSize();
 
-        setTimeout(() => map.invalidateSize(), 300);
+        // Listen for zoom events to update icons
+        map.on("zoomend", () => {
+          const zoom = map.getZoom();
+          updateMarkerIcons(zoom);
+        });
       } catch (error) {
         console.error("Map initialization error:", error);
         setMapError(true);
       }
-    }, 250);
+    }, 100);
 
     return () => {
       clearTimeout(timer);
@@ -530,7 +487,7 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
         mapInstanceRef.current = null;
       }
     };
-  }, [leafletLoaded, coordinates, order, mapTheme]);
+  }, [coordinates, order, mapTheme]);
 
   useEffect(() => {
     if (!order?.id) return;
@@ -580,14 +537,62 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
     }
   }, [mapTheme]);
 
+  // Define animateMarkerTo and updateRoute inside component
+  const animateMarkerTo = (
+    targetLat: number,
+    targetLng: number,
+    duration: number = 1000,
+  ) => {
+    if (!riderMarkerRef.current) return;
+
+    const startPos = riderMarkerRef.current.getLatLng();
+    const startTime = performance.now();
+
+    const step = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      const currentLat = startPos.lat + (targetLat - startPos.lat) * progress;
+      const currentLng = startPos.lng + (targetLng - startPos.lng) * progress;
+
+      riderMarkerRef.current.setLatLng([currentLat, currentLng]);
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+
+    requestAnimationFrame(step);
+  };
+
+  const updateRoute = async (
+    currentRiderLat: number,
+    currentRiderLng: number,
+  ) => {
+    if (!coordinates) return;
+    const newRoute = await getRouteGeometry(
+      { lat: currentRiderLat, lng: currentRiderLng },
+      coordinates,
+    );
+
+    if (polylineRef.current) {
+      polylineRef.current.setLatLngs(newRoute);
+    }
+  };
+
   return (
-    <div className="w-full aspect-video rounded-lg overflow-hidden border border-border shadow-sm relative z-0">
+    <div className="w-full h-full min-h-[400px] md:min-h-[500px] rounded-lg overflow-hidden border border-border shadow-sm relative z-0">
       <div className="absolute top-3 right-3 z-[1000] bg-background/90 backdrop-blur-md p-1 rounded-md border border-border shadow-sm flex gap-1">
         <Button
           size="sm"
           variant={mapTheme === "street" ? "default" : "ghost"}
           onClick={() => setMapTheme("street")}
-          className="h-7 text-xs font-medium px-2.5 gap-1"
+          className={cn(
+            "h-7 text-xs font-medium px-2.5 gap-1",
+            mapTheme === "street"
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "text-foreground hover:bg-accent hover:text-accent-foreground",
+          )}
         >
           <Map className="w-3.5 h-3.5" />
           Street
@@ -596,7 +601,12 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
           size="sm"
           variant={mapTheme === "dark" ? "default" : "ghost"}
           onClick={() => setMapTheme("dark")}
-          className="h-7 text-xs font-medium px-2.5 gap-1"
+          className={cn(
+            "h-7 text-xs font-medium px-2.5 gap-1",
+            mapTheme === "dark"
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "text-foreground hover:bg-accent hover:text-accent-foreground",
+          )}
         >
           <Moon className="w-3.5 h-3.5" />
           Dark
@@ -605,33 +615,28 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
           size="sm"
           variant={mapTheme === "satellite" ? "default" : "ghost"}
           onClick={() => setMapTheme("satellite")}
-          className="h-7 text-xs font-medium px-2.5 gap-1"
+          className={cn(
+            "h-7 text-xs font-medium px-2.5 gap-1",
+            mapTheme === "satellite"
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "text-foreground hover:bg-accent hover:text-accent-foreground",
+          )}
         >
           <Globe className="w-3.5 h-3.5" />
           Satellite
         </Button>
       </div>
 
-      {!mapReady && !mapError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      )}
-
-      {mapError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted z-10 p-4 text-center">
-          <p className="text-sm text-muted-foreground font-medium">
-            Map unavailable
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {order.address?.address}, {order.address?.city}
-          </p>
-        </div>
-      )}
-
       <div ref={mapRef} className="w-full h-full z-0" />
     </div>
   );
+}
+
+function formatStatus(status: string) {
+  return status
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export function DeliveryOrderDetail({
@@ -665,6 +670,7 @@ export function DeliveryOrderDetail({
   };
 
   const getActionButtons = () => {
+    // ADMIN ACTIONS - Only Cancel for OUT_FOR_DELIVERY
     if (role === "ADMIN" && order.status === "OUT_FOR_DELIVERY") {
       return (
         <Button
@@ -683,11 +689,13 @@ export function DeliveryOrderDetail({
       );
     }
 
+    // RIDER ACTIONS
     if (role === "RIDER") {
       if (order.status === "ASSIGNED_RIDER") {
         return (
           <Button
-            className="w-full font-medium text-sm bg-blue-600 hover:bg-blue-700 text-white"
+            className="w-full font-medium text-sm"
+            variant="default"
             onClick={() => onStatusUpdate(order.id, "OUT_FOR_DELIVERY")}
             disabled={isUpdating}
           >
@@ -703,7 +711,8 @@ export function DeliveryOrderDetail({
         return (
           <div className="flex flex-col gap-2 w-full">
             <Button
-              className="w-full font-medium text-sm bg-green-600 hover:bg-green-700 text-white"
+              className="w-full font-medium text-sm"
+              variant="default"
               onClick={() => onStatusUpdate(order.id, "DELIVERED")}
               disabled={isUpdating}
             >
@@ -724,7 +733,7 @@ export function DeliveryOrderDetail({
               </Button>
               <Button
                 variant="outline"
-                className="flex-1 font-medium text-sm text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                className="flex-1 font-medium text-sm text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
                 onClick={() => onStatusUpdate(order.id, "RETURNED")}
                 disabled={isUpdating}
               >
@@ -740,7 +749,7 @@ export function DeliveryOrderDetail({
         return (
           <Button
             variant="outline"
-            className="w-full font-medium text-sm text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700"
+            className="w-full font-medium text-sm text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
             onClick={() => onStatusUpdate(order.id, "RETURNED")}
             disabled={isUpdating}
           >
@@ -760,34 +769,49 @@ export function DeliveryOrderDetail({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden !bg-background">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold tracking-tight text-foreground">
             Delivery Details
           </DialogTitle>
         </DialogHeader>
 
-        {/* 2-Column Grid Layout (Desktop) / Stacked (Mobile) */}
+        {/* 2-Column Grid Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* LEFT COLUMN: 16:9 Map + Delivery Address */}
-          <div className="space-y-4 flex flex-col justify-between">
-            <div className="space-y-4">
-              <OrderMap order={order} />
+          {/* LEFT COLUMN: Map */}
+          <div className="space-y-4">
+            <OrderMap order={order} />
+          </div>
 
-              {/* DELIVERY ADDRESS CARD */}
-              <div className="border border-border rounded-lg p-4 bg-card text-card-foreground shadow-sm">
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Delivery Address
-                  </p>
+          {/* RIGHT COLUMN */}
+          <div className="space-y-4 flex flex-col">
+            {/* Customer & Address - 2 columns */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="border border-border rounded-lg p-4 !bg-background shadow-sm">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                  <User className="h-3.5 w-3.5" />
+                  Customer
                 </div>
-                <p className="text-sm font-medium text-foreground mt-1">
+                <p className="font-medium text-sm truncate">
+                  {order.user?.name || "Guest Customer"}
+                </p>
+                {order.user?.phone && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {order.user.phone}
+                  </p>
+                )}
+              </div>
+
+              <div className="border border-border rounded-lg p-4 !bg-background shadow-sm">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                  <MapPin className="h-3.5 w-3.5" />
+                  Address
+                </div>
+                <p className="font-medium text-sm truncate">
                   {order.address?.address}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {order.address?.city}, {order.address?.province}{" "}
-                  {order.address?.postalCode}
+                  {order.address?.city}, {order.address?.province}
                 </p>
                 {order.address?.landmark && (
                   <div className="flex items-center gap-1.5 mt-2 p-2 rounded-md bg-muted/50">
@@ -800,102 +824,78 @@ export function DeliveryOrderDetail({
                 )}
               </div>
             </div>
-          </div>
 
-          {/* RIGHT COLUMN: Customer Name + Order Items + Action */}
-          <div className="space-y-4 flex flex-col justify-between">
-            <div className="space-y-4">
-              {/* CUSTOMER CARD */}
-              <div className="border border-border rounded-lg p-4 bg-card text-card-foreground shadow-sm">
-                <div className="flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5 text-muted-foreground" />
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Customer Name
-                  </p>
-                </div>
-                <p className="text-sm font-medium text-foreground mt-1">
-                  {order.user?.name || "Guest Customer"}
-                </p>
-                {order.user?.phone && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {order.user.phone}
+            {/* Order Items */}
+            <div className="border border-border rounded-lg p-4 !bg-background shadow-sm flex-1">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                <Package className="h-3.5 w-3.5" />
+                Order Items ({order.items?.length || 0})
+              </div>
+
+              <div className="space-y-2">
+                {order.items?.map((item) => {
+                  const imageUrl = item.product?.images?.[0] || null;
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between gap-3 text-xs p-1.5 rounded-md hover:bg-muted/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="h-9 w-9 rounded-md border border-border overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
+                          {imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={item.product?.title || "Product"}
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="truncate">
+                          <p className="font-medium text-foreground truncate">
+                            {item.product?.title || "Product"}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {item.option?.name && (
+                              <span className="inline-block px-1.5 py-0.2 text-[10px] font-medium bg-muted text-muted-foreground rounded border border-border">
+                                {item.option.name}
+                              </span>
+                            )}
+                            <span className="text-[11px] text-muted-foreground">
+                              Qty: {item.quantity}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <span className="font-semibold text-foreground flex-shrink-0">
+                        ₱{(item.price * item.quantity).toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })}
+                {(!order.items || order.items.length === 0) && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No items found
                   </p>
                 )}
               </div>
 
-              {/* ORDER ITEMS CARD */}
-              <div className="border border-border rounded-lg p-4 bg-card text-card-foreground shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-1.5 mb-3">
-                    <Package className="h-3.5 w-3.5 text-muted-foreground" />
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Order Items
-                    </p>
-                  </div>
-
-                  {/* Stacked Vertical Item List */}
-                  <div className="max-h-32 overflow-y-auto space-y-2 pr-1 [scrollbar-width:thin]">
-                    {order.items?.map((item) => {
-                      const imageUrl = item.product?.images?.[0] || null;
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex items-center justify-between gap-3 text-xs p-1.5 rounded-md hover:bg-muted/40 transition-colors"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="h-9 w-9 rounded-md border border-border overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
-                              {imageUrl ? (
-                                <img
-                                  src={imageUrl}
-                                  alt={item.product?.title || "Product"}
-                                  className="h-full w-full object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = "none";
-                                  }}
-                                />
-                              ) : (
-                                <Package className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </div>
-                            <div className="truncate">
-                              <p className="font-medium text-foreground truncate">
-                                {item.product?.title || "Product"}
-                              </p>
-
-                              <div className="flex items-center gap-2 mt-0.5">
-                                {item.option?.name && (
-                                  <span className="inline-block px-1.5 py-0.2 text-[10px] font-medium bg-muted text-muted-foreground rounded border border-border">
-                                    {item.option.name}
-                                  </span>
-                                )}
-                                <span className="text-[11px] text-muted-foreground">
-                                  Qty: {item.quantity}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <span className="font-semibold text-foreground flex-shrink-0">
-                            ₱{(item.price * item.quantity).toFixed(2)}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Total Footer inside Order Items Card */}
-                <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Total
-                  </span>
-                  <span className="text-base font-bold text-primary">
-                    ₱{order.payable.toFixed(2)}
-                  </span>
-                </div>
+              {/* Total */}
+              <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Total
+                </span>
+                <span className="text-lg font-bold text-primary">
+                  ₱{order.payable.toFixed(2)}
+                </span>
               </div>
             </div>
 
-            {/* ACTION BUTTONS */}
+            {/* Action Buttons */}
             {shouldShowActions() && (
               <div className="space-y-2">{getActionButtons()}</div>
             )}

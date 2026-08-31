@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { OrderDetailDialog } from "@/components/admin/order-detail-dialog";
+import { cn } from "@/lib/utils";
 
 const statusOptions = [
   "PENDING",
@@ -347,6 +348,13 @@ export default function OrdersPage() {
     }
   };
 
+  function formatStatus(status: string) {
+    return status
+      .replace(/_/g, " ")
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
   const openDeleteDialog = (order: Order) => {
     setDeletingOrder(order);
     setDeleteDialogOpen(true);
@@ -370,22 +378,75 @@ export default function OrdersPage() {
     return rider.name || rider.email || "Unknown Rider";
   };
 
+  // Render skeleton rows
+  const renderSkeletonRows = () => {
+    return Array.from({ length: 5 }).map((_, i) => (
+      <TableRow key={i}>
+        <TableCell>
+          <Skeleton className="h-4 w-16" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-4 w-24" />
+        </TableCell>
+        {role === "ADMIN" && (
+          <TableCell>
+            <Skeleton className="h-4 w-20" />
+          </TableCell>
+        )}
+        <TableCell>
+          <Skeleton className="h-4 w-16" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-5 w-20" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-5 w-16" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-4 w-20" />
+        </TableCell>
+        <TableCell className="text-right">
+          <div className="flex items-center justify-end gap-2">
+            <Skeleton className="h-8 w-8" />
+            <Skeleton className="h-8 w-8" />
+            <Skeleton className="h-8 w-8" />
+          </div>
+        </TableCell>
+      </TableRow>
+    ));
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
         <div>
-          <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-4 w-64 mt-1" />
+          <h1 className="text-3xl font-bold">Orders</h1>
+          <p className="text-muted-foreground">
+            {role === "ADMIN" && "Full order management with rider assignment"}
+            {role === "STAFF" && "Process and manage orders"}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Skeleton className="h-10 w-64" />
           <Skeleton className="h-10 w-40" />
           <Skeleton className="h-10 w-24 ml-auto" />
         </div>
-        <div className="space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
+        <div className="border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order #</TableHead>
+                <TableHead>Customer</TableHead>
+                {role === "ADMIN" && <TableHead>Assigned Rider</TableHead>}
+                <TableHead>Total</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Paid</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>{renderSkeletonRows()}</TableBody>
+          </Table>
         </div>
       </div>
     );
@@ -401,24 +462,24 @@ export default function OrdersPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by order number or customer"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 w-full"
+            className="pl-8 w-full !bg-background"
           />
         </div>
         <Select
           value={statusFilter}
           onValueChange={(val: string | null) => setStatusFilter(val || "ALL")}
         >
-          <SelectTrigger className="w-40 h-8">
+          <SelectTrigger className="w-40 h-8 !bg-background">
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="!bg-background">
             <SelectItem value="ALL">All statuses</SelectItem>
             {statusOptions.map((s) => (
               <SelectItem key={s} value={s}>
@@ -427,199 +488,199 @@ export default function OrdersPage() {
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" onClick={fetchOrders} className="ml-auto">
+        <Button
+          variant="outline"
+          onClick={fetchOrders}
+          className="ml-auto !bg-background hover:!bg-accent"
+        >
           <RefreshCw className="h-4 w-4 mr-2" /> Refresh
         </Button>
       </div>
 
       {/* Results count */}
-      {!loading && (
-        <p className="text-sm text-muted-foreground">
-          {total} {total === 1 ? "order" : "orders"} found
-          {statusFilter !== "ALL" &&
-            ` with status ${statusFilter.replace("_", " ")}`}
-          {search && ` matching "${search}"`}
-        </p>
-      )}
+      <div className="text-sm text-muted-foreground">
+        {loading ? (
+          <Skeleton className="h-4 w-32 inline-block" />
+        ) : (
+          <>
+            {total} {total === 1 ? "order" : "orders"} found
+            {statusFilter !== "ALL" &&
+              ` with status ${statusFilter.replace("_", " ")}`}
+            {search && ` matching "${search}"`}
+          </>
+        )}
+      </div>
 
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : (
-        <>
-          <div className="border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order #</TableHead>
-                    <TableHead>Customer</TableHead>
-                    {role === "ADMIN" && <TableHead>Assigned Rider</TableHead>}
-                    <TableHead>Total</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Paid</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orders.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={role === "ADMIN" ? 8 : 7}
-                        className="text-center py-8 text-muted-foreground"
-                      >
-                        {search || statusFilter !== "ALL"
-                          ? "No orders found matching your filters"
-                          : "No orders found"}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order #</TableHead>
+                <TableHead>Customer</TableHead>
+                {role === "ADMIN" && <TableHead>Assigned Rider</TableHead>}
+                <TableHead>Total</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Paid</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {orders.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={role === "ADMIN" ? 8 : 7}
+                    className="text-center py-8 text-muted-foreground"
+                  >
+                    {search || statusFilter !== "ALL"
+                      ? "No orders found matching your filters"
+                      : "No orders found"}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                orders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">
+                      #{order.orderNumber}
+                    </TableCell>
+                    <TableCell>{order.user.name || order.user.email}</TableCell>
+
+                    {/* Rider Column - Admin only */}
+                    {role === "ADMIN" && (
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {getRiderName(order.rider)}
+                        </Badge>
                       </TableCell>
-                    </TableRow>
-                  ) : (
-                    orders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-medium">
-                          #{order.orderNumber}
-                        </TableCell>
-                        <TableCell>
-                          {order.user.name || order.user.email}
-                        </TableCell>
+                    )}
 
-                        {/* Rider Column - Admin only */}
-                        {role === "ADMIN" && (
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {getRiderName(order.rider)}
-                            </Badge>
-                          </TableCell>
-                        )}
+                    <TableCell>₱{order.payable.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge className={statusColors[order.status]}>
+                        {formatStatus(order.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={order.isPaid ? "default" : "secondary"}>
+                        {order.isPaid ? "Paid" : "Unpaid"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(order.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right space-x-2 whitespace-nowrap">
+                      {/* View Button - Everyone */}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="!bg-background hover:!bg-accent"
+                        onClick={() => fetchOrderDetail(order.id)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
 
-                        <TableCell>₱{order.payable.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Badge className={statusColors[order.status]}>
-                            {order.status.replace("_", " ")}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={order.isPaid ? "default" : "secondary"}
-                          >
-                            {order.isPaid ? "Paid" : "Unpaid"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(order.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right space-x-2 whitespace-nowrap">
-                          {/* View Button - Everyone */}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => fetchOrderDetail(order.id)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                      {/* Edit Button - Admin and Staff */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="!bg-background hover:!bg-accent"
+                        onClick={() => openEditDialog(order)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
 
-                          {/* Edit Button - Admin and Staff */}
+                      {/* Refund Button - Admin and Staff for RETURNED status only */}
+                      {(role === "ADMIN" || role === "STAFF") &&
+                        order.status === "RETURNED" &&
+                        !order.isPaid && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => openEditDialog(order)}
+                            className="text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
+                            onClick={() => openRefundDialog(order)}
                           >
-                            <Pencil className="h-4 w-4" />
+                            <DollarSign className="h-3.5 w-3.5 mr-1" />
+                            Refund
                           </Button>
+                        )}
 
-                          {/* Refund Button - Admin and Staff for RETURNED status only */}
-                          {(role === "ADMIN" || role === "STAFF") &&
-                            order.status === "RETURNED" &&
-                            !order.isPaid && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700"
-                                onClick={() => openRefundDialog(order)}
-                              >
-                                <DollarSign className="h-3.5 w-3.5 mr-1" />
-                                Refund
-                              </Button>
-                            )}
+                      {/* Delete Button - Admin only */}
+                      {role === "ADMIN" && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => openDeleteDialog(order)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
 
-                          {/* Delete Button - Admin only */}
-                          {role === "ADMIN" && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => openDeleteDialog(order)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-4 py-2">
+          <div className="text-sm text-muted-foreground">
+            {loading ? (
+              <Skeleton className="h-4 w-32 inline-block" />
+            ) : (
+              `Showing ${(page - 1) * limit + 1} - ${Math.min(page * limit, total)} of ${total}`
+            )}
           </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between gap-4 py-2">
-              <p className="text-sm text-muted-foreground">
-                Showing {(page - 1) * limit + 1} -{" "}
-                {Math.min(page * limit, total)} of {total}
-              </p>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToPage(page - 1)}
-                  disabled={page === 1}
-                  className="h-8 w-8 p-0"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (page <= 3) {
-                      pageNum = i + 1;
-                    } else if (page >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = page - 2 + i;
-                    }
-                    return (
-                      <Button
-                        key={pageNum}
-                        variant={page === pageNum ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => goToPage(pageNum)}
-                        className="h-8 w-8 p-0 text-sm"
-                      >
-                        {pageNum}
-                      </Button>
-                    );
-                  })}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToPage(page + 1)}
-                  disabled={page === totalPages}
-                  className="h-8 w-8 p-0"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(page - 1)}
+              disabled={page === 1 || loading}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (page <= 3) {
+                  pageNum = i + 1;
+                } else if (page >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = page - 2 + i;
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={page === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => goToPage(pageNum)}
+                    disabled={loading}
+                    className="h-8 w-8 p-0 text-sm"
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
             </div>
-          )}
-        </>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(page + 1)}
+              disabled={page === totalPages || loading}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Edit Order Dialog */}
@@ -632,7 +693,7 @@ export default function OrdersPage() {
           }
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md !bg-background">
           <DialogHeader>
             <DialogTitle>Edit Order #{editingOrder?.orderNumber}</DialogTitle>
             <DialogDescription>
@@ -647,13 +708,14 @@ export default function OrdersPage() {
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <Select value={editStatus} onValueChange={setEditStatus}>
-                  <SelectTrigger id="status" className="w-full">
+                  <SelectTrigger id="status" className="w-full !bg-background">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="!bg-background">
+                    <SelectItem value="ALL">All statuses</SelectItem>
                     {statusOptions.map((s) => (
                       <SelectItem key={s} value={s}>
-                        {s.replace("_", " ")}
+                        {formatStatus(s)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -665,10 +727,10 @@ export default function OrdersPage() {
                 <div className="space-y-2">
                   <Label htmlFor="rider">Assign Rider</Label>
                   <Select value={editRiderId} onValueChange={setEditRiderId}>
-                    <SelectTrigger id="rider" className="w-full">
+                    <SelectTrigger id="rider" className="w-full !bg-background">
                       <SelectValue placeholder="Select a rider" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="!bg-background">
                       <SelectItem value="">None</SelectItem>
                       {Array.isArray(riders) &&
                         riders.map((rider) => (
@@ -682,7 +744,7 @@ export default function OrdersPage() {
               )}
 
               {/* Current Info */}
-              <div className="bg-muted/30 rounded-lg p-3 space-y-1 text-sm">
+              <div className="!bg-background border rounded-lg p-3 space-y-1 text-sm">
                 <p>
                   <span className="text-muted-foreground">Customer:</span>{" "}
                   {editingOrder.user.name || editingOrder.user.email}
@@ -706,6 +768,7 @@ export default function OrdersPage() {
                     setEditingOrder(null);
                   }}
                   disabled={updating}
+                  className="!bg-background hover:!bg-accent"
                 >
                   Cancel
                 </Button>
@@ -727,7 +790,7 @@ export default function OrdersPage() {
 
       {/* Delete Confirmation Dialog - Admin only */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="!bg-background">
           <AlertDialogHeader>
             <AlertDialogTitle>
               Delete Order #{deletingOrder?.orderNumber}
@@ -758,7 +821,12 @@ export default function OrdersPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel
+              disabled={deleting}
+              className="!bg-background hover:!bg-accent"
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteOrder}
               disabled={deleting}
@@ -779,7 +847,7 @@ export default function OrdersPage() {
 
       {/* Refund Confirmation Dialog */}
       <AlertDialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="!bg-background">
           <AlertDialogHeader>
             <AlertDialogTitle>
               Refund Order #{refundingOrder?.orderNumber}
@@ -810,7 +878,12 @@ export default function OrdersPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={refunding}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel
+              disabled={refunding}
+              className="!bg-background hover:!bg-accent"
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleRefundOrder}
               disabled={refunding}

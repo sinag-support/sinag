@@ -1,11 +1,17 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useRole } from '@/hooks/use-role'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { toast } from 'sonner'
+import { useEffect, useState } from "react";
+import { useRole } from "@/hooks/use-role";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import {
   BarChart,
   Bar,
@@ -20,7 +26,7 @@ import {
   LineChart,
   Line,
   Legend,
-} from 'recharts'
+} from "recharts";
 import {
   Download,
   TrendingUp,
@@ -31,69 +37,70 @@ import {
   DollarSign,
   Printer,
   FileSpreadsheet,
-  Eye,
-} from 'lucide-react'
+} from "lucide-react";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 interface ReportData {
-  revenue: number
-  orders: number
-  products: number
-  users: number
-  revenueGrowth: number
-  ordersGrowth: number
-  dailyRevenue: { date: string; revenue: number; orders: number }[]
-  categorySales: { name: string; value: number }[]
-  statusDistribution: { name: string; value: number }[]
-  topProducts: { name: string; sales: number; revenue: number }[]
+  revenue: number;
+  orders: number;
+  products: number;
+  users: number;
+  revenueGrowth: number;
+  ordersGrowth: number;
+  dailyRevenue: { date: string; revenue: number; orders: number }[];
+  categorySales: { name: string; value: number }[];
+  statusDistribution: { name: string; value: number }[];
+  topProducts: { name: string; sales: number; revenue: number }[];
 }
 
 // Professional chart colors
 const CHART_COLORS = [
-  '#2563eb', // blue
-  '#7c3aed', // purple
-  '#059669', // emerald
-  '#d97706', // amber
-  '#dc2626', // red
-  '#0891b2', // cyan
-  '#db2777', // pink
-]
+  "#2563eb", // blue
+  "#7c3aed", // purple
+  "#059669", // emerald
+  "#d97706", // amber
+  "#dc2626", // red
+  "#0891b2", // cyan
+  "#db2777", // pink
+];
 
 const PIE_COLORS = [
-  '#2563eb', // blue
-  '#7c3aed', // purple
-  '#059669', // emerald
-  '#d97706', // amber
-  '#dc2626', // red
-  '#0891b2', // cyan
-  '#db2777', // pink
-  '#4f46e5', // indigo
-  '#ea580c', // orange
-]
+  "#2563eb", // blue
+  "#7c3aed", // purple
+  "#059669", // emerald
+  "#d97706", // amber
+  "#dc2626", // red
+  "#0891b2", // cyan
+  "#db2777", // pink
+  "#4f46e5", // indigo
+  "#ea580c", // orange
+];
 
-type ViewMode = 'admin' | 'staff'
+type ViewMode = "admin" | "staff";
 
 export default function ReportsPage() {
-  const { role } = useRole()
-  const [loading, setLoading] = useState(true)
-  const [data, setData] = useState<ReportData | null>(null)
-  const [timeRange, setTimeRange] = useState('30d')
-  const [viewMode, setViewMode] = useState<ViewMode>('admin')
+  const { role } = useRole();
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<ReportData | null>(null);
+  const [timeRange, setTimeRange] = useState("30d");
+  const [viewMode, setViewMode] = useState<ViewMode>("admin");
 
   // If rider, show access denied
-  if (role === 'RIDER') {
+  if (role === "RIDER") {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
@@ -101,35 +108,36 @@ export default function ReportsPage() {
         </div>
         <h2 className="text-2xl font-bold">Access Denied</h2>
         <p className="text-muted-foreground mt-2 max-w-sm">
-          You don't have permission to view reports. Please contact your administrator.
+          You don't have permission to view reports. Please contact your
+          administrator.
         </p>
       </div>
-    )
+    );
   }
 
   useEffect(() => {
-    fetchReportData()
-  }, [timeRange])
+    fetchReportData();
+  }, [timeRange]);
 
   const fetchReportData = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const res = await fetch(`/api/admin/reports?range=${timeRange}`)
-      const data = await res.json()
-      setData(data)
+      const res = await fetch(`/api/admin/reports?range=${timeRange}`);
+      const data = await res.json();
+      setData(data);
     } catch {
-      toast.error('Failed to load reports')
+      toast.error("Failed to load reports");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Export as Excel
   const exportExcel = () => {
-    if (!data) return
+    if (!data) return;
 
-    const currentDate = new Date().toLocaleString()
-    const range = timeRange
+    const currentDate = new Date().toLocaleString();
+    const range = timeRange;
 
     const htmlContent = `
       <html xmlns:o="urn:schemas-microsoft-com:office:office" 
@@ -172,21 +180,25 @@ export default function ReportsPage() {
           <tr><td>Total Orders</td><td>${data.orders}</td></tr>
           <tr><td>Products</td><td>${data.products}</td></tr>
           <tr><td>Customers</td><td>${data.users}</td></tr>
-          <tr><td>Revenue Growth</td><td>${data.revenueGrowth > 0 ? '+' : ''}${data.revenueGrowth}%</td></tr>
-          <tr><td>Orders Growth</td><td>${data.ordersGrowth > 0 ? '+' : ''}${data.ordersGrowth}%</td></tr>
+          <tr><td>Revenue Growth</td><td>${data.revenueGrowth > 0 ? "+" : ""}${data.revenueGrowth}%</td></tr>
+          <tr><td>Orders Growth</td><td>${data.ordersGrowth > 0 ? "+" : ""}${data.ordersGrowth}%</td></tr>
         </table>
 
         <!-- Daily Revenue -->
         <table>
           <tr><th colspan="3">DAILY REVENUE</th></tr>
           <tr><th>Date</th><th>Revenue</th><th>Orders</th></tr>
-          ${data.dailyRevenue.map(item => `
+          ${data.dailyRevenue
+            .map(
+              (item) => `
             <tr>
               <td>${item.date}</td>
               <td>₱${item.revenue.toFixed(2)}</td>
               <td>${item.orders}</td>
             </tr>
-          `).join('')}
+          `,
+            )
+            .join("")}
           <tr class="total-row">
             <td>TOTAL</td>
             <td>₱${data.revenue.toFixed(2)}</td>
@@ -198,67 +210,82 @@ export default function ReportsPage() {
         <table>
           <tr><th colspan="2">CATEGORY SALES</th></tr>
           <tr><th>Category</th><th>Sales</th></tr>
-          ${data.categorySales.map(item => `
+          ${data.categorySales
+            .map(
+              (item) => `
             <tr><td>${item.name}</td><td>₱${item.value.toFixed(2)}</td></tr>
-          `).join('')}
+          `,
+            )
+            .join("")}
         </table>
 
         <!-- Order Status -->
         <table>
           <tr><th colspan="2">ORDER STATUS DISTRIBUTION</th></tr>
           <tr><th>Status</th><th>Count</th></tr>
-          ${data.statusDistribution.map(item => `
+          ${data.statusDistribution
+            .map(
+              (item) => `
             <tr><td>${item.name}</td><td>${item.value}</td></tr>
-          `).join('')}
+          `,
+            )
+            .join("")}
         </table>
 
         <!-- Top Products -->
         <table>
           <tr><th colspan="4">TOP SELLING PRODUCTS</th></tr>
           <tr><th>#</th><th>Product</th><th>Sales</th><th>Revenue</th></tr>
-          ${data.topProducts.map((item, index) => `
+          ${data.topProducts
+            .map(
+              (item, index) => `
             <tr>
               <td>${index + 1}</td>
               <td>${item.name}</td>
               <td>${item.sales}</td>
               <td>₱${item.revenue.toFixed(2)}</td>
             </tr>
-          `).join('')}
+          `,
+            )
+            .join("")}
         </table>
       </body>
       </html>
-    `
+    `;
 
-    const blob = new Blob([htmlContent], { 
-      type: 'application/vnd.ms-excel;charset=utf-8' 
-    })
-    const link = document.createElement('a')
-    const url = URL.createObjectURL(blob)
-    link.setAttribute('href', url)
-    link.setAttribute('download', `sinag-report-${new Date().toISOString().split('T')[0]}.xls`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    
-    toast.success('Report exported as Excel!')
-  }
+    const blob = new Blob([htmlContent], {
+      type: "application/vnd.ms-excel;charset=utf-8",
+    });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `sinag-report-${new Date().toISOString().split("T")[0]}.xls`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success("Report exported as Excel!");
+  };
 
   // Print as PDF
   const handlePrint = () => {
-    if (!data) return
+    if (!data) return;
 
-    const printWindow = window.open('', '_blank', 'width=1200,height=800')
-    if (!printWindow) return
+    const printWindow = window.open("", "_blank", "width=1200,height=800");
+    if (!printWindow) return;
 
-    const currentDate = new Date().toLocaleString()
-    const reportData = data
+    const currentDate = new Date().toLocaleString();
+    const reportData = data;
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>SINAG Report - ${new Date().toISOString().split('T')[0]}</title>
+        <title>SINAG Report - ${new Date().toISOString().split("T")[0]}</title>
         <style>
           body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -383,11 +410,11 @@ export default function ReportsPage() {
             </tr>
             <tr>
               <td>Revenue Growth</td>
-              <td>${reportData.revenueGrowth > 0 ? '+' : ''}${reportData.revenueGrowth}%</td>
+              <td>${reportData.revenueGrowth > 0 ? "+" : ""}${reportData.revenueGrowth}%</td>
             </tr>
             <tr>
               <td>Orders Growth</td>
-              <td>${reportData.ordersGrowth > 0 ? '+' : ''}${reportData.ordersGrowth}%</td>
+              <td>${reportData.ordersGrowth > 0 ? "+" : ""}${reportData.ordersGrowth}%</td>
             </tr>
           </table>
         </div>
@@ -401,13 +428,17 @@ export default function ReportsPage() {
               <th>Revenue</th>
               <th>Orders</th>
             </tr>
-            ${reportData.dailyRevenue.map(item => `
+            ${reportData.dailyRevenue
+              .map(
+                (item) => `
               <tr>
                 <td>${item.date}</td>
                 <td>₱${item.revenue.toFixed(2)}</td>
                 <td>${item.orders}</td>
               </tr>
-            `).join('')}
+            `,
+              )
+              .join("")}
             <tr class="total-row">
               <td>Total</td>
               <td>₱${reportData.revenue.toFixed(2)}</td>
@@ -424,12 +455,16 @@ export default function ReportsPage() {
               <th>Category</th>
               <th>Sales</th>
             </tr>
-            ${reportData.categorySales.map(item => `
+            ${reportData.categorySales
+              .map(
+                (item) => `
               <tr>
                 <td>${item.name}</td>
                 <td>₱${item.value.toFixed(2)}</td>
               </tr>
-            `).join('')}
+            `,
+              )
+              .join("")}
           </table>
         </div>
 
@@ -441,12 +476,16 @@ export default function ReportsPage() {
               <th>Status</th>
               <th>Count</th>
             </tr>
-            ${reportData.statusDistribution.map(item => `
+            ${reportData.statusDistribution
+              .map(
+                (item) => `
               <tr>
                 <td>${item.name}</td>
                 <td>${item.value}</td>
               </tr>
-            `).join('')}
+            `,
+              )
+              .join("")}
           </table>
         </div>
 
@@ -460,14 +499,18 @@ export default function ReportsPage() {
               <th>Sales</th>
               <th>Revenue</th>
             </tr>
-            ${reportData.topProducts.map((item, index) => `
+            ${reportData.topProducts
+              .map(
+                (item, index) => `
               <tr>
                 <td>${index + 1}</td>
                 <td>${item.name}</td>
                 <td>${item.sales}</td>
                 <td>₱${item.revenue.toFixed(2)}</td>
               </tr>
-            `).join('')}
+            `,
+              )
+              .join("")}
           </table>
         </div>
 
@@ -482,440 +525,454 @@ export default function ReportsPage() {
         </div>
       </body>
       </html>
-    `)
+    `);
 
-    printWindow.document.close()
-    printWindow.focus()
-  }
+    printWindow.document.close();
+    printWindow.focus();
+  };
 
   if (loading) {
-    return <ReportsSkeleton role={role} viewMode={viewMode} />
+    return <ReportsSkeleton role={role} viewMode={viewMode} />;
   }
 
   if (!data) {
-    return <div className="text-center py-12">Failed to load report data</div>
+    return <div className="text-center py-12">Failed to load report data</div>;
   }
 
   // Determine which view to show
-  const activeView = role === 'ADMIN' ? viewMode : 'staff'
+  const activeView = role === "ADMIN" ? viewMode : "staff";
 
-  // --- ADMIN VIEW (Full Reports) ---
-  if (activeView === 'admin' && role === 'ADMIN') {
-    return (
-      <div className="space-y-6">
-        {/* Header with View Switcher */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Reports & Analytics</h1>
-            <p className="text-muted-foreground">
-              Full business insights and sales performance
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* View Switcher - Using div instead of Button to avoid nested button */}
-            <DropdownMenu>
-              <DropdownMenuTrigger>
-                <div className="inline-flex items-center gap-2 h-8 px-3 py-1.5 text-sm font-medium rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer">
-                  <Eye className="h-4 w-4" />
-                  View as: {viewMode === 'admin' ? 'Admin' : 'Staff'}
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setViewMode('admin')}>
+  return (
+    <div className="space-y-6">
+      {/* Header with View Switcher - Always visible for Admin */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+          {activeView === "admin"
+            ? "Reports & Analytics"
+            : "Product & Order Reports"}
+        </h2>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* View Switcher - Always visible for Admin users */}
+          {role === "ADMIN" && (
+            <Tabs
+              value={viewMode}
+              onValueChange={(value) => setViewMode(value as ViewMode)}
+              className="w-auto"
+            >
+              <TabsList className="bg-background border border-border p-1 rounded-lg w-auto h-8">
+                <TabsTrigger
+                  value="admin"
+                  className="text-xs px-3 py-1 rounded-md font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
                   Admin
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setViewMode('staff')}>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="staff"
+                  className="text-xs px-3 py-1 rounded-md font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
                   Staff
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
 
-            {viewMode !== 'admin' && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setViewMode('admin')}
-                className="text-xs h-8"
+          <Select
+            value={timeRange}
+            onValueChange={(val: string | null) => val && setTimeRange(val)}
+          >
+            <SelectTrigger className="w-40 h-8 !bg-background">
+              <SelectValue placeholder="Select range" />
+            </SelectTrigger>
+            <SelectContent className="!bg-background">
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="90d">Last 90 days</SelectItem>
+              <SelectItem value="12m">Last 12 months</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button
+                variant="outline"
+                className="gap-2 h-8 !bg-background hover:!bg-accent"
               >
-                Reset
+                <Download className="h-4 w-4" />
+                Export
               </Button>
-            )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="!bg-background">
+              <DropdownMenuItem onClick={exportExcel} className="gap-2">
+                <FileSpreadsheet className="h-4 w-4" />
+                Export as Excel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-            <Select value={timeRange} onValueChange={(val: string | null) => val && setTimeRange(val)}>
-              <SelectTrigger className="w-40 h-8">
-                <SelectValue placeholder="Select range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="90d">Last 90 days</SelectItem>
-                <SelectItem value="12m">Last 12 months</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button variant="outline" className="gap-2 h-8">
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={exportExcel} className="gap-2">
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Export as Excel
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            <Button variant="outline" onClick={handlePrint} className="gap-2 h-8">
-              <Printer className="h-4 w-4" /> PDF
-            </Button>
+          <Button
+            variant="outline"
+            onClick={handlePrint}
+            className="gap-2 h-8 !bg-background hover:!bg-accent"
+          >
+            <Printer className="h-4 w-4" /> PDF
+          </Button>
+        </div>
+      </div>
+
+      {/* --- ADMIN VIEW --- */}
+      {activeView === "admin" && role === "ADMIN" && (
+        <div className="space-y-4">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard title="Total Revenue" icon={DollarSign} loading={loading}>
+              <div className="text-base sm:text-2xl font-bold">
+                ₱{data.revenue.toFixed(2)}
+              </div>
+              <p
+                className={`text-[10px] sm:text-xs ${data.revenueGrowth >= 0 ? "text-emerald-600" : "text-destructive"} flex items-center gap-1`}
+              >
+                {data.revenueGrowth >= 0 ? (
+                  <TrendingUp className="h-3 w-3" />
+                ) : (
+                  <TrendingDown className="h-3 w-3" />
+                )}
+                {data.revenueGrowth > 0 ? "+" : ""}
+                {data.revenueGrowth}%
+              </p>
+            </StatCard>
+
+            <StatCard
+              title="Total Orders"
+              icon={ShoppingCart}
+              loading={loading}
+            >
+              <div className="text-base sm:text-2xl font-bold">
+                {data.orders}
+              </div>
+              <p
+                className={`text-[10px] sm:text-xs ${data.ordersGrowth >= 0 ? "text-emerald-600" : "text-destructive"} flex items-center gap-1`}
+              >
+                {data.ordersGrowth >= 0 ? (
+                  <TrendingUp className="h-3 w-3" />
+                ) : (
+                  <TrendingDown className="h-3 w-3" />
+                )}
+                {data.ordersGrowth > 0 ? "+" : ""}
+                {data.ordersGrowth}%
+              </p>
+            </StatCard>
+
+            <StatCard title="Products" icon={Package} loading={loading}>
+              <div className="text-base sm:text-2xl font-bold">
+                {data.products}
+              </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                Total catalog items
+              </p>
+            </StatCard>
+
+            <StatCard title="Customers" icon={Users} loading={loading}>
+              <div className="text-base sm:text-2xl font-bold">
+                {data.users}
+              </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                Registered users
+              </p>
+            </StatCard>
           </div>
-        </div>
 
-        {/* Stats Cards with py-4 px-2 */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="py-4 px-2">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold">₱{data.revenue.toFixed(2)}</div>
-              <p className={`text-xs ${data.revenueGrowth >= 0 ? 'text-emerald-600' : 'text-destructive'} flex items-center gap-1`}>
-                {data.revenueGrowth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                {data.revenueGrowth > 0 ? '+' : ''}{data.revenueGrowth}% from previous period
-              </p>
-            </CardContent>
-          </Card>
+          {/* Charts */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background">
+              <CardHeader className="pb-2 p-0 px-2">
+                <CardTitle className="text-base font-semibold">
+                  Revenue Trend
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 h-[250px] sm:h-[300px] p-0 px-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={data.dailyRevenue}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#2563eb"
+                      strokeWidth={2}
+                      name="Revenue (₱)"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="orders"
+                      stroke="#7c3aed"
+                      strokeWidth={2}
+                      name="Orders"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-          <Card className="py-4 px-2">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold">{data.orders}</div>
-              <p className={`text-xs ${data.ordersGrowth >= 0 ? 'text-emerald-600' : 'text-destructive'} flex items-center gap-1`}>
-                {data.ordersGrowth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                {data.ordersGrowth > 0 ? '+' : ''}{data.ordersGrowth}% from previous period
-              </p>
-            </CardContent>
-          </Card>
+            <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background">
+              <CardHeader className="pb-2 p-0 px-2">
+                <CardTitle className="text-base font-semibold">
+                  Category Sales Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 h-[250px] sm:h-[300px] p-0 px-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data.categorySales}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      label
+                    >
+                      {data.categorySales.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={PIE_COLORS[index % PIE_COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
 
-          <Card className="py-4 px-2">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Products</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+          {/* Order Status Distribution */}
+          <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background">
+            <CardHeader className="pb-2 p-0 px-2">
+              <CardTitle className="text-base font-semibold">
+                Order Status Distribution
+              </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold">{data.products}</div>
-              <p className="text-xs text-muted-foreground">Total catalog items</p>
-            </CardContent>
-          </Card>
-
-          <Card className="py-4 px-2">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Customers</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold">{data.users}</div>
-              <p className="text-xs text-muted-foreground">Registered users</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Charts */}
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="py-4 px-2">
-            <CardHeader className="pb-2">
-              <CardTitle>Revenue Trend</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 h-80">
+            <CardContent className="pt-0 h-[250px] sm:h-[300px] p-0 px-2">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.dailyRevenue}>
+                <BarChart data={data.statusDistribution}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
+                  <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#2563eb"
-                    strokeWidth={2}
-                    name="Revenue (₱)"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="orders"
-                    stroke="#7c3aed"
-                    strokeWidth={2}
-                    name="Orders"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card className="py-4 px-2">
-            <CardHeader className="pb-2">
-              <CardTitle>Category Sales Distribution</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data.categorySales}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label
-                  >
-                    {data.categorySales.map((entry, index) => (
+                  <Bar dataKey="value" fill="#059669">
+                    {data.statusDistribution.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                        fill={CHART_COLORS[index % CHART_COLORS.length]}
                       />
                     ))}
-                  </Pie>
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Top Products */}
+          <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background">
+            <CardHeader className="pb-2 p-0 px-2">
+              <CardTitle className="text-base font-semibold">
+                Top Selling Products
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 p-0 px-2">
+              <div className="space-y-4">
+                {data.topProducts.map((product, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-4 border-b pb-3 last:border-0"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-bold text-muted-foreground">
+                      {index + 1}
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-medium">{product.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {product.sales} sales
+                      </p>
+                    </div>
+                    <p className="font-semibold">
+                      ₱{product.revenue.toFixed(2)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* --- STAFF VIEW --- */}
+      {activeView === "staff" && (
+        <div className="space-y-4">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+            <StatCard title="Total Products" icon={Package} loading={loading}>
+              <div className="text-base sm:text-2xl font-bold">
+                {data.products}
+              </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                Catalog items
+              </p>
+            </StatCard>
+
+            <StatCard
+              title="Total Orders"
+              icon={ShoppingCart}
+              loading={loading}
+            >
+              <div className="text-base sm:text-2xl font-bold">
+                {data.orders}
+              </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                All time orders
+              </p>
+            </StatCard>
+
+            <StatCard title="Revenue" icon={DollarSign} loading={loading}>
+              <div className="text-base sm:text-2xl font-bold">
+                ₱{data.revenue.toFixed(2)}
+              </div>
+              <p
+                className={`text-[10px] sm:text-xs ${data.revenueGrowth >= 0 ? "text-emerald-600" : "text-destructive"} flex items-center gap-1`}
+              >
+                {data.revenueGrowth >= 0 ? (
+                  <TrendingUp className="h-3 w-3" />
+                ) : (
+                  <TrendingDown className="h-3 w-3" />
+                )}
+                {data.revenueGrowth > 0 ? "+" : ""}
+                {data.revenueGrowth}%
+              </p>
+            </StatCard>
+          </div>
+
+          {/* Top Products */}
+          <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background">
+            <CardHeader className="pb-2 p-0 px-2">
+              <CardTitle className="text-base font-semibold">
+                Top Selling Products
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 p-0 px-2">
+              <div className="space-y-4">
+                {data.topProducts.map((product, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-4 border-b pb-3 last:border-0"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-bold text-muted-foreground">
+                      {index + 1}
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-medium">{product.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {product.sales} sales
+                      </p>
+                    </div>
+                    <p className="font-semibold">
+                      ₱{product.revenue.toFixed(2)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Order Status */}
+          <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background">
+            <CardHeader className="pb-2 p-0 px-2">
+              <CardTitle className="text-base font-semibold">
+                Order Status Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 h-[250px] sm:h-[300px] p-0 px-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.statusDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
                   <Tooltip />
-                </PieChart>
+                  <Bar dataKey="value" fill="#7c3aed" radius={[4, 4, 0, 0]}>
+                    {data.statusDistribution.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={CHART_COLORS[index % CHART_COLORS.length]}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>
-
-        {/* Order Status Distribution */}
-        <Card className="py-4 px-2">
-          <CardHeader className="pb-2">
-            <CardTitle>Order Status Distribution</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.statusDistribution}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#059669">
-                  {data.statusDistribution.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={CHART_COLORS[index % CHART_COLORS.length]}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Top Products */}
-        <Card className="py-4 px-2">
-          <CardHeader className="pb-2">
-            <CardTitle>Top Selling Products</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-4">
-              {data.topProducts.map((product, index) => (
-                <div key={index} className="flex items-center gap-4 border-b pb-3 last:border-0">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-bold text-muted-foreground">
-                    {index + 1}
-                  </span>
-                  <div className="flex-1">
-                    <p className="font-medium">{product.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {product.sales} sales
-                    </p>
-                  </div>
-                  <p className="font-semibold">₱{product.revenue.toFixed(2)}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  // --- STAFF VIEW ---
-  if (activeView === 'staff') {
-    return (
-      <div className="space-y-6">
-        {/* Header with view indicator */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Product & Order Reports</h1>
-            <p className="text-muted-foreground">
-              View product performance and order insights
-              {role === 'ADMIN' && ' (Staff View)'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {role === 'ADMIN' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setViewMode('admin')}
-                className="text-xs h-8 gap-1"
-              >
-                Back to Admin
-              </Button>
-            )}
-            <Select value={timeRange} onValueChange={(val: string | null) => val && setTimeRange(val)}>
-              <SelectTrigger className="w-40 h-8">
-                <SelectValue placeholder="Select range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="90d">Last 90 days</SelectItem>
-                <SelectItem value="12m">Last 12 months</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button variant="outline" className="gap-2 h-8">
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={exportExcel} className="gap-2">
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Export as Excel
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            <Button variant="outline" onClick={handlePrint} className="gap-2 h-8">
-              <Printer className="h-4 w-4" /> PDF
-            </Button>
-          </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Card className="py-4 px-2">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Products</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold">{data.products}</div>
-              <p className="text-xs text-muted-foreground">Catalog items</p>
-            </CardContent>
-          </Card>
-
-          <Card className="py-4 px-2">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold">{data.orders}</div>
-              <p className="text-xs text-muted-foreground">All time orders</p>
-            </CardContent>
-          </Card>
-
-          <Card className="py-4 px-2">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold">₱{data.revenue.toFixed(2)}</div>
-              <p className={`text-xs ${data.revenueGrowth >= 0 ? 'text-emerald-600' : 'text-destructive'} flex items-center gap-1`}>
-                {data.revenueGrowth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                {data.revenueGrowth > 0 ? '+' : ''}{data.revenueGrowth}%
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Top Products */}
-        <Card className="py-4 px-2">
-          <CardHeader className="pb-2">
-            <CardTitle>Top Selling Products</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-4">
-              {data.topProducts.map((product, index) => (
-                <div key={index} className="flex items-center gap-4 border-b pb-3 last:border-0">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-bold text-muted-foreground">
-                    {index + 1}
-                  </span>
-                  <div className="flex-1">
-                    <p className="font-medium">{product.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {product.sales} sales
-                    </p>
-                  </div>
-                  <p className="font-semibold">₱{product.revenue.toFixed(2)}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Order Status */}
-        <Card className="py-4 px-2">
-          <CardHeader className="pb-2">
-            <CardTitle>Order Status Overview</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.statusDistribution}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#7c3aed" radius={[4, 4, 0, 0]}>
-                  {data.statusDistribution.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={CHART_COLORS[index % CHART_COLORS.length]}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  // Fallback
-  return (
-    <div className="text-center py-12">
-      <p className="text-muted-foreground">You don't have access to reports</p>
+      )}
     </div>
-  )
+  );
+}
+
+// Stat Card Component
+interface StatCardProps {
+  title: string;
+  icon: React.ElementType;
+  children: React.ReactNode;
+  loading: boolean;
+}
+
+function StatCard({ title, icon: Icon, children, loading }: StatCardProps) {
+  return (
+    <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0 px-2">
+        <CardTitle className="text-xs sm:text-sm font-medium tracking-tight">
+          {title}
+        </CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent className="p-0 px-2 pt-2">
+        {loading ? (
+          <>
+            <Skeleton className="h-6 sm:h-8 w-20 mb-1" />
+            <Skeleton className="h-3 w-16" />
+          </>
+        ) : (
+          children
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 // Skeleton
-function ReportsSkeleton({ role, viewMode }: { role?: string | null; viewMode?: string }) {
-  const isAdmin = role === 'ADMIN'
-  
+function ReportsSkeleton({
+  role,
+  viewMode,
+}: {
+  role?: string | null;
+  viewMode?: string;
+}) {
+  const isAdmin = role === "ADMIN";
+  const activeView = isAdmin ? viewMode : "staff";
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-4 w-64 mt-1" />
-        </div>
-        <div className="flex items-center gap-2">
+      {/* Header - Always visible with skeleton values */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <Skeleton className="h-8 w-48" />
+        <div className="flex items-center gap-2 flex-wrap">
           {isAdmin && (
             <>
-              <Skeleton className="h-8 w-36" />
-              <Skeleton className="h-8 w-16" />
+              <div className="h-8 w-auto flex items-center gap-1 px-3 py-1 rounded-md border border-border bg-background">
+                <Skeleton className="h-3 w-10" />
+                <Skeleton className="h-3 w-10" />
+              </div>
             </>
           )}
           <Skeleton className="h-8 w-40" />
@@ -923,24 +980,133 @@ function ReportsSkeleton({ role, viewMode }: { role?: string | null; viewMode?: 
           <Skeleton className="h-8 w-24" />
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[1,2,3,4].map(i => <Skeleton key={i} className="h-28 w-full" />)}
+
+      {/* Stats Cards - Only values have skeletons, titles visible */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-4">
+        {[
+          { title: "Total Revenue", icon: DollarSign },
+          { title: "Total Orders", icon: ShoppingCart },
+          { title: "Products", icon: Package },
+          { title: "Customers", icon: Users },
+        ].map((stat, i) => (
+          <Card
+            key={i}
+            className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background"
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0 px-2">
+              <CardTitle className="text-xs sm:text-sm font-medium tracking-tight">
+                {stat.title}
+              </CardTitle>
+              <stat.icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="p-0 px-2 pt-2">
+              <Skeleton className="h-6 sm:h-8 w-20 mb-1" />
+              <Skeleton className="h-3 w-16" />
+            </CardContent>
+          </Card>
+        ))}
       </div>
-      {isAdmin && (
+
+      {/* Charts - Full skeletons */}
+      {activeView === "admin" && isAdmin && (
         <>
-          <div className="grid gap-6 md:grid-cols-2">
-            <Skeleton className="h-96 w-full" />
-            <Skeleton className="h-96 w-full" />
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background">
+              <CardHeader className="pb-2 p-0 px-2">
+                <CardTitle className="text-base font-semibold">
+                  Revenue Trend
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 h-[250px] sm:h-[300px] p-0 px-2">
+                <Skeleton className="w-full h-full" />
+              </CardContent>
+            </Card>
+            <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background">
+              <CardHeader className="pb-2 p-0 px-2">
+                <CardTitle className="text-base font-semibold">
+                  Category Sales Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 h-[250px] sm:h-[300px] p-0 px-2">
+                <Skeleton className="w-full h-full" />
+              </CardContent>
+            </Card>
           </div>
-          <Skeleton className="h-96 w-full" />
+          <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background">
+            <CardHeader className="pb-2 p-0 px-2">
+              <CardTitle className="text-base font-semibold">
+                Order Status Distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 h-[250px] sm:h-[300px] p-0 px-2">
+              <Skeleton className="w-full h-full" />
+            </CardContent>
+          </Card>
+          <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background">
+            <CardHeader className="pb-2 p-0 px-2">
+              <CardTitle className="text-base font-semibold">
+                Top Selling Products
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 p-0 px-2">
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-4 border-b pb-3 last:border-0"
+                  >
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <div className="flex-1">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-20 mt-1" />
+                    </div>
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
-      {(!isAdmin && viewMode === 'staff') && (
+
+      {activeView === "staff" && (
         <>
-          <Skeleton className="h-80 w-full" />
-          <Skeleton className="h-96 w-full" />
+          <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background">
+            <CardHeader className="pb-2 p-0 px-2">
+              <CardTitle className="text-base font-semibold">
+                Top Selling Products
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 p-0 px-2">
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-4 border-b pb-3 last:border-0"
+                  >
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <div className="flex-1">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-20 mt-1" />
+                    </div>
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4 !bg-background">
+            <CardHeader className="pb-2 p-0 px-2">
+              <CardTitle className="text-base font-semibold">
+                Order Status Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 h-[250px] sm:h-[300px] p-0 px-2">
+              <Skeleton className="w-full h-full" />
+            </CardContent>
+          </Card>
         </>
       )}
     </div>
-  )
+  );
 }

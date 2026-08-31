@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import Image from 'next/image'
-import { usePathname, useRouter } from 'next/navigation'
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Package,
@@ -17,236 +17,355 @@ import {
   BarChart3,
   Truck,
   User,
-  ChevronUp,
-  Menu,
   X,
-  Newspaper, // ← Add this import
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { useState, useEffect, useRef } from 'react'
-import { useRole } from '@/hooks/use-role'
-import { supabase } from '@/lib/supabase'
+  Newspaper,
+  MoreHorizontal,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useState, useEffect, useRef } from "react";
+import { useRole } from "@/hooks/use-role";
+import { supabase } from "@/lib/supabase";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+} from "@/components/ui/collapsible";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { ThemeToggle } from '@/components/theme-toggle'
-import { Button } from '@/components/ui/button'
+} from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface NavItem {
-  href?: string
-  label: string
-  icon: React.ElementType
-  roles: string[]
-  children?: NavItem[]
+  href?: string;
+  label: string;
+  icon: React.ElementType;
+  roles: string[];
+  children?: NavItem[];
 }
 
 const navItems: NavItem[] = [
   {
-    href: '/admin',
-    label: 'Dashboard',
+    href: "/admin",
+    label: "Dashboard",
     icon: LayoutDashboard,
-    roles: ['ADMIN', 'STAFF', 'RIDER'],
+    roles: ["ADMIN", "STAFF", "RIDER"],
   },
   {
-    label: 'Store',
+    label: "Store",
     icon: Store,
-    roles: ['ADMIN'],
+    roles: ["ADMIN", "STAFF"],
     children: [
       {
-        href: '/admin/products',
-        label: 'Products',
+        href: "/admin/products",
+        label: "Products",
         icon: Package,
-        roles: ['ADMIN'],
+        roles: ["ADMIN", "STAFF"],
       },
       {
-        href: '/admin/categories',
-        label: 'Categories',
+        href: "/admin/categories",
+        label: "Categories",
         icon: Tag,
-        roles: ['ADMIN'],
+        roles: ["ADMIN", "STAFF"],
       },
       {
-        href: '/admin/banners',
-        label: 'Banners',
+        href: "/admin/banners",
+        label: "Banners",
         icon: ImageIcon,
-        roles: ['ADMIN'],
+        roles: ["ADMIN", "STAFF"],
       },
       {
-        href: '/admin/blog', // ← Add this
-        label: 'Blog',
+        href: "/admin/blog",
+        label: "Blog",
         icon: Newspaper,
-        roles: ['ADMIN'],
+        roles: ["ADMIN", "STAFF"],
       },
     ],
   },
   {
-    href: '/admin/orders',
-    label: 'Orders',
+    href: "/admin/orders",
+    label: "Orders",
     icon: ShoppingCart,
-    roles: ['ADMIN', 'STAFF'],
+    roles: ["ADMIN", "STAFF"],
   },
   {
-    href: '/admin/delivery',
-    label: 'Delivery',
+    href: "/admin/delivery",
+    label: "Delivery",
     icon: Truck,
-    roles: ['ADMIN', 'RIDER'],
+    roles: ["ADMIN", "RIDER"],
   },
   {
-    href: '/admin/reports',
-    label: 'Reports',
+    href: "/admin/reports",
+    label: "Reports",
     icon: BarChart3,
-    roles: ['ADMIN'],
+    roles: ["ADMIN"],
   },
   {
-    href: '/admin/users',
-    label: 'Users',
+    href: "/admin/users",
+    label: "Users",
     icon: Users,
-    roles: ['ADMIN'],
+    roles: ["ADMIN"],
   },
-]
+];
+
+const getMobileNavItems = (userRole: string) => {
+  const role = userRole.toUpperCase();
+  const items: NavItem[] = [];
+
+  items.push({
+    href: "/admin",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    roles: ["ADMIN", "STAFF", "RIDER"],
+  });
+
+  if (role === "ADMIN" || role === "STAFF") {
+    items.push({
+      href: "/admin/orders",
+      label: "Orders",
+      icon: ShoppingCart,
+      roles: ["ADMIN", "STAFF"],
+    });
+
+    items.push({
+      label: "Store",
+      icon: Store,
+      roles: ["ADMIN", "STAFF"],
+      children: [
+        {
+          href: "/admin/products",
+          label: "Products",
+          icon: Package,
+          roles: ["ADMIN", "STAFF"],
+        },
+        {
+          href: "/admin/categories",
+          label: "Categories",
+          icon: Tag,
+          roles: ["ADMIN", "STAFF"],
+        },
+        {
+          href: "/admin/banners",
+          label: "Banners",
+          icon: ImageIcon,
+          roles: ["ADMIN", "STAFF"],
+        },
+        {
+          href: "/admin/blog",
+          label: "Blog",
+          icon: Newspaper,
+          roles: ["ADMIN", "STAFF"],
+        },
+      ],
+    });
+  }
+
+  if (role === "ADMIN" || role === "RIDER") {
+    items.push({
+      href: "/admin/delivery",
+      label: "Delivery",
+      icon: Truck,
+      roles: ["ADMIN", "RIDER"],
+    });
+  }
+
+  if (role === "ADMIN") {
+    items.push({
+      label: "Profile",
+      icon: User,
+      roles: ["ADMIN"],
+      children: [
+        {
+          href: "/admin/reports",
+          label: "Reports",
+          icon: BarChart3,
+          roles: ["ADMIN"],
+        },
+        {
+          href: "/admin/users",
+          label: "Users",
+          icon: Users,
+          roles: ["ADMIN"],
+        },
+        {
+          href: "/admin/profile",
+          label: "Profile",
+          icon: User,
+          roles: ["ADMIN"],
+        },
+        {
+          href: "#",
+          label: "Logout",
+          icon: LogOut,
+          roles: ["ADMIN"],
+        },
+      ],
+    });
+  } else {
+    items.push({
+      href: "/admin/profile",
+      label: "Profile",
+      icon: User,
+      roles: ["STAFF", "RIDER"],
+    });
+  }
+
+  return items;
+};
 
 export default function AdminSidebar() {
-  const pathname = usePathname()
-  const router = useRouter()
-  const { role, loading } = useRole()
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const pathname = usePathname();
+  const router = useRouter();
+  const { role, loading } = useRole();
+  const normalizedRole = role?.toUpperCase() || "";
+
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     Store: true,
-  })
-  const [profileOpen, setProfileOpen] = useState(false)
-  const [userName, setUserName] = useState<string>('')
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const mobileMenuRef = useRef<HTMLDivElement>(null)
+  });
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [userName, setUserName] = useState<string>("");
+  const [storePopoverOpen, setStorePopoverOpen] = useState(false);
+  const [profilePopoverOpen, setProfilePopoverOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch user name from Supabase
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
-        const name = user.user_metadata?.name || user.email?.split('@')[0] || 'User'
-        setUserName(name)
+        const name =
+          user.user_metadata?.name || user.email?.split("@")[0] || "User";
+        setUserName(name);
       }
-    }
-    fetchUser()
-  }, [])
+    };
+    fetchUser();
+  }, []);
 
-  // Close popover when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setProfileOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  // Close mobile menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        mobileMenuRef.current && 
-        !mobileMenuRef.current.contains(event.target as Node) &&
-        !document.getElementById('mobile-menu-button')?.contains(event.target as Node)
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
       ) {
-        setIsMobileMenuOpen(false)
+        setProfileOpen(false);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  // Close mobile menu on route change
   useEffect(() => {
-    setIsMobileMenuOpen(false)
-  }, [pathname])
+    setStorePopoverOpen(false);
+    setProfilePopoverOpen(false);
+  }, [pathname]);
 
   const filteredItems = navItems.filter((item) =>
-    item.roles.includes(role || '')
-  )
+    item.roles.includes(normalizedRole),
+  );
 
   const toggleExpanded = (label: string) => {
     setExpandedItems((prev) => ({
       ...prev,
       [label]: !prev[label],
-    }))
-  }
+    }));
+  };
 
   const handleLogout = async () => {
-    if (isLoggingOut) return
-    setIsLoggingOut(true)
-    setProfileOpen(false)
-    setIsMobileMenuOpen(false)
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    setProfileOpen(false);
+    setStorePopoverOpen(false);
+    setProfilePopoverOpen(false);
 
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
-      await supabase.auth.signOut()
-      window.location.href = '/'
+      await fetch("/api/auth/logout", { method: "POST" });
+      await supabase.auth.signOut();
+      window.location.href = "/";
     } catch (error) {
-      console.error('Logout error:', error)
-      await supabase.auth.signOut()
-      window.location.href = '/'
+      console.error("Logout error:", error);
+      await supabase.auth.signOut();
+      window.location.href = "/";
     } finally {
-      setIsLoggingOut(false)
+      setIsLoggingOut(false);
     }
-  }
+  };
 
   const isActive = (href?: string) => {
-    if (!href) return false
-    return pathname === href || pathname?.startsWith(href + '/')
-  }
+    if (!href || href === "#") return false;
+    if (href === "/admin") return pathname === "/admin";
+    return pathname === href || pathname?.startsWith(href + "/");
+  };
+
+  const isParentActive = (item: NavItem) => {
+    if (item.href && isActive(item.href)) return true;
+    if (item.children) {
+      return item.children.some((child) => isActive(child.href));
+    }
+    return false;
+  };
 
   const getInitials = () => {
-    if (role === 'ADMIN') return 'AD'
-    if (role === 'STAFF') return 'ST'
-    if (role === 'RIDER') return 'RD'
-    return 'SA'
-  }
+    if (normalizedRole === "ADMIN") return "AD";
+    if (normalizedRole === "STAFF") return "ST";
+    if (normalizedRole === "RIDER") return "RD";
+    return "SA";
+  };
 
-  // Get display name based on role
   const getDisplayName = () => {
-    if (userName) return userName
-    if (role === 'ADMIN') return 'Administrator'
-    if (role === 'STAFF') return 'Staff User'
-    if (role === 'RIDER') return 'Rider'
-    return 'Admin'
-  }
+    if (userName) return userName;
+    if (normalizedRole === "ADMIN") return "Administrator";
+    if (normalizedRole === "STAFF") return "Staff User";
+    if (normalizedRole === "RIDER") return "Rider";
+    return "Admin";
+  };
 
-  // Desktop Sidebar Component
+  const handleChildClick = (child: NavItem) => {
+    if (child.label === "Logout") {
+      handleLogout();
+      return;
+    }
+    if (child.href) {
+      setStorePopoverOpen(false);
+      setProfilePopoverOpen(false);
+      router.push(child.href);
+    }
+  };
+
   const DesktopSidebar = () => (
     <aside className="hidden lg:flex h-screen flex-col border-r bg-background w-64 fixed left-0 top-0 z-30">
-      {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b px-4">
+      <div className="flex items-center justify-between border-b p-2">
         <Link href="/admin" className="flex items-center gap-3">
           <Image
             src="/sinag.png"
             alt="SINAG Logo"
             width={32}
             height={32}
-            className="h-8 w-auto"
+            className="h-5 w-auto"
             priority
           />
-          <span className="text-lg font-bold">SINAG</span>
+          <span className="text-md font-semibold">SINAG</span>
         </Link>
         <ThemeToggle />
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 overflow-y-auto p-2">
         <TooltipProvider>
           <div className="space-y-1">
             {filteredItems.map((item) => {
               if (item.children) {
-                const isExpanded = expandedItems[item.label]
-                const Icon = item.icon
+                const isExpanded = expandedItems[item.label];
+                const Icon = item.icon;
+                const parentActive = isParentActive(item);
 
                 return (
                   <div key={item.label}>
@@ -257,8 +376,10 @@ export default function AdminSidebar() {
                       <CollapsibleTrigger asChild>
                         <button
                           className={cn(
-                            'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent hover:text-accent-foreground',
-                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-all hover:bg-accent hover:text-accent-foreground",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            parentActive &&
+                              "bg-background border border-border font-medium text-foreground shadow-sm",
                           )}
                         >
                           <Icon className="h-4 w-4 shrink-0" />
@@ -273,43 +394,47 @@ export default function AdminSidebar() {
                       <CollapsibleContent>
                         <div className="ml-4 mt-1 space-y-1 border-l border-border pl-2">
                           {item.children
-                            .filter((child) => child.roles.includes(role || ''))
+                            .filter((child) =>
+                              child.roles.includes(normalizedRole),
+                            )
                             .map((child) => {
-                              const ChildIcon = child.icon
-                              const active = isActive(child.href)
+                              const ChildIcon = child.icon;
+                              const active = isActive(child.href);
 
                               return (
                                 <Link
                                   key={child.href}
-                                  href={child.href || '#'}
+                                  href={child.href || "#"}
                                   className={cn(
-                                    'flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-all hover:bg-accent hover:text-accent-foreground',
-                                    active && 'bg-accent text-accent-foreground font-medium'
+                                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-all hover:bg-accent hover:text-accent-foreground",
+                                    active &&
+                                      "bg-background border border-border font-medium text-foreground shadow-sm",
                                   )}
                                 >
                                   <ChildIcon className="h-4 w-4 shrink-0" />
                                   <span>{child.label}</span>
                                 </Link>
-                              )
+                              );
                             })}
                         </div>
                       </CollapsibleContent>
                     </Collapsible>
                   </div>
-                )
+                );
               }
 
-              const Icon = item.icon
-              const active = isActive(item.href)
+              const Icon = item.icon;
+              const active = isActive(item.href);
 
               return (
                 <Tooltip key={item.href}>
                   <TooltipTrigger asChild>
                     <Link
-                      href={item.href || '#'}
+                      href={item.href || "#"}
                       className={cn(
-                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent hover:text-accent-foreground',
-                        active && 'bg-accent text-accent-foreground font-medium'
+                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all hover:bg-accent hover:text-accent-foreground",
+                        active &&
+                          "bg-background border border-border font-medium text-foreground shadow-sm",
                       )}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
@@ -318,282 +443,266 @@ export default function AdminSidebar() {
                   </TooltipTrigger>
                   <TooltipContent side="right">{item.label}</TooltipContent>
                 </Tooltip>
-              )
+              );
             })}
           </div>
         </TooltipProvider>
       </nav>
 
-      {/* Footer - Profile with dropdown */}
-      <div className="border-t p-2 flex flex-col relative" ref={containerRef}>
-        <button
-          onClick={() => setProfileOpen(!profileOpen)}
-          className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent hover:text-accent-foreground"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <span className="text-xs font-bold">{getInitials()}</span>
-          </div>
-          <div className="flex-1 truncate text-left">
-            <p className="text-sm font-medium truncate">{getDisplayName()}</p>
-            <p className="text-xs text-muted-foreground">{role || 'Admin'}</p>
-          </div>
-          <ChevronUp className={cn(
-            "h-4 w-4 text-muted-foreground transition-transform duration-200",
-            profileOpen ? "rotate-0" : "rotate-180"
-          )} />
-        </button>
-
+      <div
+        className="border-t border-border px-2 py-3 flex flex-col relative"
+        ref={containerRef}
+      >
         {profileOpen && (
-          <div className="absolute left-full bottom-0 ml-2 mb-2 w-56 rounded-lg border bg-popover shadow-lg overflow-hidden z-50">
-            <div className="flex flex-col gap-0.5 p-1">
+          <div className="absolute bottom-full left-2 right-2 mb-2 rounded-md border border-border bg-background shadow-md overflow-hidden z-50">
+            <div className="flex flex-col p-1">
               <button
                 onClick={() => {
-                  setProfileOpen(false)
-                  router.push('/admin/profile')
+                  setProfileOpen(false);
+                  router.push("/admin/profile");
                 }}
                 className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-all hover:bg-accent hover:text-accent-foreground"
               >
                 <User className="h-4 w-4" />
                 <span>Profile</span>
               </button>
-              <div className="my-1 h-px bg-border" />
               <button
                 onClick={handleLogout}
                 disabled={isLoggingOut}
-                className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-destructive transition-all hover:bg-destructive/10 disabled:opacity-50"
+                className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-all hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
               >
                 <LogOut className="h-4 w-4" />
-                <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
+                <span>{isLoggingOut ? "Logging out..." : "Logout"}</span>
               </button>
             </div>
           </div>
         )}
-      </div>
-    </aside>
-  )
 
-  // Mobile Sidebar Component
-  const MobileSidebar = () => (
-    <>
-      {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-40 flex h-16 items-center justify-between border-b bg-background px-4">
-        <Link href="/admin" className="flex items-center gap-3">
-          <Image
-            src="/sinag.png"
-            alt="SINAG Logo"
-            width={32}
-            height={32}
-            className="h-8 w-auto"
-            priority
-          />
-          <span className="text-lg font-bold">SINAG</span>
-        </Link>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <Button
-            id="mobile-menu-button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden"
-          >
-            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
-        </div>
-      </header>
-
-      {/* Mobile Menu Overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="lg:hidden fixed inset-0 z-40 bg-black/50"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Mobile Menu Drawer */}
-      <div
-        ref={mobileMenuRef}
-        className={cn(
-          "lg:hidden fixed top-0 right-0 z-50 h-full w-80 bg-background border-l transition-transform duration-300 ease-in-out",
-          isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
-        )}
-      >
-        <div className="flex h-16 items-center justify-between border-b px-4">
-          <Link href="/admin" className="flex items-center gap-3">
-            <Image
-              src="/sinag.png"
-              alt="SINAG Logo"
-              width={32}
-              height={32}
-              className="h-8 w-auto"
-              priority
-            />
-            <span className="text-lg font-bold">SINAG</span>
-          </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMobileMenuOpen(false)}
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
-          <div className="space-y-1">
-            {filteredItems.map((item) => {
-              if (item.children) {
-                const isExpanded = expandedItems[item.label]
-                const Icon = item.icon
-
-                return (
-                  <div key={item.label}>
-                    <button
-                      onClick={() => toggleExpanded(item.label)}
-                      className={cn(
-                        'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent hover:text-accent-foreground'
-                      )}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span className="flex-1 text-left">{item.label}</span>
-                      {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      )}
-                    </button>
-                    {isExpanded && (
-                      <div className="ml-4 mt-1 space-y-1 border-l border-border pl-2">
-                        {item.children
-                          .filter((child) => child.roles.includes(role || ''))
-                          .map((child) => {
-                            const ChildIcon = child.icon
-                            const active = isActive(child.href)
-
-                            return (
-                              <Link
-                                key={child.href}
-                                href={child.href || '#'}
-                                className={cn(
-                                  'flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-all hover:bg-accent hover:text-accent-foreground',
-                                  active && 'bg-accent text-accent-foreground font-medium'
-                                )}
-                              >
-                                <ChildIcon className="h-4 w-4 shrink-0" />
-                                <span>{child.label}</span>
-                              </Link>
-                            )
-                          })}
-                      </div>
-                    )}
-                  </div>
-                )
-              }
-
-              const Icon = item.icon
-              const active = isActive(item.href)
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href || '#'}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent hover:text-accent-foreground',
-                    active && 'bg-accent text-accent-foreground font-medium'
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span>{item.label}</span>
-                </Link>
-              )
-            })}
-          </div>
-        </nav>
-
-        {/* Footer - Profile */}
-        <div className="border-t p-4">
-          <button
-            onClick={() => {
-              setIsMobileMenuOpen(false)
-              router.push('/admin/profile')
-            }}
-            className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent hover:text-accent-foreground"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <div className="w-full flex items-center justify-between gap-2 px-1">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
               <span className="text-xs font-bold">{getInitials()}</span>
             </div>
             <div className="flex-1 truncate text-left">
               <p className="text-sm font-medium truncate">{getDisplayName()}</p>
-              <p className="text-xs text-muted-foreground">{role || 'Admin'}</p>
             </div>
-          </button>
+          </div>
+
           <button
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-destructive transition-all hover:bg-destructive/10 disabled:opacity-50"
+            onClick={() => setProfileOpen(!profileOpen)}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-accent hover:text-foreground transition-colors shrink-0"
+            aria-label="User Options"
           >
-            <LogOut className="h-4 w-4" />
-            <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
+            <MoreHorizontal className="h-4 w-4" />
           </button>
         </div>
       </div>
-    </>
-  )
+    </aside>
+  );
 
+  const MobileBottomNav = () => {
+    const mobileItems = getMobileNavItems(normalizedRole);
+    const isAnyPopoverOpen = storePopoverOpen || profilePopoverOpen;
+
+    return (
+      <>
+        {isAnyPopoverOpen && (
+          <div
+            className="lg:hidden fixed inset-0 z-40 bg-background/60 backdrop-blur-sm"
+            onClick={() => {
+              setStorePopoverOpen(false);
+              setProfilePopoverOpen(false);
+            }}
+          />
+        )}
+
+        <div
+          className={cn(
+            "lg:hidden fixed bottom-0 left-0 right-0 z-50 transition-all duration-200",
+            isAnyPopoverOpen
+              ? "bg-background/95 border-t border-border/20"
+              : "bg-background border-t border-border",
+          )}
+        >
+          <nav className="grid grid-cols-5 w-full h-16 items-center">
+            {mobileItems.map((item) => {
+              const Icon = item.icon;
+              const active = isParentActive(item);
+              const hasChildren = !!item.children;
+              const isOpen =
+                item.label === "Store" ? storePopoverOpen : profilePopoverOpen;
+
+              if (hasChildren) {
+                const children = item.children?.filter((c) =>
+                  c.roles.includes(normalizedRole),
+                );
+
+                return (
+                  <Popover
+                    key={item.label}
+                    open={isOpen}
+                    onOpenChange={(open) => {
+                      if (item.label === "Store") {
+                        setStorePopoverOpen(open);
+                        if (open) setProfilePopoverOpen(false);
+                      } else {
+                        setProfilePopoverOpen(open);
+                        if (open) setStorePopoverOpen(false);
+                      }
+                    }}
+                  >
+                    <PopoverTrigger
+                      className={cn(
+                        "flex flex-col items-center justify-center gap-0.5 text-[10px] transition-colors py-1 px-1 rounded-md w-full h-full",
+                        isOpen
+                          ? "text-primary relative z-50"
+                          : active
+                            ? "text-primary font-medium"
+                            : "text-muted-foreground hover:text-primary",
+                        isAnyPopoverOpen &&
+                          !isOpen &&
+                          "opacity-40 blur-sm pointer-events-none",
+                      )}
+                    >
+                      {isOpen ? (
+                        <>
+                          <X className="h-5 w-5" />
+                          <span className="leading-none">Close</span>
+                        </>
+                      ) : (
+                        <>
+                          <Icon className="h-5 w-5" />
+                          <span className="leading-none">{item.label}</span>
+                        </>
+                      )}
+                    </PopoverTrigger>
+                    <PopoverContent
+                      side="top"
+                      align="center"
+                      className="w-[calc(100vw-2rem)] max-w-xs mb-3 p-2 rounded-xl z-50 shadow-xl border border-border bg-background"
+                      sideOffset={8}
+                    >
+                      <div className="grid grid-cols-4 gap-2">
+                        {children?.map((child) => {
+                          const ChildIcon = child.icon;
+                          const isChildActive = isActive(child.href);
+
+                          return (
+                            <button
+                              key={child.label}
+                              onClick={() => handleChildClick(child)}
+                              className={cn(
+                                "flex flex-col items-center justify-center gap-1 rounded-lg p-2 text-[10px] transition-all hover:bg-accent hover:text-accent-foreground",
+                                isChildActive &&
+                                  "bg-accent text-accent-foreground font-medium",
+                              )}
+                            >
+                              <ChildIcon className="h-5 w-5 shrink-0" />
+                              <span className="leading-none text-center truncate w-full">
+                                {child.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                );
+              }
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href || "#"}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-0.5 text-[10px] transition-colors py-1 px-1 rounded-md w-full h-full",
+                    active
+                      ? "text-primary font-medium"
+                      : "text-muted-foreground hover:text-primary",
+                    isAnyPopoverOpen &&
+                      "opacity-40 blur-sm pointer-events-none",
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="leading-none">{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      </>
+    );
+  };
+
+  // Show sidebar layout with skeleton only for user data
   if (loading) {
     return (
       <>
-        <DesktopSidebarSkeleton />
-        <MobileSidebarSkeleton />
+        <aside className="hidden lg:flex h-screen flex-col border-r bg-background w-64 fixed left-0 top-0 z-30">
+          {/* Header - Always visible with skeleton for logo text */}
+          <div className="flex items-center justify-between border-b p-2">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/sinag.png"
+                alt="SINAG Logo"
+                width={32}
+                height={32}
+                className="h-5 w-auto"
+                priority
+              />
+              <span className="text-md font-semibold">SINAG</span>
+            </div>
+            <ThemeToggle />
+          </div>
+
+          {/* Nav items - Show skeleton for nav items */}
+          <nav className="flex-1 px-3 py-4">
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2">
+                  <div className="h-4 w-4 rounded bg-muted animate-pulse" />
+                  <div className="h-4 flex-1 rounded bg-muted animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </nav>
+
+          {/* User profile - Skeleton for user data only */}
+          <div className="border-t border-border px-2 py-3">
+            <div className="flex items-center gap-3 px-1">
+              <div className="h-8 w-8 shrink-0 rounded-full bg-muted animate-pulse" />
+              <div className="flex-1">
+                <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+              </div>
+              <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+            </div>
+          </div>
+        </aside>
+
+        {/* Mobile bottom nav - Always visible with skeleton for icons */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t bg-background">
+          <div className="grid grid-cols-5 w-full h-16">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="flex flex-col items-center justify-center gap-1"
+              >
+                <div className="h-5 w-5 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-12 rounded bg-muted animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="lg:hidden h-16" />
       </>
-    )
+    );
   }
 
   return (
     <>
       <DesktopSidebar />
-      <MobileSidebar />
-      {/* Spacer for mobile header */}
+      <MobileBottomNav />
       <div className="lg:hidden h-16" />
     </>
-  )
-}
-
-function DesktopSidebarSkeleton() {
-  return (
-    <aside className="hidden lg:flex h-screen flex-col border-r bg-background w-64 fixed left-0 top-0 z-30">
-      <div className="flex h-16 items-center justify-between border-b px-4">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-muted animate-pulse" />
-          <div className="h-5 w-16 bg-muted animate-pulse rounded" />
-        </div>
-        <div className="h-8 w-8 rounded-md bg-muted animate-pulse" />
-      </div>
-      <nav className="flex-1 px-3 py-4">
-        <div className="space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-3 px-3 py-2">
-              <div className="h-4 w-4 rounded bg-muted animate-pulse" />
-              <div className="h-4 flex-1 rounded bg-muted animate-pulse" />
-            </div>
-          ))}
-        </div>
-      </nav>
-    </aside>
-  )
-}
-
-function MobileSidebarSkeleton() {
-  return (
-    <header className="lg:hidden fixed top-0 left-0 right-0 z-40 flex h-16 items-center justify-between border-b bg-background px-4">
-      <div className="flex items-center gap-3">
-        <div className="h-8 w-8 rounded-lg bg-muted animate-pulse" />
-        <div className="h-5 w-16 bg-muted animate-pulse rounded" />
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="h-8 w-8 rounded-md bg-muted animate-pulse" />
-        <div className="h-8 w-8 rounded-md bg-muted animate-pulse" />
-      </div>
-    </header>
-  )
+  );
 }

@@ -103,6 +103,13 @@ function formatTime(dateString: string) {
   });
 }
 
+function formatStatus(status: string) {
+  return status
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export function OrderDetailDialog({
   open,
   onOpenChange,
@@ -111,7 +118,7 @@ export function OrderDetailDialog({
 }: OrderDetailDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto !bg-background">
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="text-2xl flex items-center gap-2">
             <ShoppingBag className="h-6 w-6" />
@@ -125,7 +132,7 @@ export function OrderDetailDialog({
             <div className="space-y-6 py-2">
               {/* Order Info Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-muted/50 rounded-lg p-3">
+                <div className="!bg-background border rounded-lg p-3">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                     <User className="h-3 w-3" />
                     Customer
@@ -134,7 +141,7 @@ export function OrderDetailDialog({
                     {order.user.name || order.user.email}
                   </p>
                 </div>
-                <div className="bg-muted/50 rounded-lg p-3">
+                <div className="!bg-background border rounded-lg p-3">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                     <CreditCard className="h-3 w-3" />
                     Payment
@@ -146,7 +153,7 @@ export function OrderDetailDialog({
                     ₱{order.payable.toFixed(2)}
                   </p>
                 </div>
-                <div className="bg-muted/50 rounded-lg p-3">
+                <div className="!bg-background border rounded-lg p-3">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                     <Calendar className="h-3 w-3" />
                     Date
@@ -158,14 +165,14 @@ export function OrderDetailDialog({
                     {formatTime(order.createdAt)}
                   </p>
                 </div>
-                <div className="bg-muted/50 rounded-lg p-3">
+                <div className="!bg-background border rounded-lg p-3">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                     <Badge
                       className={
                         statusColors[order.status] + " text-xs px-2 py-0"
                       }
                     >
-                      {order.status.replace("_", " ")}
+                      {formatStatus(order.status)}
                     </Badge>
                   </div>
                   <p className="font-medium text-sm">Status</p>
@@ -174,7 +181,7 @@ export function OrderDetailDialog({
 
               {/* Rider Info - Show if assigned */}
               {order.rider && (
-                <div className="bg-muted/30 rounded-lg p-3 flex items-center gap-2">
+                <div className="!bg-background border rounded-lg p-3 flex items-center gap-2">
                   <UserCog className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">
                     Assigned Rider:{" "}
@@ -187,7 +194,7 @@ export function OrderDetailDialog({
 
               {/* Address */}
               {order.address && (
-                <div className="bg-muted/30 rounded-lg p-3">
+                <div className="!bg-background border rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">
                     Delivery Address
                   </p>
@@ -216,11 +223,17 @@ export function OrderDetailDialog({
                     </TableHeader>
                     <TableBody>
                       {order.items && order.items.length > 0 ? (
-                        order.items.map((item) => {
+                        order.items.map((item, index) => {
                           const imageUrl = item.product?.images?.[0] || null;
+                          const isLastItem = index === order.items!.length - 1;
 
                           return (
-                            <TableRow key={item.id}>
+                            <TableRow
+                              key={item.id}
+                              className={
+                                isLastItem ? "border-b-2 border-border" : ""
+                              }
+                            >
                               <TableCell>
                                 <div className="flex items-center gap-3">
                                   {imageUrl ? (
@@ -303,7 +316,7 @@ export function OrderDetailDialog({
               </div>
 
               {/* Total Section with border-top */}
-              <div className="flex justify-end">
+              <div className="border-t-2 border-border pt-4 flex justify-end">
                 <div className="w-full md:w-1/3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-muted-foreground">
@@ -327,23 +340,57 @@ function OrderDetailSkeleton() {
   return (
     <div className="space-y-6 py-2">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="bg-muted/50 rounded-lg p-3 space-y-2">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-5 w-24" />
+        <div className="!bg-background border rounded-lg p-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+            <User className="h-3 w-3" />
+            Customer
           </div>
-        ))}
+          <Skeleton className="h-5 w-24" />
+        </div>
+        <div className="!bg-background border rounded-lg p-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+            <CreditCard className="h-3 w-3" />
+            Payment
+          </div>
+          <Skeleton className="h-5 w-20" />
+          <Skeleton className="h-3 w-16 mt-1" />
+        </div>
+        <div className="!bg-background border rounded-lg p-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+            <Calendar className="h-3 w-3" />
+            Date
+          </div>
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-3 w-20 mt-1" />
+        </div>
+        <div className="!bg-background border rounded-lg p-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+            <Badge className="text-xs px-2 py-0 bg-gray-100 text-gray-800">
+              Status
+            </Badge>
+          </div>
+          <Skeleton className="h-5 w-24" />
+        </div>
       </div>
 
-      <div className="bg-muted/30 rounded-lg p-3 space-y-2">
-        <Skeleton className="h-4 w-32" />
+      <div className="!bg-background border rounded-lg p-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+          <UserCog className="h-3 w-3" />
+          Assigned Rider
+        </div>
+        <Skeleton className="h-5 w-32" />
+      </div>
+
+      <div className="!bg-background border rounded-lg p-3">
+        <p className="text-xs text-muted-foreground mb-1">Delivery Address</p>
         <Skeleton className="h-5 w-full max-w-md" />
       </div>
 
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <Skeleton className="h-5 w-5" />
-          <Skeleton className="h-5 w-32" />
+          <Package className="h-4 w-4 text-muted-foreground" />
+          <span className="font-semibold">Order Items</span>
+          <Skeleton className="h-4 w-8 inline-block" />
         </div>
         <div className="border rounded-lg overflow-hidden">
           <Table>
