@@ -1,15 +1,15 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import Image from 'next/image'
-import { useRole } from '@/hooks/use-role'
-import { supabase } from '@/lib/supabase'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Skeleton } from '@/components/ui/skeleton'
-import { toast } from 'sonner'
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useRole } from "@/hooks/use-role";
+import { supabase } from "@/lib/supabase";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import {
   User,
   Mail,
@@ -21,129 +21,167 @@ import {
   Edit2,
   X,
   Check,
-} from 'lucide-react'
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog'
+} from "@/components/ui/dialog";
 
 interface UserProfile {
-  id: string
-  email: string
-  name: string | null
-  role: string
-  avatar: string | null
-  createdAt: string
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  avatar: string | null;
+  createdAt: string;
 }
 
 export default function ProfilePage() {
-  const { role } = useRole()
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [name, setName] = useState('')
-  const [isEditing, setIsEditing] = useState(false)
+  const { role } = useRole();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [name, setName] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    fetchProfile()
-  }, [])
+    fetchProfile();
+  }, []);
 
   const fetchProfile = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
-        const res = await fetch(`/api/admin/users?email=${user.email}`)
-        const data = await res.json()
-        
-        const userData = Array.isArray(data) 
+        const res = await fetch(`/api/admin/users?email=${user.email}`);
+        const data = await res.json();
+
+        const userData = Array.isArray(data)
           ? data.find((u: any) => u.email === user.email)
-          : data.users?.find((u: any) => u.email === user.email)
-        
+          : data.users?.find((u: any) => u.email === user.email);
+
         if (userData) {
           setProfile({
             id: userData.id,
             email: userData.email,
-            name: userData.name || user.user_metadata?.name || '',
+            name: userData.name || user.user_metadata?.name || "",
             role: userData.role,
             avatar: user.user_metadata?.avatar_url || null,
             createdAt: userData.createdAt,
-          })
-          setName(userData.name || user.user_metadata?.name || '')
+          });
+          setName(userData.name || user.user_metadata?.name || "");
         }
       }
     } catch (error) {
-      console.error('Error fetching profile:', error)
-      toast.error('Failed to load profile')
+      console.error("Error fetching profile:", error);
+      toast.error("Failed to load profile");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleUpdateProfile = async () => {
-    if (!profile) return
+    if (!profile) return;
     if (!name.trim()) {
-      toast.error('Name is required')
-      return
+      toast.error("Name is required");
+      return;
     }
 
-    setSaving(true)
+    setSaving(true);
     try {
       const { error: authError } = await supabase.auth.updateUser({
         data: { name },
-      })
-      if (authError) throw authError
+      });
+      if (authError) throw authError;
 
       const res = await fetch(`/api/admin/users/${profile.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email: profile.email, role: profile.role }),
-      })
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email: profile.email,
+          role: profile.role,
+        }),
+      });
       if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Failed to update profile')
+        const error = await res.json();
+        throw new Error(error.error || "Failed to update profile");
       }
 
-      setProfile({ ...profile, name })
-      toast.success('Profile updated successfully')
-      setIsEditing(false)
+      setProfile({ ...profile, name });
+      toast.success("Profile updated successfully");
+      setIsEditing(false);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to update profile')
+      toast.error(error.message || "Failed to update profile");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Call logout API first
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+
+      // Always sign out from Supabase client
+      await supabase.auth.signOut();
+
+      // Clear any client-side auth data
+      localStorage.removeItem("supabase-auth-token");
+      sessionStorage.clear();
+
+      // Force hard navigation
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Logout error:", error);
+      await supabase.auth.signOut();
+      window.location.href = "/login";
+    }
+  };
 
   const getInitials = (name: string) => {
-    if (!name) return 'U'
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-  }
+    if (!name) return "U";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'ADMIN': return 'bg-destructive text-destructive-foreground'
-      case 'STAFF': return 'bg-blue-500 text-white'
-      case 'RIDER': return 'bg-orange-500 text-white'
-      default: return 'bg-muted text-muted-foreground'
+      case "ADMIN":
+        return "bg-destructive text-destructive-foreground";
+      case "STAFF":
+        return "bg-blue-500 text-white";
+      case "RIDER":
+        return "bg-orange-500 text-white";
+      default:
+        return "bg-muted text-muted-foreground";
     }
-  }
+  };
 
   if (loading) {
-    return <ProfileSkeleton />
+    return <ProfileSkeleton />;
   }
 
   if (!profile) {
-    return <div className="text-center py-12">Failed to load profile</div>
+    return <div className="text-center py-12">Failed to load profile</div>;
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Profile</h1>
-        <p className="text-muted-foreground">View and manage your account information</p>
+        <p className="text-muted-foreground">
+          View and manage your account information
+        </p>
       </div>
 
       {/* Profile Card with py-4 px-2 */}
@@ -155,7 +193,7 @@ export default function ProfilePage() {
               {profile.avatar ? (
                 <Image
                   src={profile.avatar}
-                  alt={profile.name || 'Avatar'}
+                  alt={profile.name || "Avatar"}
                   width={100}
                   height={100}
                   className="rounded-full border-4 border-primary/20"
@@ -170,8 +208,12 @@ export default function ProfilePage() {
             {/* Info */}
             <div className="flex-1 text-center md:text-left">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-2xl font-bold">{profile.name || profile.email}</h2>
-                <div className={`px-2 py-0.5 rounded-full text-white text-xs font-medium ${getRoleBadgeColor(profile.role)}`}>
+                <h2 className="text-2xl font-bold">
+                  {profile.name || profile.email}
+                </h2>
+                <div
+                  className={`px-2 py-0.5 rounded-full text-white text-xs font-medium ${getRoleBadgeColor(profile.role)}`}
+                >
                   {profile.role}
                 </div>
               </div>
@@ -224,15 +266,17 @@ export default function ProfilePage() {
                     disabled
                     className="bg-muted cursor-not-allowed"
                   />
-                  <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+                  <p className="text-xs text-muted-foreground">
+                    Email cannot be changed
+                  </p>
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-4">
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setIsEditing(false)
-                    setName(profile.name || '')
+                    setIsEditing(false);
+                    setName(profile.name || "");
                   }}
                 >
                   Cancel
@@ -255,12 +299,16 @@ export default function ProfilePage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="py-4 px-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Account Details</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Account Details
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-0 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">User ID</span>
-              <span className="font-mono text-xs">{profile.id.slice(0, 8)}...</span>
+              <span className="font-mono text-xs">
+                {profile.id.slice(0, 8)}...
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Role</span>
@@ -281,10 +329,7 @@ export default function ProfilePage() {
             <Button
               variant="outline"
               className="w-full justify-start gap-2 text-destructive hover:text-destructive"
-              onClick={async () => {
-                await supabase.auth.signOut()
-                window.location.href = '/login'
-              }}
+              onClick={handleLogout}
             >
               <LogOut className="h-4 w-4" /> Sign Out
             </Button>
@@ -292,12 +337,12 @@ export default function ProfilePage() {
               variant="outline"
               className="w-full justify-start gap-2"
               onClick={() => {
-                if (profile.role === 'ADMIN') {
-                  window.location.href = '/admin'
-                } else if (profile.role === 'RIDER') {
-                  window.location.href = '/admin/delivery'
+                if (profile.role === "ADMIN") {
+                  window.location.href = "/admin";
+                } else if (profile.role === "RIDER") {
+                  window.location.href = "/admin/delivery";
                 } else {
-                  window.location.href = '/admin/orders'
+                  window.location.href = "/admin/orders";
                 }
               }}
             >
@@ -307,7 +352,7 @@ export default function ProfilePage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
 
 function ProfileSkeleton() {
@@ -346,5 +391,5 @@ function ProfileSkeleton() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
