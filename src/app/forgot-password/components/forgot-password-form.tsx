@@ -48,7 +48,6 @@ export function ForgotPasswordForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        // ✅ User-friendly error messages
         if (response.status === 404) {
           setError(
             "No account found with this email address. Please check and try again.",
@@ -67,7 +66,6 @@ export function ForgotPasswordForm() {
       }
 
       setSuccess(true);
-      // Small delay before redirect to show success state
       setTimeout(() => {
         router.push(
           `/verify-otp?email=${encodeURIComponent(email)}&mode=reset`,
@@ -104,14 +102,12 @@ export function ForgotPasswordForm() {
       </div>
 
       {success ? (
-        <div className="rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-4 text-center">
-          <div className="flex justify-center mb-2">
-            <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
-          </div>
-          <p className="text-green-700 dark:text-green-300 font-medium">
+        <div className="text-center space-y-2">
+          <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto" />
+          <p className="text-green-600 font-medium">
             Reset code sent to your email!
           </p>
-          <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+          <p className="text-sm text-muted-foreground">
             Please check your inbox and enter the code on the next page.
           </p>
         </div>
@@ -140,11 +136,7 @@ export function ForgotPasswordForm() {
             )}
           </div>
 
-          {error && (
-            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
-              <p className="text-sm text-destructive">{error}</p>
-            </div>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -60,7 +60,6 @@ export function LoginForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        // ✅ User-friendly error messages for OTP-based auth
         if (response.status === 400) {
           if (
             data.error?.toLowerCase().includes("invalid credentials") ||
@@ -98,6 +97,7 @@ export function LoginForm() {
       }
 
       const role = data.role || "USER";
+
       if (role === "ADMIN" || role === "STAFF" || role === "RIDER") {
         window.location.href = "/admin";
       } else {
@@ -222,11 +222,7 @@ export function LoginForm() {
           </div>
         </div>
 
-        {error && (
-          <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
-            <p className="text-sm text-destructive">{error}</p>
-          </div>
-        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

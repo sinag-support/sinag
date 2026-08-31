@@ -58,10 +58,16 @@ export async function POST(request: Request) {
       );
     }
 
+    // ✅ Get avatar from user metadata
+    const avatarUrl =
+      data.user.user_metadata?.avatar_url ||
+      data.user.user_metadata?.picture ||
+      null;
+
     // ✅ Get or sync user in DB
     let dbUser = await prisma.user.findUnique({
       where: { email: data.user.email! },
-      select: { role: true, id: true, name: true },
+      select: { role: true, id: true, name: true, avatar: true },
     });
 
     if (!dbUser) {
@@ -76,14 +82,23 @@ export async function POST(request: Request) {
           email: data.user.email!,
           name: data.user.user_metadata?.name || data.user.email?.split("@")[0],
           role,
+          avatar: avatarUrl, // ✅ Save avatar
         },
-        select: { role: true, id: true, name: true },
+        select: { role: true, id: true, name: true, avatar: true },
       });
 
       console.log("✅ Created new user in Prisma from login:", data.user.email);
+    } else {
+      // ✅ Update avatar if changed
+      if (dbUser.avatar !== avatarUrl && avatarUrl) {
+        await prisma.user.update({
+          where: { email: data.user.email! },
+          data: { avatar: avatarUrl },
+        });
+        console.log("✅ Updated avatar for user:", data.user.email);
+      }
     }
 
-    // ✅ Return session info
     return NextResponse.json({
       success: true,
       role: dbUser.role,

@@ -17,7 +17,7 @@ export function VerifyOTPForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const email = searchParams.get("email") || "";
-  const mode = searchParams.get("mode") || "signup"; // 'signup' or 'reset'
+  const mode = searchParams.get("mode") || "signup";
 
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -93,7 +93,6 @@ export function VerifyOTPForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        // ✅ User-friendly error messages
         if (response.status === 400) {
           if (data.error?.toLowerCase().includes("expired")) {
             setError(
@@ -159,12 +158,6 @@ export function VerifyOTPForm() {
 
       setTimeLeft(600);
       setError("New verification code sent to your email!");
-      // Green success message for resend
-      setTimeout(() => {
-        if (error?.includes("sent")) {
-          // Keep the success message
-        }
-      }, 100);
     } catch (error) {
       setError("Failed to resend verification code");
       console.error(error);
@@ -291,15 +284,11 @@ export function VerifyOTPForm() {
         )}
 
         {error && (
-          <div
-            className={`rounded-lg ${error.includes("sent") ? "bg-green-50 border border-green-200" : "bg-destructive/10 border border-destructive/20"} p-3`}
+          <p
+            className={`text-sm ${error.includes("sent") ? "text-green-600" : "text-destructive"}`}
           >
-            <p
-              className={`text-sm ${error.includes("sent") ? "text-green-700" : "text-destructive"}`}
-            >
-              {error}
-            </p>
-          </div>
+            {error}
+          </p>
         )}
 
         <Button type="submit" className="w-full" disabled={isLoading}>

@@ -3,30 +3,80 @@ import prisma from "@/lib/prisma";
 import { getCurrentUserRole } from "@/lib/role";
 import { createClient } from "@supabase/supabase-js";
 
-// ✅ Lazy initialize the admin client - only when needed
-function getSupabaseAdmin() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error("Supabase environment variables are not configured");
-  }
-
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
-
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const role = await getCurrentUserRole();
-    if (role !== "ADMIN")
+    if (role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const { id } = await params;
     const body = await request.json();
     const { name, email, role: newRole, password } = body;
+
+    // Get the current user to check old email
+    const currentUser = await prisma.user.findUnique({
+      where: { id },
+      select: { email: true },
+    });
+
+    if (!currentUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // If email is being changed, update in Supabase Auth first
+    if (email && email !== currentUser.email) {
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+        if (supabaseUrl && supabaseServiceKey) {
+          const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+          const { data: authUsers, error: listError } =
+            await supabaseAdmin.auth.admin.listUsers();
+
+          if (!listError) {
+            const authUser = authUsers.users.find(
+              (u: any) =>
+                u.email?.toLowerCase() === currentUser.email.toLowerCase(),
+            );
+
+            if (authUser) {
+              const { error: updateError } =
+                await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
+                  email,
+                });
+
+              if (updateError) {
+                console.error("Error updating auth email:", updateError);
+                return NextResponse.json(
+                  {
+                    error:
+                      "Failed to update email in authentication system: " +
+                      updateError.message,
+                  },
+                  { status: 500 },
+                );
+              }
+
+              console.log(
+                "✅ Email updated in Supabase Auth:",
+                currentUser.email,
+                "→",
+                email,
+              );
+            }
+          }
+        }
+      } catch (authError) {
+        console.error("Auth operation error:", authError);
+        // Continue with Prisma update
+      }
+    }
 
     // Update user in Prisma
     const user = await prisma.user.update({
@@ -38,74 +88,38 @@ export async function PUT(
       },
     });
 
-    // If password is provided, update user in Supabase Auth
+    // If password is provided, update in Supabase Auth
     if (password) {
       try {
-        // ✅ Initialize admin client only when needed
-        const supabaseAdmin = getSupabaseAdmin();
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-        // Look up user in Auth by email (case-insensitive)
-        const { data: authUsers, error: findError } =
-          await supabaseAdmin.auth.admin.listUsers();
-        if (findError) {
-          return NextResponse.json(
-            { error: "Failed to list auth users" },
-            { status: 500 },
-          );
-        }
+        if (supabaseUrl && supabaseServiceKey) {
+          const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-        const authUser = authUsers.users.find(
-          (u: any) => u.email?.toLowerCase() === email.toLowerCase(),
-        );
+          const { data: authUsers, error: listError } =
+            await supabaseAdmin.auth.admin.listUsers();
 
-        if (!authUser) {
-          // Create user in Auth if not exists
-          const { data: newUser, error: createError } =
-            await supabaseAdmin.auth.admin.createUser({
-              email,
-              password,
-              email_confirm: true,
-              user_metadata: { name, role: newRole },
-            });
-
-          if (createError) {
-            console.error("Error creating auth user:", createError);
-            return NextResponse.json(
-              {
-                error:
-                  "Failed to create user in authentication system: " +
-                  createError.message,
-              },
-              { status: 500 },
+          if (!listError) {
+            const authUser = authUsers.users.find(
+              (u: any) => u.email?.toLowerCase() === email.toLowerCase(),
             );
-          }
-          console.log("✅ Created new auth user for:", email);
-        } else {
-          // Update password for existing auth user
-          const { error: updateError } =
-            await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
-              password,
-            });
 
-          if (updateError) {
-            console.error("Error updating password:", updateError);
-            return NextResponse.json(
-              { error: "Failed to update password: " + updateError.message },
-              { status: 500 },
-            );
+            if (authUser) {
+              const { error: updateError } =
+                await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
+                  password,
+                });
+              if (updateError) {
+                console.error("Error updating password:", updateError);
+              } else {
+                console.log("✅ Password updated for user:", email);
+              }
+            }
           }
-          console.log("✅ Password updated for user:", email);
         }
       } catch (authError) {
-        console.error("Auth operation error:", authError);
-        // ✅ Return a more specific error
-        return NextResponse.json(
-          {
-            error:
-              "Failed to update authentication system. Please check your configuration.",
-          },
-          { status: 500 },
-        );
+        console.error("Auth password update error:", authError);
       }
     }
 
@@ -125,8 +139,9 @@ export async function DELETE(
 ) {
   try {
     const role = await getCurrentUserRole();
-    if (role !== "ADMIN")
+    if (role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const { id } = await params;
 
@@ -139,40 +154,53 @@ export async function DELETE(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // ✅ Delete from Supabase Auth (only if password was set)
+    // ✅ Try to delete from Supabase Auth (if exists) - but DON'T fail if it doesn't
     try {
-      const supabaseAdmin = getSupabaseAdmin();
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-      // Find the user in Supabase Auth by email
-      const { data: authUsers, error: listError } =
-        await supabaseAdmin.auth.admin.listUsers();
+      if (supabaseUrl && supabaseServiceKey) {
+        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-      if (!listError) {
-        const authUser = authUsers.users.find(
-          (u: any) => u.email?.toLowerCase() === user.email.toLowerCase(),
-        );
+        const { data: authUsers, error: listError } =
+          await supabaseAdmin.auth.admin.listUsers();
 
-        if (authUser) {
-          const { error: deleteError } =
-            await supabaseAdmin.auth.admin.deleteUser(authUser.id);
-          if (deleteError) {
-            console.error("Error deleting auth user:", deleteError);
-            // Continue with Prisma deletion even if auth deletion fails
+        if (!listError) {
+          const authUser = authUsers.users.find(
+            (u: any) => u.email?.toLowerCase() === user.email.toLowerCase(),
+          );
+
+          if (authUser) {
+            const { error: deleteError } =
+              await supabaseAdmin.auth.admin.deleteUser(authUser.id);
+            if (deleteError) {
+              console.error("Error deleting auth user:", deleteError);
+            } else {
+              console.log("✅ Deleted user from Supabase Auth:", user.email);
+            }
           } else {
-            console.log("✅ Deleted user from Supabase Auth:", user.email);
+            console.log(
+              "⚠️ User not found in Supabase Auth (already deleted):",
+              user.email,
+            );
           }
         } else {
-          console.log("⚠️ User not found in Supabase Auth:", user.email);
+          console.error("Error listing auth users:", listError);
         }
       } else {
-        console.error("Error listing auth users:", listError);
+        console.log(
+          "⚠️ Supabase admin credentials not available, skipping Auth deletion",
+        );
       }
     } catch (authError) {
-      console.error("Auth operation error:", authError);
-      // Continue with Prisma deletion even if auth deletion fails
+      console.error(
+        "Auth operation error (continuing with Prisma deletion):",
+        authError,
+      );
+      // ✅ Continue with Prisma deletion
     }
 
-    // Delete from Prisma
+    // ✅ ALWAYS delete from Prisma - this is the main goal
     await prisma.user.delete({ where: { id } });
     console.log("✅ Deleted user from Prisma:", user.email);
 

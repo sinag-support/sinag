@@ -2,7 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { createClient } from "@supabase/supabase-js"; // ✅ Add this import
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -28,7 +27,6 @@ export async function GET(request: Request) {
       },
     );
 
-    // ✅ Exchange code for session
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
@@ -38,49 +36,67 @@ export async function GET(request: Request) {
       );
     }
 
-    // ✅ Get user info from the session data
     const user = data?.user;
 
     if (user) {
       try {
-        // ✅ Check if user exists in database
+        // ✅ Get avatar from user metadata
+        const avatarUrl =
+          user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+
+        // Check if user exists in database
         const existingUser = await prisma.user.findUnique({
           where: { email: user.email! },
         });
 
+        let newUser;
         if (!existingUser) {
-          // ✅ Get role from user metadata or default to USER
           let role = user.user_metadata?.role || "USER";
 
-          // ✅ Create user in database
-          await prisma.user.create({
+          // Create user in database
+          newUser = await prisma.user.create({
             data: {
               email: user.email!,
               name: user.user_metadata?.name || user.email?.split("@")[0],
               role: role,
+              avatar: avatarUrl, // ✅ Save avatar
             },
           });
+
+          // Create welcome notification
+          await prisma.notification.create({
+            data: {
+              userId: newUser.id,
+              title: "Welcome to SINAG! 🎉",
+              description:
+                "Thank you for joining our community. Start exploring and shopping with us!",
+              type: "DEFAULT",
+              read: false,
+            },
+          });
+
           console.log(
-            "✅ Created user in database from OAuth callback:",
+            "✅ Created user and welcome notification from OAuth callback:",
             user.email,
           );
         } else {
-          // ✅ Update user metadata in Prisma if needed
-          const currentName = user.user_metadata?.name;
-          if (currentName && existingUser.name !== currentName) {
+          // ✅ Update avatar if changed
+          if (existingUser.avatar !== avatarUrl && avatarUrl) {
             await prisma.user.update({
               where: { email: user.email! },
-              data: { name: currentName },
+              data: {
+                avatar: avatarUrl,
+                name: user.user_metadata?.name || existingUser.name,
+              },
             });
+            console.log("✅ Updated user from OAuth:", user.email);
           }
         }
       } catch (dbError) {
         console.error("Database error in auth callback:", dbError);
-        // Still redirect - don't block the user
       }
     }
   }
 
-  // ✅ Redirect to home page after successful callback
   return NextResponse.redirect(new URL("/", requestUrl.origin));
 }

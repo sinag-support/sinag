@@ -131,9 +131,10 @@ model Order {
   addressId   String?
   address     Address?     @relation(fields: [addressId], references: [id])
   
-  // 👇 NEW: Rider assignment field
-  riderId     String?      // ID of the assigned rider
+  riderId     String?
   rider       User?        @relation("RiderOrders", fields: [riderId], references: [id])
+  riderLat    Float?
+  riderLng    Float?
 
   items       OrderItem[]
   payments    Payment[]

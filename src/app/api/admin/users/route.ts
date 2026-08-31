@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
       email: true,
       name: true,
       role: true,
+      avatar: true, // ✅ Include avatar
       createdAt: true,
     },
     orderBy: { createdAt: "desc" },
@@ -112,16 +113,35 @@ export async function POST(request: NextRequest) {
   }
 
   // Create in Prisma
-  await prisma.user.create({
+  const newUser = await prisma.user.create({
     data: {
       email,
       name,
       role: userRole as "STAFF" | "RIDER",
+      avatar: null, // No avatar for admin-created users
     },
   });
+
+  // ✅ Create welcome notification for the new user
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: newUser.id,
+        title: "Welcome to SINAG! 🎉",
+        description: `Your account has been created with the role of ${userRole}. Welcome to the team!`,
+        type: "DEFAULT",
+        read: false,
+      },
+    });
+    console.log("✅ Welcome notification created for:", email);
+  } catch (notifError) {
+    console.error("Error creating welcome notification:", notifError);
+    // Don't fail the request if notification fails
+  }
 
   return NextResponse.json({
     success: true,
     message: "User created successfully",
+    user: newUser,
   });
 }

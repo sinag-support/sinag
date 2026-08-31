@@ -40,6 +40,9 @@ interface DeliveryOrder {
   id: string;
   orderNumber: number;
   user: { name: string | null; email: string; phone?: string };
+  rider?: { id: string; name: string | null; email: string } | null;
+  riderLat?: number | null;
+  riderLng?: number | null;
   address: {
     address: string;
     city: string;
@@ -104,8 +107,15 @@ const TILE_LAYERS = {
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     options: {
-      maxZoom: 19,
+      maxZoom: 18,
       className: "leaflet-satellite-tiles",
+    },
+  },
+  satelliteLabels: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
+    options: {
+      maxZoom: 18,
+      className: "leaflet-satellite-labels",
     },
   },
 };
@@ -143,11 +153,11 @@ function useRiderLocationTracker(
 
         try {
           const { error } = await supabase
-            .from("delivery_orders")
+            .from("Order")
             .update({
-              rider_lat: latitude,
-              rider_lng: longitude,
-              updated_at: new Date().toISOString(),
+              riderLat: latitude,
+              riderLng: longitude,
+              updatedAt: new Date().toISOString(),
             })
             .eq("id", orderId);
 
@@ -258,24 +268,100 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const tileLayerRef = useRef<any>(null);
+  const labelsLayerRef = useRef<any>(null);
   const riderMarkerRef = useRef<any>(null);
   const customerMarkerRef = useRef<any>(null);
   const polylineRef = useRef<any>(null);
+  const initializationRef = useRef(false);
+  const leafletLoadedRef = useRef(false);
 
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
   const [mapTheme, setMapTheme] = useState<"street" | "dark" | "satellite">(
-    theme === "dark" ? "dark" : "street",
+    "street",
   );
-  const [mapReady, setMapReady] = useState(false);
   const [coordinates, setCoordinates] = useState<{
     lat: number;
     lng: number;
   } | null>(null);
   const [mapError, setMapError] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const [isLeafletReady, setIsLeafletReady] = useState(false);
+
+  // Set initial map theme based on device theme
+  useEffect(() => {
+    const currentTheme = resolvedTheme || theme || "light";
+    if (currentTheme === "dark") {
+      setMapTheme("dark");
+    } else {
+      setMapTheme("street");
+    }
+  }, [theme, resolvedTheme]);
+
+  // Add dark theme CSS filter
+  useEffect(() => {
+    if (!document.getElementById("leaflet-dark-filter")) {
+      const style = document.createElement("style");
+      style.id = "leaflet-dark-filter";
+      style.textContent = `
+        .leaflet-dark-tiles {
+          filter: invert(1) hue-rotate(180deg) brightness(0.78) contrast(0.9) saturate(0.65);
+        }
+        .leaflet-normal-tiles {
+          filter: none;
+        }
+        .leaflet-satellite-tiles {
+          filter: none;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
+  // Load Leaflet scripts
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (window.L) {
+      leafletLoadedRef.current = true;
+      setIsLeafletReady(true);
+      return;
+    }
+
+    if (!document.getElementById("leaflet-css")) {
+      const link = document.createElement("link");
+      link.id = "leaflet-css";
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+
+    if (!document.getElementById("leaflet-js")) {
+      const script = document.createElement("script");
+      script.id = "leaflet-js";
+      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      script.onload = () => {
+        leafletLoadedRef.current = true;
+        setIsLeafletReady(true);
+      };
+      script.onerror = () => {
+        setMapError(true);
+      };
+      document.body.appendChild(script);
+    }
+
+    if (!document.getElementById("lottie-player-js")) {
+      const lottieScript = document.createElement("script");
+      lottieScript.id = "lottie-player-js";
+      lottieScript.src =
+        "https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs";
+      lottieScript.type = "module";
+      document.body.appendChild(lottieScript);
+    }
+  }, []);
 
   // Function to create icons based on zoom level
   const createRiderIcon = (zoom: number) => {
+    if (!window.L) return null;
+
     const baseSize = 80;
     const minSize = 40;
     const maxSize = 120;
@@ -303,6 +389,8 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
   };
 
   const createCustomerIcon = (zoom: number) => {
+    if (!window.L) return null;
+
     const baseSize = 64;
     const minSize = 32;
     const maxSize = 96;
@@ -330,31 +418,22 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
   };
 
   const updateMarkerIcons = (zoom: number) => {
+    if (!window.L) return;
+
     if (riderMarkerRef.current) {
       const newIcon = createRiderIcon(zoom);
-      riderMarkerRef.current.setIcon(newIcon);
+      if (newIcon) riderMarkerRef.current.setIcon(newIcon);
     }
     if (customerMarkerRef.current) {
       const newIcon = createCustomerIcon(zoom);
-      customerMarkerRef.current.setIcon(newIcon);
+      if (newIcon) customerMarkerRef.current.setIcon(newIcon);
     }
   };
 
   useEffect(() => {
-    if (theme === "dark") {
-      setMapTheme("dark");
-    } else {
-      setMapTheme("street");
-    }
-  }, [theme]);
+    if (!order?.address) return;
 
-  useEffect(() => {
-    if (!order?.address) {
-      setMapReady(false);
-      return;
-    }
-
-    let mounted = true;
+    let isMounted = true;
 
     const fetchCoordinates = async () => {
       const coords = await getCoordinates(
@@ -362,7 +441,7 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
         order.address.city,
         order.address.province,
       );
-      if (mounted) {
+      if (isMounted) {
         setCoordinates(coords);
       }
     };
@@ -370,174 +449,10 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
     fetchCoordinates();
 
     return () => {
-      mounted = false;
+      isMounted = false;
     };
   }, [order]);
 
-  // Initialize map
-  useEffect(() => {
-    if (!coordinates || !mapRef.current) return;
-
-    // Clean up existing map instance
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
-    }
-
-    const timer = setTimeout(async () => {
-      try {
-        if (!mapRef.current) return;
-
-        const customerPos: [number, number] = [
-          coordinates.lat,
-          coordinates.lng,
-        ];
-        const storePos: [number, number] = [
-          STORE_LOCATION.lat,
-          STORE_LOCATION.lng,
-        ];
-
-        const map = window.L.map(mapRef.current, {
-          zoomControl: true,
-          dragging: true,
-          scrollWheelZoom: true,
-          attributionControl: false,
-        });
-
-        const activeConfig = TILE_LAYERS[mapTheme];
-        const tileLayer = window.L.tileLayer(
-          activeConfig.url,
-          activeConfig.options,
-        ).addTo(map);
-        tileLayerRef.current = tileLayer;
-
-        // Get initial zoom level
-        const initialZoom = map.getZoom();
-
-        // Create customer marker with initial zoom
-        const customerIcon = createCustomerIcon(initialZoom);
-        const customerMarker = window.L.marker(customerPos, {
-          icon: customerIcon,
-        }).addTo(map);
-        customerMarkerRef.current = customerMarker;
-
-        if (order?.address) {
-          customerMarker.bindPopup(`
-            <div style="font-size:13px;">
-              <strong>Delivery Destination</strong><br/>
-              ${order.address.address}<br/>
-              ${order.address.city}, ${order.address.province}
-            </div>
-          `);
-        }
-
-        // Get route from store to customer
-        const routePoints = await getRouteGeometry(STORE_LOCATION, coordinates);
-        polylineRef.current = window.L.polyline(routePoints, {
-          color: "#dc2626",
-          weight: 5,
-          opacity: 0.85,
-        }).addTo(map);
-
-        // Fit bounds to show both store and customer
-        const bounds = window.L.latLngBounds([storePos, customerPos]);
-        map.fitBounds(bounds, { padding: [50, 50] });
-
-        // Create rider marker with initial zoom after fitBounds
-        const currentZoom = map.getZoom();
-        const riderIcon = createRiderIcon(currentZoom);
-
-        const riderMarker = window.L.marker(
-          [STORE_LOCATION.lat, STORE_LOCATION.lng],
-          {
-            icon: riderIcon,
-            zIndexOffset: 1000,
-          },
-        ).addTo(map);
-
-        riderMarkerRef.current = riderMarker;
-        riderMarker.bindPopup(
-          `<b>Delivery Rider</b><br/>Status: ${order.status}`,
-        );
-
-        // Update customer icon to match new zoom
-        const updatedCustomerIcon = createCustomerIcon(currentZoom);
-        customerMarkerRef.current.setIcon(updatedCustomerIcon);
-
-        mapInstanceRef.current = map;
-        setMapReady(true);
-        setMapError(false);
-        map.invalidateSize();
-
-        // Listen for zoom events to update icons
-        map.on("zoomend", () => {
-          const zoom = map.getZoom();
-          updateMarkerIcons(zoom);
-        });
-      } catch (error) {
-        console.error("Map initialization error:", error);
-        setMapError(true);
-      }
-    }, 100);
-
-    return () => {
-      clearTimeout(timer);
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
-  }, [coordinates, order, mapTheme]);
-
-  useEffect(() => {
-    if (!order?.id) return;
-
-    const channel = supabase
-      .channel(`order-realtime-${order.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "delivery_orders",
-          filter: `id=eq.${order.id}`,
-        },
-        (payload) => {
-          const { rider_lat, rider_lng } = payload.new;
-          if (rider_lat && rider_lng && riderMarkerRef.current) {
-            animateMarkerTo(rider_lat, rider_lng, 1000);
-            updateRoute(rider_lat, rider_lng);
-          }
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [order?.id, coordinates]);
-
-  useEffect(() => {
-    if (!mapInstanceRef.current || !tileLayerRef.current) return;
-
-    const map = mapInstanceRef.current;
-    const activeConfig = TILE_LAYERS[mapTheme];
-
-    map.removeLayer(tileLayerRef.current);
-    const newTileLayer = window.L.tileLayer(
-      activeConfig.url,
-      activeConfig.options,
-    ).addTo(map);
-    tileLayerRef.current = newTileLayer;
-
-    if (polylineRef.current) {
-      polylineRef.current.setStyle({
-        color: "#dc2626",
-      });
-    }
-  }, [mapTheme]);
-
-  // Define animateMarkerTo and updateRoute inside component
   const animateMarkerTo = (
     targetLat: number,
     targetLng: number,
@@ -580,8 +495,235 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
     }
   };
 
+  // Clean up map function
+  const cleanupMap = () => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
+    if (tileLayerRef.current) {
+      tileLayerRef.current = null;
+    }
+    if (labelsLayerRef.current) {
+      labelsLayerRef.current = null;
+    }
+    if (riderMarkerRef.current) {
+      riderMarkerRef.current = null;
+    }
+    if (customerMarkerRef.current) {
+      customerMarkerRef.current = null;
+    }
+    if (polylineRef.current) {
+      polylineRef.current = null;
+    }
+    initializationRef.current = false;
+  };
+
+  // Initialize map - runs when coordinates are ready AND Leaflet is loaded
+  useEffect(() => {
+    if (!coordinates || !mapRef.current || !isLeafletReady) return;
+    if (!window.L) return;
+
+    cleanupMap();
+
+    const timer = setTimeout(async () => {
+      try {
+        if (!mapRef.current || !window.L) return;
+
+        const customerPos: [number, number] = [
+          coordinates.lat,
+          coordinates.lng,
+        ];
+        const storePos: [number, number] = [
+          STORE_LOCATION.lat,
+          STORE_LOCATION.lng,
+        ];
+
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
+        }
+
+        const map = window.L.map(mapRef.current, {
+          zoomControl: true,
+          dragging: true,
+          scrollWheelZoom: true,
+          attributionControl: false,
+        });
+
+        const activeConfig = TILE_LAYERS[mapTheme];
+        const tileLayer = window.L.tileLayer(
+          activeConfig.url,
+          activeConfig.options,
+        ).addTo(map);
+        tileLayerRef.current = tileLayer;
+
+        // Add labels overlay for satellite theme
+        if (mapTheme === "satellite") {
+          const labelsConfig = TILE_LAYERS.satelliteLabels;
+          const labelsLayer = window.L.tileLayer(labelsConfig.url, {
+            ...labelsConfig.options,
+            opacity: 0.6,
+          }).addTo(map);
+          labelsLayerRef.current = labelsLayer;
+        }
+
+        const initialZoom = map.getZoom();
+
+        const customerIcon = createCustomerIcon(initialZoom);
+        if (customerIcon) {
+          const customerMarker = window.L.marker(customerPos, {
+            icon: customerIcon,
+          }).addTo(map);
+          customerMarkerRef.current = customerMarker;
+
+          if (order?.address) {
+            customerMarker.bindPopup(`
+              <div style="font-size:13px;">
+                <strong>Delivery Destination</strong><br/>
+                ${order.address.address}<br/>
+                ${order.address.city}, ${order.address.province}
+              </div>
+            `);
+          }
+        }
+
+        const routePoints = await getRouteGeometry(STORE_LOCATION, coordinates);
+        polylineRef.current = window.L.polyline(routePoints, {
+          color: "#dc2626",
+          weight: 5,
+          opacity: 0.85,
+        }).addTo(map);
+
+        const bounds = window.L.latLngBounds([storePos, customerPos]);
+        map.fitBounds(bounds, { padding: [50, 50] });
+
+        setTimeout(() => {
+          const currentZoom = map.getZoom();
+          const riderIcon = createRiderIcon(currentZoom);
+
+          if (riderIcon) {
+            // Set initial rider position - use real location if available, otherwise start at store
+            const initialRiderLat = order?.riderLat || STORE_LOCATION.lat;
+            const initialRiderLng = order?.riderLng || STORE_LOCATION.lng;
+
+            const riderMarker = window.L.marker(
+              [initialRiderLat, initialRiderLng],
+              {
+                icon: riderIcon,
+                zIndexOffset: 1000,
+              },
+            ).addTo(map);
+
+            riderMarkerRef.current = riderMarker;
+            riderMarker.bindPopup(
+              `<b>Delivery Rider</b><br/>Status: ${order.status}`,
+            );
+          }
+
+          const updatedCustomerIcon = createCustomerIcon(currentZoom);
+          if (updatedCustomerIcon && customerMarkerRef.current) {
+            customerMarkerRef.current.setIcon(updatedCustomerIcon);
+          }
+
+          mapInstanceRef.current = map;
+          map.invalidateSize();
+        }, 100);
+
+        map.on("zoomend", () => {
+          const currentZoom = map.getZoom();
+          updateMarkerIcons(currentZoom);
+        });
+      } catch (error) {
+        console.error("Map initialization error:", error);
+        setMapError(true);
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      cleanupMap();
+    };
+  }, [coordinates, order, mapTheme, isLeafletReady]);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      cleanupMap();
+    };
+  }, []);
+
+  // Real-time subscription for rider location updates
+  useEffect(() => {
+    if (!order?.id) return;
+
+    const channel = supabase
+      .channel(`order-realtime-${order.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "Order",
+          filter: `id=eq.${order.id}`,
+        },
+        (payload) => {
+          const { riderLat, riderLng } = payload.new;
+          if (riderLat && riderLng && riderMarkerRef.current) {
+            animateMarkerTo(riderLat, riderLng, 1000);
+            updateRoute(riderLat, riderLng);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [order?.id, coordinates]);
+
+  // When theme changes, update layers
+  useEffect(() => {
+    if (!mapInstanceRef.current || !tileLayerRef.current || !window.L) return;
+
+    const map = mapInstanceRef.current;
+    const activeConfig = TILE_LAYERS[mapTheme];
+
+    // Update base layer
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+    }
+    const newTileLayer = window.L.tileLayer(
+      activeConfig.url,
+      activeConfig.options,
+    ).addTo(map);
+    tileLayerRef.current = newTileLayer;
+
+    // Update labels overlay
+    if (labelsLayerRef.current) {
+      map.removeLayer(labelsLayerRef.current);
+      labelsLayerRef.current = null;
+    }
+
+    if (mapTheme === "satellite") {
+      const labelsConfig = TILE_LAYERS.satelliteLabels;
+      const labelsLayer = window.L.tileLayer(labelsConfig.url, {
+        ...labelsConfig.options,
+        opacity: 0.6,
+      }).addTo(map);
+      labelsLayerRef.current = labelsLayer;
+    }
+
+    if (polylineRef.current) {
+      polylineRef.current.setStyle({
+        color: "#dc2626",
+      });
+    }
+  }, [mapTheme]);
+
   return (
-    <div className="w-full h-full min-h-[400px] md:min-h-[500px] rounded-lg overflow-hidden border border-border shadow-sm relative z-0">
+    <div className="w-full h-full min-h-[400px] md:min-h-[500px] rounded-lg overflow-hidden border border-border shadow-sm relative z-0 bg-background">
+      {/* Theme switcher */}
       <div className="absolute top-3 right-3 z-[1000] bg-background/90 backdrop-blur-md p-1 rounded-md border border-border shadow-sm flex gap-1">
         <Button
           size="sm"
@@ -627,7 +769,22 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
         </Button>
       </div>
 
-      <div ref={mapRef} className="w-full h-full z-0" />
+      {!isLeafletReady && !mapError ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : mapError ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted z-10 p-4 text-center">
+          <p className="text-sm text-muted-foreground font-medium">
+            Map unavailable
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {order.address?.address}, {order.address?.city}
+          </p>
+        </div>
+      ) : (
+        <div ref={mapRef} className="w-full h-full z-0" />
+      )}
     </div>
   );
 }
@@ -648,8 +805,12 @@ export function DeliveryOrderDetail({
 }: DeliveryOrderDetailProps) {
   const { role } = useRole();
 
+  // ✅ Both RIDER and ADMIN can see live location
+  // Only RIDER sends GPS updates (the tracker handles this internally)
   const isRiderTrackingActive =
-    role === "RIDER" && order?.status === "OUT_FOR_DELIVERY";
+    (role === "RIDER" || role === "ADMIN") &&
+    order?.status === "OUT_FOR_DELIVERY";
+
   useRiderLocationTracker(order?.id, isRiderTrackingActive);
 
   if (!order) return null;

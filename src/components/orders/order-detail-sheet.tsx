@@ -24,6 +24,13 @@ import {
 } from "lucide-react";
 import { useMediaQuery } from "react-responsive";
 import { useTheme } from "next-themes";
+import { createClient } from "@supabase/supabase-js";
+
+// Initialize Supabase Client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
 
 declare global {
   interface Window {
@@ -32,9 +39,9 @@ declare global {
 }
 
 const STORE_LOCATION = {
-  lat: 13.9419,
-  lng: 121.1644,
-  name: "iPrime Dispatch Hub",
+  lat: 14.5995,
+  lng: 120.9842,
+  name: "SINAG Store",
 };
 
 const TILE_LAYERS = {
@@ -54,6 +61,13 @@ const TILE_LAYERS = {
   },
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    options: {
+      maxZoom: 19,
+    },
+  },
+  // ✅ Add satelliteLabels
+  satelliteLabels: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
     options: {
       maxZoom: 19,
     },
@@ -100,15 +114,14 @@ async function getCoordinates(address: string, city: string, province: string) {
     }
 
     return {
-      lat: 13.9419,
-      lng: 121.1644,
+      lat: 14.5995,
+      lng: 120.9842,
     };
   } catch (error) {
     console.error("Geocoding error:", error);
-
     return {
-      lat: 13.9419,
-      lng: 121.1644,
+      lat: 14.5995,
+      lng: 120.9842,
     };
   }
 }
@@ -150,70 +163,94 @@ function OrderDetailContent({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const tileLayerRef = useRef<any>(null);
+  const labelsLayerRef = useRef<any>(null);
+  const riderMarkerRef = useRef<any>(null);
+  const customerMarkerRef = useRef<any>(null);
+  const polylineRef = useRef<any>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const leafletLoadedRef = useRef(false);
 
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
   const [mapTheme, setMapTheme] = useState<"street" | "dark" | "satellite">(
-    theme === "dark" ? "dark" : "street",
+    "street",
   );
-
-  const [mapReady, setMapReady] = useState(false);
   const [coordinates, setCoordinates] = useState<{
     lat: number;
     lng: number;
   } | null>(null);
-
   const [mapError, setMapError] = useState(false);
-  const [leafletLoaded, setLeafletLoaded] = useState(false);
+  const [isLeafletReady, setIsLeafletReady] = useState(false);
+  const [mapReady, setMapReady] = useState(false); // ✅ Added missing state
 
-  // Update map theme when app theme changes
+  // Set initial map theme based on device theme
   useEffect(() => {
-    if (theme === "dark") {
+    const currentTheme = resolvedTheme || theme || "light";
+    if (currentTheme === "dark") {
       setMapTheme("dark");
     } else {
       setMapTheme("street");
     }
-  }, [theme]);
+  }, [theme, resolvedTheme]);
 
+  // Load Leaflet scripts
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    if (window.L) {
+      leafletLoadedRef.current = true;
+      setIsLeafletReady(true);
+      return;
+    }
+
     if (!document.getElementById("leaflet-css")) {
       const link = document.createElement("link");
-
       link.id = "leaflet-css";
       link.rel = "stylesheet";
       link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-
       document.head.appendChild(link);
     }
 
-    if (!window.L && !document.getElementById("leaflet-js")) {
+    if (!document.getElementById("leaflet-js")) {
       const script = document.createElement("script");
-
       script.id = "leaflet-js";
       script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-
-      script.onload = () => setLeafletLoaded(true);
-
-      script.onerror = () => setMapError(true);
-
+      script.onload = () => {
+        leafletLoadedRef.current = true;
+        setIsLeafletReady(true);
+      };
+      script.onerror = () => {
+        setMapError(true);
+      };
       document.body.appendChild(script);
-    } else if (window.L) {
-      setLeafletLoaded(true);
     }
 
     if (!document.getElementById("lottie-player-js")) {
       const lottieScript = document.createElement("script");
-
       lottieScript.id = "lottie-player-js";
-
       lottieScript.src =
         "https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs";
-
       lottieScript.type = "module";
-
       document.body.appendChild(lottieScript);
+    }
+  }, []);
+
+  // Add dark theme CSS filter
+  useEffect(() => {
+    if (!document.getElementById("leaflet-dark-filter")) {
+      const style = document.createElement("style");
+      style.id = "leaflet-dark-filter";
+      style.textContent = `
+        .leaflet-dark-tiles {
+          filter: invert(1) hue-rotate(180deg) brightness(0.78) contrast(0.9) saturate(0.65);
+        }
+        .leaflet-normal-tiles {
+          filter: none;
+        }
+        .leaflet-satellite-tiles {
+          filter: none;
+        }
+      `;
+      document.head.appendChild(style);
     }
   }, []);
 
@@ -244,93 +281,98 @@ function OrderDetailContent({
     };
   }, [order]);
 
-  useEffect(() => {
-    if (!leafletLoaded || !coordinates || !mapRef.current) {
-      return;
-    }
-
+  // Clean up map function
+  const cleanupMap = () => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
-
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
     }
+    if (tileLayerRef.current) {
+      tileLayerRef.current = null;
+    }
+    if (labelsLayerRef.current) {
+      labelsLayerRef.current = null;
+    }
+    if (riderMarkerRef.current) {
+      riderMarkerRef.current = null;
+    }
+    if (customerMarkerRef.current) {
+      customerMarkerRef.current = null;
+    }
+    if (polylineRef.current) {
+      polylineRef.current = null;
+    }
+  };
+
+  // Initialize map - runs when coordinates are ready AND Leaflet is loaded
+  useEffect(() => {
+    if (!coordinates || !mapRef.current || !isLeafletReady) return;
+    if (!window.L) return;
+
+    cleanupMap();
 
     const timer = setTimeout(async () => {
       try {
-        if (!mapRef.current) return;
+        if (!mapRef.current || !window.L) return;
 
         const customerPos: [number, number] = [
           coordinates.lat,
           coordinates.lng,
         ];
-
         const storePos: [number, number] = [
           STORE_LOCATION.lat,
           STORE_LOCATION.lng,
         ];
 
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
+        }
+
         const map = window.L.map(mapRef.current, {
           zoomControl: true,
           dragging: true,
-          scrollWheelZoom: false,
+          scrollWheelZoom: true,
           attributionControl: false,
         });
 
         const activeConfig = TILE_LAYERS[mapTheme];
-
         const tileLayer = window.L.tileLayer(
           activeConfig.url,
           activeConfig.options,
         ).addTo(map);
-
         tileLayerRef.current = tileLayer;
 
-        const storeIcon = window.L.divIcon({
-          className: "custom-leaflet-animated-icon",
-          html: `
-              <div style="width:72px;height:72px;display:flex;align-items:center;justify-content:center;">
-                <dotlottie-player
-                  src="/animations/store.json"
-                  background="transparent"
-                  speed="1"
-                  style="width:72px;height:72px;"
-                  loop
-                  autoplay
-                ></dotlottie-player>
-              </div>
-            `,
-          iconSize: [72, 72],
-          iconAnchor: [36, 36],
-          popupAnchor: [0, -36],
-        });
+        // ✅ Add labels overlay for satellite theme
+        if (mapTheme === "satellite") {
+          const labelsConfig = TILE_LAYERS.satelliteLabels;
+          const labelsLayer = window.L.tileLayer(labelsConfig.url, {
+            ...labelsConfig.options,
+            opacity: 0.6,
+          }).addTo(map);
+          labelsLayerRef.current = labelsLayer;
+        }
 
-        const storeMarker = window.L.marker(storePos, {
-          icon: storeIcon,
-        }).addTo(map);
+        const initialZoom = map.getZoom();
 
-        storeMarker.bindPopup(
-          `<b>${STORE_LOCATION.name}</b><br/>Dispatch Point`,
-        );
-
-        storeMarker.setOpacity(0);
-
+        // Create customer marker
         const customerIcon = window.L.divIcon({
           className: "custom-leaflet-animated-icon",
           html: `
-              <div style="width:64px;height:64px;display:flex;align-items:center;justify-content:center;">
-                <dotlottie-player
-                  src="/animations/location.json"
-                  background="transparent"
-                  speed="1"
-                  style="width:64px;height:64px;"
-                  loop
-                  autoplay
-                ></dotlottie-player>
-              </div>
-            `,
+            <div style="width:64px;height:64px;display:flex;align-items:center;justify-content:center;">
+              <dotlottie-player
+                src="/animations/location.json"
+                background="transparent"
+                speed="1"
+                style="width:64px;height:64px;"
+                loop
+                autoplay
+              ></dotlottie-player>
+            </div>
+          `,
           iconSize: [64, 64],
           iconAnchor: [32, 64],
           popupAnchor: [0, -64],
@@ -339,6 +381,7 @@ function OrderDetailContent({
         const customerMarker = window.L.marker(customerPos, {
           icon: customerIcon,
         }).addTo(map);
+        customerMarkerRef.current = customerMarker;
 
         if (order?.address) {
           customerMarker.bindPopup(`
@@ -350,23 +393,24 @@ function OrderDetailContent({
           `);
         }
 
+        // Get route from store to customer
         const routePoints = await getRouteGeometry(STORE_LOCATION, coordinates);
-
-        window.L.polyline(routePoints, {
-          color: mapTheme === "dark" ? "#60a5fa" : "#3b82f6",
+        polylineRef.current = window.L.polyline(routePoints, {
+          color: "#dc2626",
           weight: 5,
           opacity: 0.85,
         }).addTo(map);
 
         const bounds = window.L.latLngBounds([storePos, customerPos]);
+        map.fitBounds(bounds, { padding: [50, 50] });
 
-        map.fitBounds(bounds, {
-          padding: [50, 50],
-        });
+        setTimeout(() => {
+          const currentZoom = map.getZoom();
 
-        const riderIcon = window.L.divIcon({
-          className: "custom-leaflet-animated-icon",
-          html: `
+          // Create rider marker
+          const riderIcon = window.L.divIcon({
+            className: "custom-leaflet-animated-icon",
+            html: `
               <div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;">
                 <dotlottie-player
                   src="/animations/truck.json"
@@ -378,124 +422,216 @@ function OrderDetailContent({
                 ></dotlottie-player>
               </div>
             `,
-          iconSize: [80, 80],
-          iconAnchor: [40, 40],
-          popupAnchor: [0, -40],
-        });
+            iconSize: [80, 80],
+            iconAnchor: [40, 40],
+            popupAnchor: [0, -40],
+          });
 
-        const activeRiderStatus = [
-          "ASSIGNED_RIDER",
-          "OUT_FOR_DELIVERY",
-        ].includes(order.status);
+          // Set initial rider position - use real location if available, otherwise start at store
+          const initialRiderLat = order?.riderLat || STORE_LOCATION.lat;
+          const initialRiderLng = order?.riderLng || STORE_LOCATION.lng;
 
-        const riderMarker = window.L.marker(routePoints[0], {
-          icon: riderIcon,
-          zIndexOffset: 1000,
-        }).addTo(map);
+          const riderMarker = window.L.marker(
+            [initialRiderLat, initialRiderLng],
+            {
+              icon: riderIcon,
+              zIndexOffset: 1000,
+            },
+          ).addTo(map);
 
-        riderMarker.bindPopup(
-          `<b>Delivery Rider</b><br/>Status: ${order.status}`,
-        );
+          riderMarkerRef.current = riderMarker;
+          riderMarker.bindPopup(
+            `<b>Delivery Rider</b><br/>Status: ${order.status}`,
+          );
 
-        if (activeRiderStatus && routePoints.length > 1) {
-          let stepIndex = 0;
-          let progress = 0;
-          const speed = 0.012;
-
-          const animateRider = () => {
-            if (stepIndex >= routePoints.length - 1) {
-              stepIndex = 0;
-              progress = 0;
-            }
-
-            const p1 = routePoints[stepIndex];
-
-            const p2 = routePoints[stepIndex + 1];
-
-            const currentLat = p1[0] + (p2[0] - p1[0]) * progress;
-
-            const currentLng = p1[1] + (p2[1] - p1[1]) * progress;
-
-            riderMarker.setLatLng([currentLat, currentLng]);
-
-            if (stepIndex > 0 || progress > 0.1) {
-              storeMarker.setOpacity(1);
-            } else {
-              storeMarker.setOpacity(0);
-            }
-
-            progress += speed;
-
-            if (progress >= 1) {
-              progress = 0;
-              stepIndex++;
-            }
-
-            animationFrameRef.current = requestAnimationFrame(animateRider);
-          };
-
-          animateRider();
-        } else {
-          storeMarker.setOpacity(1);
-        }
-
-        mapInstanceRef.current = map;
-
-        setMapReady(true);
-        setMapError(false);
-
-        setTimeout(() => {
+          mapInstanceRef.current = map;
+          setMapReady(true);
           map.invalidateSize();
-        }, 300);
+        }, 100);
+
+        map.on("zoomend", () => {
+          const currentZoom = map.getZoom();
+          // Update marker sizes on zoom
+          if (riderMarkerRef.current) {
+            const size = Math.min(Math.max((currentZoom / 15) * 80, 40), 120);
+            const riderIcon = window.L.divIcon({
+              className: "custom-leaflet-animated-icon",
+              html: `
+                <div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: all 0.2s ease;">
+                  <dotlottie-player
+                    src="/animations/truck.json"
+                    background="transparent"
+                    speed="1"
+                    style="width:${size}px;height:${size}px;"
+                    loop
+                    autoplay
+                  ></dotlottie-player>
+                </div>
+              `,
+              iconSize: [size, size],
+              iconAnchor: [size / 2, size / 2],
+              popupAnchor: [0, -(size / 2)],
+            });
+            riderMarkerRef.current.setIcon(riderIcon);
+          }
+          if (customerMarkerRef.current) {
+            const size = Math.min(Math.max((currentZoom / 15) * 64, 32), 96);
+            const customerIcon = window.L.divIcon({
+              className: "custom-leaflet-animated-icon",
+              html: `
+                <div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: all 0.2s ease;">
+                  <dotlottie-player
+                    src="/animations/location.json"
+                    background="transparent"
+                    speed="1"
+                    style="width:${size}px;height:${size}px;"
+                    loop
+                    autoplay
+                  ></dotlottie-player>
+                </div>
+              `,
+              iconSize: [size, size],
+              iconAnchor: [size / 2, size],
+              popupAnchor: [0, -size],
+            });
+            customerMarkerRef.current.setIcon(customerIcon);
+          }
+        });
       } catch (error) {
         console.error("Map initialization error:", error);
-
         setMapError(true);
       }
-    }, 250);
+    }, 100);
 
     return () => {
       clearTimeout(timer);
+      cleanupMap();
+    };
+  }, [coordinates, order, mapTheme, isLeafletReady]);
 
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
+  // ✅ Real-time subscription for rider location updates (Customer view)
+  useEffect(() => {
+    if (!order?.id) return;
 
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
+    // Only subscribe if order status is OUT_FOR_DELIVERY or ASSIGNED_RIDER
+    if (!["OUT_FOR_DELIVERY", "ASSIGNED_RIDER"].includes(order.status)) return;
+
+    const channel = supabase
+      .channel(`order-realtime-${order.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "Order",
+          filter: `id=eq.${order.id}`,
+        },
+        (payload) => {
+          const { riderLat, riderLng, status } = payload.new;
+
+          // Update rider marker if location exists
+          if (riderLat && riderLng && riderMarkerRef.current) {
+            animateMarkerTo(riderLat, riderLng, 1000);
+            updateRoute(riderLat, riderLng);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [order?.id, coordinates]);
+
+  // Animate rider marker
+  const animateMarkerTo = (
+    targetLat: number,
+    targetLng: number,
+    duration: number = 1000,
+  ) => {
+    if (!riderMarkerRef.current) return;
+
+    const startPos = riderMarkerRef.current.getLatLng();
+    const startTime = performance.now();
+
+    const step = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      const currentLat = startPos.lat + (targetLat - startPos.lat) * progress;
+      const currentLng = startPos.lng + (targetLng - startPos.lng) * progress;
+
+      riderMarkerRef.current.setLatLng([currentLat, currentLng]);
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
       }
     };
-  }, [leafletLoaded, coordinates, order, mapTheme]);
 
-  useEffect(() => {
-    if (!mapInstanceRef.current || !tileLayerRef.current) {
-      return;
+    requestAnimationFrame(step);
+  };
+
+  // Update route from rider's current position to destination
+  const updateRoute = async (
+    currentRiderLat: number,
+    currentRiderLng: number,
+  ) => {
+    if (!coordinates) return;
+    const newRoute = await getRouteGeometry(
+      { lat: currentRiderLat, lng: currentRiderLng },
+      coordinates,
+    );
+
+    if (polylineRef.current) {
+      polylineRef.current.setLatLngs(newRoute);
     }
+  };
+
+  // When theme changes, update layers
+  useEffect(() => {
+    if (!mapInstanceRef.current || !tileLayerRef.current || !window.L) return;
 
     const map = mapInstanceRef.current;
-
     const activeConfig = TILE_LAYERS[mapTheme];
 
-    map.removeLayer(tileLayerRef.current);
-
+    // Update base layer
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+    }
     const newTileLayer = window.L.tileLayer(
       activeConfig.url,
       activeConfig.options,
     ).addTo(map);
-
     tileLayerRef.current = newTileLayer;
 
-    // Update polyline color based on theme
-    // Find and update the polyline
-    map.eachLayer((layer: any) => {
-      if (layer instanceof window.L.Polyline) {
-        layer.setStyle({
-          color: mapTheme === "dark" ? "#60a5fa" : "#3b82f6",
-        });
-      }
-    });
+    // Update labels overlay
+    if (labelsLayerRef.current) {
+      map.removeLayer(labelsLayerRef.current);
+      labelsLayerRef.current = null;
+    }
+
+    if (mapTheme === "satellite") {
+      const labelsConfig = TILE_LAYERS.satelliteLabels;
+      const labelsLayer = window.L.tileLayer(labelsConfig.url, {
+        ...labelsConfig.options,
+        opacity: 0.6,
+      }).addTo(map);
+      labelsLayerRef.current = labelsLayer;
+    }
+
+    if (polylineRef.current) {
+      polylineRef.current.setStyle({
+        color: "#dc2626",
+      });
+    }
   }, [mapTheme]);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      cleanupMap();
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -522,7 +658,6 @@ function OrderDetailContent({
     ) || 0;
 
   const paymentMethod = order.payments?.[0]?.method || "N/A";
-
   const paymentStatus = order.payments?.[0]?.status || "PENDING";
 
   const statusLabels: Record<string, string> = {
@@ -565,7 +700,6 @@ function OrderDetailContent({
   };
 
   const StatusIcon = statusIcons[order.status] || Clock;
-
   const statusColor =
     statusColors[order.status] ||
     "bg-gray-500/10 text-gray-600 border-gray-200";
@@ -573,61 +707,54 @@ function OrderDetailContent({
   return (
     <div className="w-full flex flex-col lg:flex-row min-h-0 h-full">
       <div className="relative w-full lg:w-[50%] h-64 lg:h-full lg:min-h-[400px] bg-muted overflow-hidden shrink-0">
-        {mapReady && !mapError && (
-          <div className="absolute top-3 right-3 z-[1000] bg-background/80 backdrop-blur-md p-1 rounded-lg border shadow-md flex gap-1">
-            <Button
-              size="sm"
-              variant={mapTheme === "street" ? "default" : "ghost"}
-              onClick={() => setMapTheme("street")}
-              className="h-7 text-xs font-medium px-2 gap-1"
-            >
-              <Map className="w-3.5 h-3.5" />
-              Street
-            </Button>
+        {/* Theme switcher */}
+        <div className="absolute top-3 right-3 z-[1000] bg-background/90 backdrop-blur-md p-1 rounded-md border border-border shadow-sm flex gap-1">
+          <Button
+            size="sm"
+            variant={mapTheme === "street" ? "default" : "ghost"}
+            onClick={() => setMapTheme("street")}
+            className="h-7 text-xs font-medium px-2.5 gap-1"
+          >
+            <Map className="w-3.5 h-3.5" />
+            Street
+          </Button>
+          <Button
+            size="sm"
+            variant={mapTheme === "dark" ? "default" : "ghost"}
+            onClick={() => setMapTheme("dark")}
+            className="h-7 text-xs font-medium px-2.5 gap-1"
+          >
+            <Moon className="w-3.5 h-3.5" />
+            Dark
+          </Button>
+          <Button
+            size="sm"
+            variant={mapTheme === "satellite" ? "default" : "ghost"}
+            onClick={() => setMapTheme("satellite")}
+            className="h-7 text-xs font-medium px-2.5 gap-1"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            Satellite
+          </Button>
+        </div>
 
-            <Button
-              size="sm"
-              variant={mapTheme === "dark" ? "default" : "ghost"}
-              onClick={() => setMapTheme("dark")}
-              className="h-7 text-xs font-medium px-2 gap-1"
-            >
-              <Moon className="w-3.5 h-3.5" />
-              Dark
-            </Button>
-
-            <Button
-              size="sm"
-              variant={mapTheme === "satellite" ? "default" : "ghost"}
-              onClick={() => setMapTheme("satellite")}
-              className="h-7 text-xs font-medium px-2 gap-1"
-            >
-              <Globe className="w-3.5 h-3.5" />
-              Satellite
-            </Button>
-          </div>
-        )}
-
-        {!mapReady && !mapError && (
+        {!isLeafletReady && !mapError ? (
           <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        )}
-
-        {mapError && (
+        ) : mapError ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted z-10 p-4 text-center">
             <MapPin className="h-8 w-8 text-muted-foreground mb-1" />
-
             <p className="text-sm text-muted-foreground font-medium">
               Map unavailable
             </p>
-
             <p className="text-xs text-muted-foreground">
               {order.address?.address}, {order.address?.city}
             </p>
           </div>
+        ) : (
+          <div ref={mapRef} className="w-full h-full z-0" />
         )}
-
-        <div ref={mapRef} className="w-full h-full z-0" />
       </div>
 
       <div className="w-full lg:w-[50%] flex-1 min-h-0 p-4 sm:p-5 space-y-4 overflow-y-auto lg:max-h-[70vh] scrollbar-hide">
@@ -639,7 +766,6 @@ function OrderDetailContent({
           <div className="flex items-center justify-between mt-1">
             <span className="text-sm text-muted-foreground flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5" />
-
               {new Date(order.createdAt).toLocaleDateString("en-PH", {
                 year: "numeric",
                 month: "long",
@@ -651,7 +777,6 @@ function OrderDetailContent({
               className={`${statusColor} inline-flex items-center border px-2.5 py-0.5 text-xs font-medium shrink-0`}
             >
               <StatusIcon className="h-3.5 w-3.5 mr-1" />
-
               {statusLabels[order.status] || order.status}
             </Badge>
           </div>
@@ -683,7 +808,6 @@ function OrderDetailContent({
                   <p className="font-medium text-sm truncate">
                     {item.product?.title}
                   </p>
-
                   <p className="text-xs text-muted-foreground">
                     Qty: {item.quantity}
                   </p>
@@ -705,30 +829,25 @@ function OrderDetailContent({
           <div className="space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-
               <span>₱{subtotal.toFixed(2)}</span>
             </div>
 
             <div className="flex justify-between">
               <span className="text-muted-foreground">Shipping</span>
-
               <span>₱{(order.shipping || 0).toFixed(2)}</span>
             </div>
 
             {order.discount > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Discount</span>
-
                 <span className="text-green-600">
-                  -₱
-                  {order.discount.toFixed(2)}
+                  -₱{order.discount.toFixed(2)}
                 </span>
               </div>
             )}
 
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tax</span>
-
               <span>₱{(order.tax || 0).toFixed(2)}</span>
             </div>
 
@@ -736,7 +855,6 @@ function OrderDetailContent({
 
             <div className="flex justify-between font-bold">
               <span>Total</span>
-
               <span>₱{(order.payable || 0).toFixed(2)}</span>
             </div>
           </div>
@@ -779,7 +897,6 @@ function OrderDetailContent({
 
             <div className="space-y-0.5">
               <p className="text-xs text-muted-foreground">{paymentMethod}</p>
-
               <Badge variant="outline" className="text-[10px]">
                 {paymentStatus}
               </Badge>

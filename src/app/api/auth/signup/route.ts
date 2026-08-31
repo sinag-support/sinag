@@ -165,7 +165,6 @@ export async function POST(request: Request) {
           process.env.SUPABASE_SERVICE_ROLE_KEY!,
         );
 
-        // Find user by email more directly
         const {
           data: { users },
           error: userError,
@@ -178,7 +177,6 @@ export async function POST(request: Request) {
           );
         }
 
-        // Normalize email for case‑insensitive search
         const normalizedEmail = email.toLowerCase();
         const user = users.find(
           (u) => u.email?.toLowerCase() === normalizedEmail,
@@ -192,7 +190,6 @@ export async function POST(request: Request) {
           );
         }
 
-        // Update the password
         const { error: updateError } =
           await supabaseAdmin.auth.admin.updateUserById(user.id, {
             password: newPassword,
@@ -236,13 +233,29 @@ export async function POST(request: Request) {
           );
         }
 
-        await prisma.user.create({
+        // ✅ Create user in Prisma
+        const newUser = await prisma.user.create({
           data: {
             email,
             name: storedName,
             role: "USER",
+            avatar: null, // No avatar for manual signup
           },
         });
+
+        // ✅ Create welcome notification for the new user
+        await prisma.notification.create({
+          data: {
+            userId: newUser.id,
+            title: "Welcome to SINAG! 🎉",
+            description:
+              "Thank you for joining our community. Start exploring and shopping with us!",
+            type: "DEFAULT",
+            read: false,
+          },
+        });
+
+        console.log("✅ Welcome notification created for:", email);
 
         await supabase.auth.signInWithPassword({
           email,

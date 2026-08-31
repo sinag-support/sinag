@@ -429,8 +429,20 @@ export default function Header() {
                 <DropdownMenu>
                   <DropdownMenuTrigger className="relative h-9 w-9 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer border-0 p-0">
                     <Avatar className="h-9 w-9">
-                      <AvatarImage src={user.user_metadata?.avatar_url} />
-                      <AvatarFallback className="bg-transparent text-primary font-medium text-xs">
+                      <AvatarImage
+                        src={
+                          user.user_metadata?.avatar_url ||
+                          user.user_metadata?.picture ||
+                          undefined
+                        }
+                        alt={
+                          user.user_metadata?.full_name ||
+                          user.user_metadata?.name ||
+                          user.email ||
+                          "User"
+                        }
+                      />
+                      <AvatarFallback className="bg-primary/10 text-primary font-medium text-xs">
                         {getInitials(
                           user.user_metadata?.full_name ||
                             user.user_metadata?.name ||
@@ -640,6 +652,14 @@ export default function Header() {
             >
               {user ? (
                 <Avatar className="h-6 w-6 border-2 border-primary/20">
+                  <AvatarImage
+                    src={
+                      user.user_metadata?.avatar_url ||
+                      user.user_metadata?.picture ||
+                      undefined
+                    }
+                    alt={user.user_metadata?.name || user.email || ""}
+                  />
                   <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
                     {getInitials(user.user_metadata?.name || user.email || "")}
                   </AvatarFallback>

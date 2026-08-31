@@ -20,8 +20,17 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { isEmailValid, isPasswordValid } from "@/lib/validation";
-import { Loader2, Plus, Trash2, Search, Pencil, X } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  Search,
+  Pencil,
+  X,
+  User as UserIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -43,11 +52,21 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 
 type UserRole = "STAFF" | "RIDER" | "ADMIN";
 
+interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  role: UserRole;
+  avatar: string | null;
+  createdAt: string;
+}
+
 export function UserManagement() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -55,7 +74,7 @@ export function UserManagement() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
-  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
@@ -194,7 +213,7 @@ export function UserManagement() {
     }
 
     try {
-      const response = await fetch(`/api/admin/users/${editingUser.id}`, {
+      const response = await fetch(`/api/admin/users/${editingUser?.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -235,29 +254,42 @@ export function UserManagement() {
       const response = await fetch(`/api/admin/users/${deleteId}`, {
         method: "DELETE",
       });
+
+      // ✅ Try to get error message from response
+      let errorMessage = "Failed to delete user";
+      let data;
+
+      try {
+        data = await response.json();
+      } catch {
+        // If response is not JSON
+      }
+
       if (response.ok) {
+        toast.success("User deleted successfully");
         fetchUsers();
         setDeleteId(null);
-      } else {
-        console.error("Failed to delete user");
+        return;
       }
+
+      // ✅ Handle different status codes
+      if (response.status === 403) {
+        errorMessage = "You don't have permission to delete users";
+      } else if (response.status === 404) {
+        errorMessage = "User not found";
+      } else if (data?.error) {
+        errorMessage = data.error;
+      } else if (response.statusText) {
+        errorMessage = response.statusText;
+      }
+
+      toast.error(errorMessage);
+      console.error("Delete user error:", errorMessage);
     } catch (error) {
       console.error("Error deleting user:", error);
+      toast.error("An unexpected error occurred while deleting the user");
     }
   }
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case "ADMIN":
-        return "destructive";
-      case "STAFF":
-        return "default";
-      case "RIDER":
-        return "secondary";
-      default:
-        return "outline";
-    }
-  };
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
@@ -272,12 +304,25 @@ export function UserManagement() {
     }
   };
 
+  const getInitials = (name: string | null) => {
+    if (!name) return "U";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   // Skeleton rows for table
   const renderSkeletonRows = () => {
     return Array.from({ length: 5 }).map((_, i) => (
       <TableRow key={i}>
         <TableCell>
-          <Skeleton className="h-4 w-32" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-4 w-32" />
+          </div>
         </TableCell>
         <TableCell>
           <Skeleton className="h-4 w-48" />
@@ -372,7 +417,7 @@ export function UserManagement() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
+              <TableHead>User</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Created</TableHead>
@@ -396,8 +441,19 @@ export function UserManagement() {
             ) : (
               filteredUsers.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium">
-                    {user.name || "N/A"}
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage
+                          src={user.avatar || undefined}
+                          alt={user.name || user.email}
+                        />
+                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                          {getInitials(user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium">{user.name || "N/A"}</span>
+                    </div>
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
@@ -419,7 +475,11 @@ export function UserManagement() {
                           email: user.email,
                           password: "",
                           name: user.name || "",
-                          role: user.role,
+                          // ✅ Only allow STAFF or RIDER, default to STAFF if ADMIN
+                          role:
+                            user.role === "STAFF" || user.role === "RIDER"
+                              ? user.role
+                              : "STAFF",
                         });
                         setTouched({
                           email: false,

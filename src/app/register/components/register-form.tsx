@@ -97,7 +97,6 @@ export function RegisterForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        // ✅ User-friendly error messages
         if (response.status === 400) {
           if (data.error?.toLowerCase().includes("already exists")) {
             setError(
@@ -124,7 +123,6 @@ export function RegisterForm() {
         return;
       }
 
-      // Redirect to OTP verification
       router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`);
     } catch (error) {
       setError(
@@ -282,11 +280,7 @@ export function RegisterForm() {
           )}
         </div>
 
-        {error && (
-          <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
-            <p className="text-sm text-destructive">{error}</p>
-          </div>
-        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
