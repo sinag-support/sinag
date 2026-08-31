@@ -1,10 +1,20 @@
 import AdminSidebar from "@/components/nav/admin-sidebar";
+import { getCurrentUserRole } from "@/lib/role";
+import { redirect } from "next/navigation";
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // ✅ Check if user has admin access
+  const role = await getCurrentUserRole();
+
+  // ✅ If no role or user role, redirect to login
+  if (!role || role === "USER") {
+    redirect("/login");
+  }
+
   return (
     <div className="flex min-h-screen">
       <AdminSidebar />

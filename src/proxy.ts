@@ -42,6 +42,7 @@ export async function proxy(req: NextRequest) {
   const isAuthRoute = pathname === "/login" || pathname === "/register";
   const isHomeRoute = pathname === "/";
 
+  // ✅ If on home page and logged in as admin/staff/rider, redirect to /admin
   if (isHomeRoute && session) {
     try {
       const {
@@ -54,34 +55,42 @@ export async function proxy(req: NextRequest) {
         });
 
         if (dbUser && ["ADMIN", "STAFF", "RIDER"].includes(dbUser.role)) {
+          console.log("🔄 Redirecting admin from home to /admin");
           return NextResponse.redirect(new URL("/admin", req.url));
         }
       }
     } catch (error) {
       console.error("Error checking user role:", error);
+      // If error, allow access to home page
       return res;
     }
   }
 
+  // ✅ If admin route and no session, redirect to login
   if (isAdminRoute && !session) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
+  // ✅ If logged in and trying to access auth routes
   if (session && isAuthRoute) {
-    if (session.user) {
-      try {
+    // Check role for redirect target
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
         const dbUser = await prisma.user.findUnique({
-          where: { email: session.user.email! },
+          where: { email: user.email! },
           select: { role: true },
         });
         if (dbUser && ["ADMIN", "STAFF", "RIDER"].includes(dbUser.role)) {
           return NextResponse.redirect(new URL("/admin", req.url));
         }
-      } catch (error) {
-        console.error("Error checking user role:", error);
       }
+    } catch (error) {
+      console.error("Error checking user role:", error);
     }
     return NextResponse.redirect(new URL("/", req.url));
   }
@@ -89,6 +98,7 @@ export async function proxy(req: NextRequest) {
   return res;
 }
 
+// ✅ IMPORTANT: Add '/' to the matcher
 export const config = {
   matcher: ["/admin/:path*", "/login", "/register", "/"],
 };

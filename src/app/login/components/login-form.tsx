@@ -90,7 +90,6 @@ export function LoginForm() {
         return;
       }
 
-      // ✅ Set the client session
       if (data.access_token && data.refresh_token) {
         await supabase.auth.setSession({
           access_token: data.access_token,
@@ -99,8 +98,6 @@ export function LoginForm() {
       }
 
       const role = data.role || "USER";
-
-      // Redirect based on role
       if (role === "ADMIN" || role === "STAFF" || role === "RIDER") {
         window.location.href = "/admin";
       } else {

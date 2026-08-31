@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { createClient } from "@supabase/supabase-js"; // ✅ Add this import
+import { createClient } from "@supabase/supabase-js";
 
 const TEST_ROLES: Record<string, string> = {
   "admin@sinag.com": "ADMIN",
@@ -50,6 +50,7 @@ export async function POST(request: Request) {
       email,
       password,
     });
+
     if (error || !data.user) {
       return NextResponse.json(
         { error: error?.message || "Authentication failed" },
@@ -64,7 +65,6 @@ export async function POST(request: Request) {
     });
 
     if (!dbUser) {
-      // If user exists in Auth but not in Prisma, create them
       let role = data.user.user_metadata?.role;
       if (!role && data.user.email && TEST_ROLES[data.user.email]) {
         role = TEST_ROLES[data.user.email];
@@ -83,39 +83,14 @@ export async function POST(request: Request) {
       console.log("✅ Created new user in Prisma from login:", data.user.email);
     }
 
-    // ✅ Ensure auth user has correct metadata (sync)
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
-
-    const {
-      data: { users },
-    } = await supabaseAdmin.auth.admin.listUsers();
-    const authUser = users.find(
-      (u: any) => u.email?.toLowerCase() === email.toLowerCase(),
-    );
-
-    if (authUser) {
-      const currentName = authUser.user_metadata?.name;
-      const currentRole = authUser.user_metadata?.role;
-
-      if (currentName !== dbUser.name || currentRole !== dbUser.role) {
-        await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
-          user_metadata: {
-            name: dbUser.name,
-            role: dbUser.role,
-          },
-        });
-        console.log("✅ Synced auth metadata for:", email);
-      }
-    }
-
+    // ✅ Return session info
     return NextResponse.json({
       success: true,
       role: dbUser.role,
       email: data.user.email,
       user: data.user,
+      access_token: data.session?.access_token,
+      refresh_token: data.session?.refresh_token,
     });
   } catch (error) {
     console.error("Login API error:", error);

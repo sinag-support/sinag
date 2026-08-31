@@ -14,10 +14,18 @@ export async function getCurrentUserRole() {
             return cookieStore.get(name)?.value;
           },
           set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options });
+            try {
+              cookieStore.set({ name, value, ...options });
+            } catch (error) {
+              // Cookie setting might fail in some contexts
+            }
           },
           remove(name: string, options: any) {
-            cookieStore.set({ name, value: "", ...options });
+            try {
+              cookieStore.set({ name, value: "", ...options });
+            } catch (error) {
+              // Cookie removal might fail in some contexts
+            }
           },
         },
       },
@@ -25,8 +33,13 @@ export async function getCurrentUserRole() {
 
     const {
       data: { user },
+      error,
     } = await supabase.auth.getUser();
-    if (!user) return null;
+
+    if (error || !user) {
+      console.log("No user found in session:", error?.message);
+      return null;
+    }
 
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email! },
