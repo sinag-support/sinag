@@ -288,8 +288,17 @@ export default function AdminSidebar() {
     setProfilePopoverOpen(false);
 
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      // Call logout API first
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+
+      // Always sign out from Supabase client
       await supabase.auth.signOut();
+
+      // ✅ Clear any client-side auth data
+      localStorage.removeItem("supabase-auth-token");
+      sessionStorage.clear();
+
+      // Force hard navigation
       window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);

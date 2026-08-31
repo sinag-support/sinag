@@ -1,12 +1,12 @@
-'use client'
+"use client";
 
-import Image from 'next/image'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { ThemeToggle } from '@/components/theme-toggle'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,10 +14,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuGroup,
-} from '@/components/ui/dropdown-menu'
-import { NotificationsDropdown } from '@/components/notifications/notifications-dropdown'
-import { supabase } from '@/lib/supabase'
-import { useEffect, useState, useRef } from 'react'
+} from "@/components/ui/dropdown-menu";
+import { NotificationsDropdown } from "@/components/notifications/notifications-dropdown";
+import { supabase } from "@/lib/supabase";
+import { useEffect, useState, useRef } from "react";
 import {
   LogOut,
   ShoppingCart,
@@ -31,199 +31,210 @@ import {
   MapPin,
   CreditCard,
   Settings,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface SearchResult {
-  id: string
-  title: string
-  price: number
-  image: string
-  category: string | null
+  id: string;
+  title: string;
+  price: number;
+  image: string;
+  category: string | null;
 }
 
 export default function Header() {
-  const router = useRouter()
-  const pathname = usePathname()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [isMobile, setIsMobile] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [showResults, setShowResults] = useState(false)
-  const desktopSearchRef = useRef<HTMLDivElement>(null)
-  const mobileSearchRef = useRef<HTMLDivElement>(null)
+  const router = useRouter();
+  const pathname = usePathname();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const desktopSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
 
   // Detect mobile viewport
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768)
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Outside click handler
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node
-      const clickedInsideDesktop = desktopSearchRef.current?.contains(target)
-      const clickedInsideMobile = mobileSearchRef.current?.contains(target)
+      const target = event.target as Node;
+      const clickedInsideDesktop = desktopSearchRef.current?.contains(target);
+      const clickedInsideMobile = mobileSearchRef.current?.contains(target);
       if (!clickedInsideDesktop && !clickedInsideMobile) {
-        setShowResults(false)
+        setShowResults(false);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Debounced search
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (searchQuery.trim().length >= 2) {
-        await performSearch(searchQuery.trim())
+        await performSearch(searchQuery.trim());
       } else {
-        setSearchResults([])
-        setShowResults(false)
+        setSearchResults([]);
+        setShowResults(false);
       }
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [searchQuery])
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const performSearch = async (query: string) => {
-    setIsSearching(true)
+    setIsSearching(true);
     try {
       const res = await fetch(
-        `/api/products?search=${encodeURIComponent(query)}&limit=5`
-      )
-      const data = await res.json()
+        `/api/products?search=${encodeURIComponent(query)}&limit=5`,
+      );
+      const data = await res.json();
       const products = (data.products || []).map((p: any) => ({
         id: p.id,
         title: p.title,
         price: p.price,
-        image: p.images?.[0] || '',
+        image: p.images?.[0] || "",
         category: p.category?.title || null,
-      }))
-      setSearchResults(products)
-      setShowResults(true)
+      }));
+      setSearchResults(products);
+      setShowResults(true);
     } catch (error) {
-      console.error('Search error:', error)
-      setSearchResults([])
+      console.error("Search error:", error);
+      setSearchResults([]);
     } finally {
-      setIsSearching(false)
+      setIsSearching(false);
     }
-  }
+  };
 
   const handleSearchSubmit = (
-    e: React.KeyboardEvent<HTMLInputElement> | React.FormEvent
+    e: React.KeyboardEvent<HTMLInputElement> | React.FormEvent,
   ) => {
-    e.preventDefault()
+    e.preventDefault();
     if (searchQuery.trim()) {
-      setShowResults(false)
-      router.push(`/products?query=${encodeURIComponent(searchQuery.trim())}`)
+      setShowResults(false);
+      router.push(`/products?query=${encodeURIComponent(searchQuery.trim())}`);
     }
-  }
+  };
 
   const clearSearch = () => {
-    setSearchQuery('')
-    setSearchResults([])
-    setShowResults(false)
-  }
+    setSearchQuery("");
+    setSearchResults([]);
+    setShowResults(false);
+  };
 
   const fetchUser = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user || null)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUser(session?.user || null);
     } catch (error) {
-      console.error('Error getting user:', error)
-      setUser(null)
+      console.error("Error getting user:", error);
+      setUser(null);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchUser()
-  }, [pathname])
+    fetchUser();
+  }, [pathname]);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_OUT') {
-          setUser(null)
-        } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          setUser(session?.user || null)
-        }
-        setLoading(false)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT") {
+        setUser(null);
+      } else if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        setUser(session?.user || null);
       }
-    )
-    return () => subscription?.unsubscribe()
-  }, [])
+      setLoading(false);
+    });
+    return () => subscription?.unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
-      await supabase.auth.signOut()
-      window.location.href = '/'
+      // Call logout API first
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+
+      // Always sign out from Supabase client
+      await supabase.auth.signOut();
+
+      // ✅ Clear any client-side auth data
+      localStorage.removeItem("supabase-auth-token");
+      sessionStorage.clear();
+
+      // Force hard navigation
+      window.location.href = "/";
     } catch (error) {
-      console.error('Logout error:', error)
-      await supabase.auth.signOut()
-      window.location.href = '/'
+      console.error("Logout error:", error);
+      await supabase.auth.signOut();
+      window.location.href = "/";
     }
-  }
+  };
 
   // Hide on admin
-  if (pathname?.startsWith('/admin')) return null
+  if (pathname?.startsWith("/admin")) return null;
 
   const getInitials = (name: string) => {
-    if (!name) return 'U'
+    if (!name) return "U";
     return name
-      .split(' ')
+      .split(" ")
       .map((n) => n[0])
-      .join('')
+      .join("")
       .toUpperCase()
-      .slice(0, 2)
-  }
+      .slice(0, 2);
+  };
 
   const navLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/products', label: 'Products' },
-    { href: '/blog', label: 'Blog' },
-  ]
+    { href: "/", label: "Home" },
+    { href: "/products", label: "Products" },
+    { href: "/blog", label: "Blog" },
+  ];
 
   // Mobile visibility rules
-  const isProfileRoot = pathname === '/profile'
-  const isProfileSubpage = pathname?.startsWith('/profile/')
-  const isNotificationsPage = pathname === '/notifications'
+  const isProfileRoot = pathname === "/profile";
+  const isProfileSubpage = pathname?.startsWith("/profile/");
+  const isNotificationsPage = pathname === "/notifications";
 
   // Pages that hide BOTH top header and bottom nav
   const hideBothOnMobile =
     isMobile &&
-    (pathname === '/help' ||
-      pathname === '/contact' ||
-      pathname === '/blog' ||
-      pathname?.startsWith('/blog/') ||
+    (pathname === "/help" ||
+      pathname === "/contact" ||
+      pathname === "/blog" ||
+      pathname?.startsWith("/blog/") ||
       isProfileSubpage ||
-      pathname === '/about-us' ||
-      pathname === '/faq' ||
-      pathname === '/privacy' ||
-      pathname === '/returns-policy' ||
-      pathname === '/shipping-policy' ||
-      pathname === '/privacy-policy' ||
-      pathname === '/terms' ||
-      pathname === '/checkout')
+      pathname === "/about-us" ||
+      pathname === "/faq" ||
+      pathname === "/privacy" ||
+      pathname === "/returns-policy" ||
+      pathname === "/shipping-policy" ||
+      pathname === "/privacy-policy" ||
+      pathname === "/terms" ||
+      pathname === "/checkout");
 
   // Pages that hide ONLY top header (bottom nav visible)
-  const hideTopOnly = isMobile && (isNotificationsPage || isProfileRoot)
+  const hideTopOnly = isMobile && (isNotificationsPage || isProfileRoot);
 
   // Hide header on mobile cart (keep both hidden? they had this)
-  const hideCartHeader = isMobile && pathname === '/cart'
+  const hideCartHeader = isMobile && pathname === "/cart";
 
   // Top header hidden if either hideBoth or hideTopOnly or cart
-  const hideTopHeader = hideBothOnMobile || hideTopOnly || hideCartHeader
+  const hideTopHeader = hideBothOnMobile || hideTopOnly || hideCartHeader;
 
   // Bottom nav hidden only if hideBoth or cart
-  const hideBottomNav = hideBothOnMobile || hideCartHeader
+  const hideBottomNav = hideBothOnMobile || hideCartHeader;
 
   // Loading skeleton – conditionally render to avoid flashing
   if (loading) {
@@ -234,10 +245,15 @@ export default function Header() {
           <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
             <div className="hidden md:flex px-4 sm:px-6 lg:px-8 h-16 items-center justify-between gap-4">
               <div className="flex items-center gap-6">
-                <div className="text-xl font-bold font-work-sans shrink-0">SINAG</div>
+                <div className="text-xl font-bold font-work-sans shrink-0">
+                  SINAG
+                </div>
                 <div className="flex items-center gap-6">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-4 w-12 bg-muted animate-pulse rounded" />
+                    <div
+                      key={i}
+                      className="h-4 w-12 bg-muted animate-pulse rounded"
+                    />
                   ))}
                 </div>
               </div>
@@ -260,7 +276,10 @@ export default function Header() {
           <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background">
             <nav className="flex items-center justify-evenly h-16">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex flex-col items-center gap-0.5 text-xs">
+                <div
+                  key={i}
+                  className="flex flex-col items-center gap-0.5 text-xs"
+                >
                   <div className="w-5 h-5 rounded-full bg-muted animate-pulse" />
                   <div className="w-10 h-3 rounded-md bg-muted animate-pulse" />
                 </div>
@@ -269,7 +288,7 @@ export default function Header() {
           </div>
         )}
       </>
-    )
+    );
   }
 
   // Full render
@@ -289,7 +308,10 @@ export default function Header() {
                 className="h-8 w-auto"
                 priority
               />
-              <Link href="/" className="text-xl font-bold font-work-sans shrink-0">
+              <Link
+                href="/"
+                className="text-xl font-bold font-work-sans shrink-0"
+              >
                 SINAG
               </Link>
               <nav className="flex items-center gap-6 text-sm">
@@ -299,8 +321,8 @@ export default function Header() {
                     href={link.href}
                     className={`transition-colors hover:text-primary ${
                       pathname === link.href
-                        ? 'text-primary font-medium'
-                        : 'text-muted-foreground'
+                        ? "text-primary font-medium"
+                        : "text-muted-foreground"
                     }`}
                   >
                     {link.label}
@@ -320,7 +342,7 @@ export default function Header() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => {
-                      if (searchResults.length > 0) setShowResults(true)
+                      if (searchResults.length > 0) setShowResults(true);
                     }}
                   />
                   {searchQuery && (
@@ -398,7 +420,7 @@ export default function Header() {
 
               <ThemeToggle />
               <NotificationsDropdown />
-              <Link href={user ? '/cart' : '/login'}>
+              <Link href={user ? "/cart" : "/login"}>
                 <Button variant="outline" size="icon" className="h-9 w-9">
                   <ShoppingCart className="h-5 w-5" />
                 </Button>
@@ -409,14 +431,21 @@ export default function Header() {
                     <Avatar className="h-9 w-9">
                       <AvatarImage src={user.user_metadata?.avatar_url} />
                       <AvatarFallback className="bg-transparent text-primary font-medium text-xs">
-                        {getInitials(user.user_metadata?.full_name || user.user_metadata?.name || user.email || '')}
+                        {getInitials(
+                          user.user_metadata?.full_name ||
+                            user.user_metadata?.name ||
+                            user.email ||
+                            "",
+                        )}
                       </AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56" align="end">
                     <div className="flex flex-col space-y-1 p-2">
                       <p className="text-sm font-medium leading-none truncate">
-                        {user.user_metadata?.full_name || user.user_metadata?.name || user.email}
+                        {user.user_metadata?.full_name ||
+                          user.user_metadata?.name ||
+                          user.email}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground truncate">
                         {user.email}
@@ -424,7 +453,10 @@ export default function Header() {
                     </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      <DropdownMenuItem onClick={() => router.push('/profile')} className="cursor-pointer">
+                      <DropdownMenuItem
+                        onClick={() => router.push("/profile")}
+                        className="cursor-pointer"
+                      >
                         <UserCircle className="mr-2 h-4 w-4 text-muted-foreground" />
                         <span>Profile</span>
                       </DropdownMenuItem>
@@ -441,7 +473,9 @@ export default function Header() {
                 </DropdownMenu>
               ) : (
                 <Link href="/login">
-                  <Button variant="default" size="sm">Login</Button>
+                  <Button variant="default" size="sm">
+                    Login
+                  </Button>
                 </Link>
               )}
             </div>
@@ -467,7 +501,7 @@ export default function Header() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => {
-                    if (searchResults.length > 0) setShowResults(true)
+                    if (searchResults.length > 0) setShowResults(true);
                   }}
                 />
                 {searchQuery && (
@@ -543,8 +577,12 @@ export default function Header() {
               )}
             </div>
             <ThemeToggle />
-            <Link href={user ? '/cart' : '/login'}>
-              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0">
+            <Link href={user ? "/cart" : "/login"}>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+              >
                 <ShoppingCart className="h-5 w-5" />
               </Button>
             </Link>
@@ -559,7 +597,7 @@ export default function Header() {
             <Link
               href="/"
               className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
-                pathname === '/' ? 'text-primary' : 'text-muted-foreground'
+                pathname === "/" ? "text-primary" : "text-muted-foreground"
               }`}
             >
               <Home className="h-5 w-5" />
@@ -568,9 +606,9 @@ export default function Header() {
             <Link
               href="/products"
               className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
-                pathname?.startsWith('/products')
-                  ? 'text-primary'
-                  : 'text-muted-foreground'
+                pathname?.startsWith("/products")
+                  ? "text-primary"
+                  : "text-muted-foreground"
               }`}
             >
               <Package className="h-5 w-5" />
@@ -579,9 +617,9 @@ export default function Header() {
             <Link
               href="/notifications"
               className={`relative flex flex-col items-center gap-0.5 text-xs transition-colors ${
-                pathname === '/notifications'
-                  ? 'text-primary'
-                  : 'text-muted-foreground'
+                pathname === "/notifications"
+                  ? "text-primary"
+                  : "text-muted-foreground"
               }`}
             >
               <div className="relative">
@@ -593,27 +631,27 @@ export default function Header() {
               <span>Notifications</span>
             </Link>
             <Link
-              href={user ? '/profile' : '/login'}
+              href={user ? "/profile" : "/login"}
               className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
-                pathname?.startsWith('/profile')
-                  ? 'text-primary'
-                  : 'text-muted-foreground'
+                pathname?.startsWith("/profile")
+                  ? "text-primary"
+                  : "text-muted-foreground"
               }`}
             >
               {user ? (
                 <Avatar className="h-6 w-6 border-2 border-primary/20">
                   <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                    {getInitials(user.user_metadata?.name || user.email || '')}
+                    {getInitials(user.user_metadata?.name || user.email || "")}
                   </AvatarFallback>
                 </Avatar>
               ) : (
                 <UserCircle className="h-5 w-5" />
               )}
-              <span>{user ? 'Profile' : 'Login'}</span>
+              <span>{user ? "Profile" : "Login"}</span>
             </Link>
           </nav>
         </div>
       )}
     </>
-  )
+  );
 }

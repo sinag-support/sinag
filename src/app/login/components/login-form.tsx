@@ -1,108 +1,147 @@
-'use client'
+"use client";
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { isEmailValid } from '@/lib/validation'
-import { supabase } from '@/lib/supabase'
-import { Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react'
-import Link from 'next/link'
-import { useState } from 'react'
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { isEmailValid } from "@/lib/validation";
+import { supabase } from "@/lib/supabase";
+import { Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 
 export function LoginForm() {
-  const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [email, setEmail] = useState<string>('')
-  const [password, setPassword] = useState<string>('')
-  const [error, setError] = useState<string>('')
-  const [emailError, setEmailError] = useState<string>('')
-  const [showPassword, setShowPassword] = useState<boolean>(false)
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [error, setError] = useState<string>("");
+  const [emailError, setEmailError] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setEmail(value)
+    const value = e.target.value;
+    setEmail(value);
     if (value && !isEmailValid(value)) {
-      setEmailError('Please enter a valid email address')
+      setEmailError("Please enter a valid email address");
     } else {
-      setEmailError('')
+      setEmailError("");
     }
-  }
+  };
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setIsLoading(true)
-    setError('')
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
 
     if (!isEmailValid(email)) {
-      setEmailError('Please enter a valid email address')
-      setIsLoading(false)
-      return
+      setEmailError("Please enter a valid email address");
+      setIsLoading(false);
+      return;
     }
 
     if (!password) {
-      setError('Please enter your password')
-      setIsLoading(false)
-      return
+      setError("Please enter your password");
+      setIsLoading(false);
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      setIsLoading(false);
+      return;
     }
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Login failed')
-        setIsLoading(false)
-        return
+        // ✅ User-friendly error messages for OTP-based auth
+        if (response.status === 400) {
+          if (
+            data.error?.toLowerCase().includes("invalid credentials") ||
+            data.error?.toLowerCase().includes("invalid login")
+          ) {
+            setError("Invalid email or password. Please try again.");
+          } else if (
+            data.error?.toLowerCase().includes("otp") ||
+            data.error?.toLowerCase().includes("verify")
+          ) {
+            setError(
+              "Please complete the verification process first. Check your email for the OTP.",
+            );
+          } else {
+            setError(data.error || "Login failed. Please try again.");
+          }
+        } else if (response.status === 429) {
+          setError(
+            "Too many login attempts. Please wait a moment and try again.",
+          );
+        } else if (response.status === 404) {
+          setError("No account found with this email. Please sign up first.");
+        } else {
+          setError("Something went wrong. Please try again later.");
+        }
+        setIsLoading(false);
+        return;
       }
 
-      // ✅ Set the client session using the returned tokens
+      // ✅ Set the client session
       if (data.access_token && data.refresh_token) {
         await supabase.auth.setSession({
           access_token: data.access_token,
           refresh_token: data.refresh_token,
-        })
+        });
       }
 
-      const role = data.role || 'USER'
+      const role = data.role || "USER";
 
       // Redirect based on role
-      if (role === 'ADMIN' || role === 'STAFF' || role === 'RIDER') {
-        window.location.href = '/admin'
+      if (role === "ADMIN" || role === "STAFF" || role === "RIDER") {
+        window.location.href = "/admin";
       } else {
-        window.location.href = '/'
+        window.location.href = "/";
       }
     } catch (error) {
-      setError('An unexpected error occurred')
-      console.error(error)
+      setError(
+        "Unable to connect to the server. Please check your internet connection.",
+      );
+      console.error(error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
   async function signInWithGoogle() {
-    setIsLoading(true)
-    setError('')
+    setIsLoading(true);
+    setError("");
 
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
           redirectTo: `${window.location.origin}/api/auth/callback`,
         },
-      })
+      });
 
       if (error) {
-        setError(error.message)
-        setIsLoading(false)
+        if (error.message?.toLowerCase().includes("popup")) {
+          setError(
+            "Popup was blocked. Please allow popups for this site and try again.",
+          );
+        } else {
+          setError(error.message || "Google sign in failed. Please try again.");
+        }
+        setIsLoading(false);
       }
     } catch (error) {
-      setError('An unexpected error occurred')
-      console.error(error)
-      setIsLoading(false)
+      setError("Unable to connect to Google. Please try again later.");
+      console.error(error);
+      setIsLoading(false);
     }
   }
 
@@ -137,7 +176,11 @@ export function LoginForm() {
             value={email}
             onChange={handleEmailChange}
             disabled={isLoading}
-            className={emailError ? 'border-destructive focus-visible:ring-destructive' : ''}
+            className={
+              emailError
+                ? "border-destructive focus-visible:ring-destructive"
+                : ""
+            }
             required
           />
           {emailError && (
@@ -160,7 +203,7 @@ export function LoginForm() {
           <div className="relative">
             <Input
               id="password"
-              type={showPassword ? 'text' : 'password'}
+              type={showPassword ? "text" : "password"}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -183,7 +226,9 @@ export function LoginForm() {
         </div>
 
         {error && (
-          <p className="text-sm text-destructive">{error}</p>
+          <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
         )}
 
         <Button type="submit" className="w-full" disabled={isLoading}>
@@ -232,11 +277,11 @@ export function LoginForm() {
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">
-        Don't have an account?{' '}
+        Don't have an account?{" "}
         <Link href="/register" className="text-primary hover:underline">
           Sign up
         </Link>
       </p>
     </div>
-  )
+  );
 }
