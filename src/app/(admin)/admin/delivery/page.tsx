@@ -552,7 +552,9 @@ export default function DeliveryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Delivery Management</h1>
+        <h1 className="text-xl sm:text-3xl font-bold tracking-tight">
+          Delivery Management
+        </h1>
         <p className="text-muted-foreground">
           {isAdmin
             ? "Manage all deliveries and filter by rider"

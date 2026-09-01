@@ -308,7 +308,7 @@ export default function AdminDashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center justify-between w-full sm:w-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+          <h2 className="text-xl sm:text-3xl font-bold tracking-tight">
             Dashboard
           </h2>
           <div className="sm:hidden">

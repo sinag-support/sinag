@@ -546,7 +546,7 @@ export default function ReportsPage() {
     <div className="space-y-6">
       {/* Header with View Switcher - Always visible for Admin */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+        <h2 className="text-xl sm:text-3xl font-bold tracking-tight">
           {activeView === "admin"
             ? "Reports & Analytics"
             : "Product & Order Reports"}

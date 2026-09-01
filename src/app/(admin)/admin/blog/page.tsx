@@ -489,7 +489,7 @@ export default function BlogManagementPage() {
     <div className="space-y-6 w-full max-w-full overflow-hidden box-border">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold truncate">
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">
             Blog Management
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground">

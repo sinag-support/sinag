@@ -189,7 +189,9 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-6 w-full max-w-full overflow-hidden box-border">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold truncate">Categories</h1>
+        <h1 className="text-xl sm:text-3xl font-bold tracking-tight">
+          Categories
+        </h1>
         <p className="text-xs sm:text-sm text-muted-foreground">
           Manage product categories
         </p>
