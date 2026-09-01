@@ -21,6 +21,9 @@ import {
   Ban,
   RotateCcw,
   Phone,
+  Maximize2,
+  Minimize2,
+  X,
 } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { toast } from "sonner";
@@ -265,7 +268,15 @@ async function getRouteGeometry(
   ] as [number, number][];
 }
 
-function OrderMap({ order }: { order: DeliveryOrder }) {
+function OrderMap({
+  order,
+  isFullscreen,
+  onFullscreenToggle,
+}: {
+  order: DeliveryOrder;
+  isFullscreen?: boolean;
+  onFullscreenToggle?: () => void;
+}) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const tileLayerRef = useRef<any>(null);
@@ -275,6 +286,7 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
   const polylineRef = useRef<any>(null);
   const initializationRef = useRef(false);
   const leafletLoadedRef = useRef(false);
+  const { role } = useRole();
 
   const { theme, resolvedTheme } = useTheme();
   const [mapTheme, setMapTheme] = useState<"street" | "dark" | "satellite">(
@@ -286,6 +298,13 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
   } | null>(null);
   const [mapError, setMapError] = useState(false);
   const [isLeafletReady, setIsLeafletReady] = useState(false);
+
+  // Check if fullscreen should be available
+  const canFullscreen = () => {
+    if (role === "ADMIN") return true;
+    if (role === "RIDER" && order.status === "OUT_FOR_DELIVERY") return true;
+    return false;
+  };
 
   // Set initial map theme based on device theme
   useEffect(() => {
@@ -654,12 +673,24 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
     };
   }, []);
 
-  // Real-time subscription for rider location updates
+  // Real-time subscription for rider location updates - FIXED
   useEffect(() => {
     if (!order?.id) return;
 
-    const channel = supabase
-      .channel(`order-realtime-${order.id}`)
+    const channelName = `order-realtime-${order.id}`;
+
+    // Clean up any existing channel with the same name to prevent state conflicts
+    const existingChannel = supabase
+      .getChannels()
+      .find((ch) => ch.topic === `realtime:${channelName}`);
+    if (existingChannel) {
+      supabase.removeChannel(existingChannel);
+    }
+
+    // Create the channel, register listeners, then call subscribe()
+    const channel = supabase.channel(channelName);
+
+    channel
       .on(
         "postgres_changes",
         {
@@ -678,6 +709,7 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
       )
       .subscribe();
 
+    // Clean up subscription on unmount or order.id change
     return () => {
       supabase.removeChannel(channel);
     };
@@ -723,8 +755,15 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
   }, [mapTheme]);
 
   return (
-    <div className="w-full h-full min-h-[400px] md:min-h-[500px] rounded-lg overflow-hidden border border-border shadow-sm relative z-0 bg-background">
-      {/* Theme switcher */}
+    <div
+      className={cn(
+        "w-full rounded-lg overflow-hidden border border-border shadow-sm relative z-0 bg-background",
+        isFullscreen
+          ? "h-full min-h-screen"
+          : "h-full min-h-[400px] md:min-h-[500px]",
+      )}
+    >
+      {/* Theme switcher - Top Right */}
       <div className="absolute top-3 right-3 z-[1000] bg-background/90 backdrop-blur-md p-1 rounded-md border border-border shadow-sm flex gap-1">
         <Button
           size="sm"
@@ -770,6 +809,37 @@ function OrderMap({ order }: { order: DeliveryOrder }) {
         </Button>
       </div>
 
+      {/* Fullscreen Button - Bottom Right inside map */}
+      {canFullscreen() && onFullscreenToggle && (
+        <div
+          className={cn(
+            "absolute z-[1000]",
+            isFullscreen
+              ? "bottom-4 left-1/2 -translate-x-1/2"
+              : "bottom-4 right-4",
+          )}
+        >
+          <Button
+            variant="outline"
+            size={isFullscreen ? "default" : "sm"}
+            onClick={onFullscreenToggle}
+            className="bg-background/90 backdrop-blur-md hover:bg-accent shadow-sm border-border gap-2"
+          >
+            {isFullscreen ? (
+              <>
+                <Minimize2 className="h-4 w-4" />
+                Minimize Map
+              </>
+            ) : (
+              <>
+                <Maximize2 className="h-4 w-4" />
+                Fullscreen
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
       {!isLeafletReady && !mapError ? (
         <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -805,9 +875,10 @@ export function DeliveryOrderDetail({
   isUpdating,
 }: DeliveryOrderDetailProps) {
   const { role } = useRole();
+  const [isFullscreenMap, setIsFullscreenMap] = useState(false);
+  const [showFullscreenDialog, setShowFullscreenDialog] = useState(false);
 
-  // ✅ Both RIDER and ADMIN can see live location
-  // Only RIDER sends GPS updates (the tracker handles this internally)
+  // Both RIDER and ADMIN can see live location
   const isRiderTrackingActive =
     (role === "RIDER" || role === "ADMIN") &&
     order?.status === "OUT_FOR_DELIVERY";
@@ -929,139 +1000,216 @@ export function DeliveryOrderDetail({
     return null;
   };
 
+  // Handle fullscreen toggle
+  const handleFullscreenToggle = () => {
+    if (isFullscreenMap) {
+      setIsFullscreenMap(false);
+    } else {
+      setShowFullscreenDialog(true);
+    }
+  };
+
+  // Handle fullscreen confirmation
+  const confirmFullscreen = () => {
+    setShowFullscreenDialog(false);
+    setIsFullscreenMap(true);
+  };
+
+  // Handle fullscreen close
+  const closeFullscreen = () => {
+    setIsFullscreenMap(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden !bg-background">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold tracking-tight text-foreground">
-            Delivery Details
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className={cn(
+            "max-w-6xl w-[95vw] max-h-[90vh] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden !bg-background",
+            isFullscreenMap && "hidden",
+          )}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold tracking-tight text-foreground">
+              Delivery Details
+            </DialogTitle>
+          </DialogHeader>
 
-        {/* 2-Column Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* LEFT COLUMN: Map */}
-          <div className="space-y-4">
-            <OrderMap order={order} />
-          </div>
-
-          <div className="space-y-4 flex flex-col">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="border border-border rounded-lg p-4 !bg-background shadow-sm">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                  <User className="h-3.5 w-3.5" />
-                  Customer
-                </div>
-                <p className="font-medium text-sm truncate">
-                  {order.user?.name || "Guest Customer"}
-                </p>
-                {order.user?.phone && (
-                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-                    {order.user.phone}
-                  </p>
-                )}
-              </div>
-
-              <div className="border border-border rounded-lg p-4 !bg-background shadow-sm">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                  <MapPin className="h-3.5 w-3.5" />
-                  Address
-                </div>
-                <p className="font-medium text-sm truncate">
-                  {order.address?.address}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {order.address?.city}, {order.address?.province}
-                </p>
-                {order.address?.landmark && (
-                  <div className="flex items-center gap-1.5 mt-2 p-2 rounded-md bg-muted/50">
-                    <Flag className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">
-                      <span className="font-medium">Landmark:</span>{" "}
-                      {order.address.landmark}
-                    </span>
-                  </div>
-                )}
-              </div>
+          {/* 2-Column Grid Layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* LEFT COLUMN: Map */}
+            <div className="space-y-4">
+              <OrderMap
+                order={order}
+                onFullscreenToggle={handleFullscreenToggle}
+              />
             </div>
 
-            {/* Order Items */}
-            <div className="border border-border rounded-lg p-4 !bg-background shadow-sm flex-1">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-                <Package className="h-3.5 w-3.5" />
-                Order Items ({order.items?.length || 0})
-              </div>
+            <div className="space-y-4 flex flex-col">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="border border-border rounded-lg p-4 !bg-background shadow-sm">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                    <User className="h-3.5 w-3.5" />
+                    Customer
+                  </div>
+                  <p className="font-medium text-sm truncate">
+                    {order.user?.name || "Guest Customer"}
+                  </p>
+                  {order.user?.phone && (
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                      {order.user.phone}
+                    </p>
+                  )}
+                </div>
 
-              <div className="space-y-2">
-                {order.items?.map((item) => {
-                  const imageUrl = item.product?.images?.[0] || null;
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between gap-3 text-xs p-1.5 rounded-md hover:bg-muted/40 transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="h-9 w-9 rounded-md border border-border overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
-                          {imageUrl ? (
-                            <img
-                              src={imageUrl}
-                              alt={item.product?.title || "Product"}
-                              className="h-full w-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                              }}
-                            />
-                          ) : (
-                            <Package className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div className="truncate">
-                          <p className="font-medium text-foreground truncate">
-                            {item.product?.title || "Product"}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {item.option?.name && (
-                              <span className="inline-block px-1.5 py-0.2 text-[10px] font-medium bg-muted text-muted-foreground rounded border border-border">
-                                {item.option.name}
-                              </span>
-                            )}
-                            <span className="text-[11px] text-muted-foreground">
-                              Qty: {item.quantity}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <span className="font-semibold text-foreground flex-shrink-0">
-                        ₱{(item.price * item.quantity).toFixed(2)}
+                <div className="border border-border rounded-lg p-4 !bg-background shadow-sm">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                    <MapPin className="h-3.5 w-3.5" />
+                    Address
+                  </div>
+                  <p className="font-medium text-sm truncate">
+                    {order.address?.address}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {order.address?.city}, {order.address?.province}
+                  </p>
+                  {order.address?.landmark && (
+                    <div className="flex items-center gap-1.5 mt-2 p-2 rounded-md bg-muted/50">
+                      <Flag className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">
+                        <span className="font-medium">Landmark:</span>{" "}
+                        {order.address.landmark}
                       </span>
                     </div>
-                  );
-                })}
-                {(!order.items || order.items.length === 0) && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No items found
-                  </p>
-                )}
+                  )}
+                </div>
               </div>
 
-              {/* Total */}
-              <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Total
-                </span>
-                <span className="text-lg font-bold text-primary">
-                  ₱{order.payable.toFixed(2)}
-                </span>
+              {/* Order Items */}
+              <div className="border border-border rounded-lg p-4 !bg-background shadow-sm flex-1">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                  <Package className="h-3.5 w-3.5" />
+                  Order Items ({order.items?.length || 0})
+                </div>
+
+                <div className="space-y-2">
+                  {order.items?.map((item) => {
+                    const imageUrl = item.product?.images?.[0] || null;
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between gap-3 text-xs p-1.5 rounded-md hover:bg-muted/40 transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-9 w-9 rounded-md border border-border overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
+                            {imageUrl ? (
+                              <img
+                                src={imageUrl}
+                                alt={item.product?.title || "Product"}
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="truncate">
+                            <p className="font-medium text-foreground truncate">
+                              {item.product?.title || "Product"}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {item.option?.name && (
+                                <span className="inline-block px-1.5 py-0.2 text-[10px] font-medium bg-muted text-muted-foreground rounded border border-border">
+                                  {item.option.name}
+                                </span>
+                              )}
+                              <span className="text-[11px] text-muted-foreground">
+                                Qty: {item.quantity}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <span className="font-semibold text-foreground flex-shrink-0">
+                          ₱{(item.price * item.quantity).toFixed(2)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {(!order.items || order.items.length === 0) && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No items found
+                    </p>
+                  )}
+                </div>
+
+                {/* Total */}
+                <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Total
+                  </span>
+                  <span className="text-lg font-bold text-primary">
+                    ₱{order.payable.toFixed(2)}
+                  </span>
+                </div>
               </div>
+
+              {/* Action Buttons */}
+              {shouldShowActions() && (
+                <div className="space-y-2">{getActionButtons()}</div>
+              )}
             </div>
-
-            {/* Action Buttons */}
-            {shouldShowActions() && (
-              <div className="space-y-2">{getActionButtons()}</div>
-            )}
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fullscreen Map Dialog - Close button hidden */}
+      <Dialog open={isFullscreenMap} onOpenChange={setIsFullscreenMap}>
+        <DialogContent className="max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] p-0 !bg-background border-0 rounded-none [&>button]:hidden">
+          <div className="relative w-full h-full">
+            <OrderMap
+              order={order}
+              isFullscreen={true}
+              onFullscreenToggle={handleFullscreenToggle}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fullscreen Confirmation Dialog */}
+      <Dialog
+        open={showFullscreenDialog}
+        onOpenChange={setShowFullscreenDialog}
+      >
+        <DialogContent className="max-w-md !bg-background">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              Fullscreen Map
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              {role === "RIDER"
+                ? "Going fullscreen will hide the delivery details and show only the map. This is useful for navigation while driving."
+                : "Going fullscreen will hide the delivery details and show only the map for a better view."}
+            </p>
+            <div className="mt-4 flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 !bg-background hover:!bg-accent"
+                onClick={() => setShowFullscreenDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button className="flex-1" onClick={confirmFullscreen}>
+                <Maximize2 className="h-4 w-4 mr-2" />
+                Fullscreen
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

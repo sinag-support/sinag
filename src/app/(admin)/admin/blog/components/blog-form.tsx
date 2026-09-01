@@ -159,57 +159,57 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
   // Show skeleton ONLY when editing (loading existing blog data)
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 w-full">
         {/* Title & Slug */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
+        <div className="grid grid-cols-1 gap-4 w-full">
+          <div className="space-y-2 w-full">
             <Label className="text-sm font-medium">Title</Label>
             <Skeleton className="h-10 w-full" />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 w-full">
             <Label className="text-sm font-medium">Slug (URL)</Label>
             <Skeleton className="h-10 w-full" />
           </div>
         </div>
         {/* Author & Published */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
+        <div className="grid grid-cols-1 gap-4 w-full">
+          <div className="space-y-2 w-full">
             <Label className="text-sm font-medium">Author</Label>
             <Skeleton className="h-10 w-full" />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 w-full">
             <Label className="text-sm font-medium">Published</Label>
             <Skeleton className="h-10 w-full" />
           </div>
         </div>
         {/* Excerpt */}
-        <div className="space-y-2">
+        <div className="space-y-2 w-full">
           <Label className="text-sm font-medium">
             Excerpt (Short Description)
           </Label>
           <Skeleton className="h-[60px] w-full" />
         </div>
         {/* Cover Image */}
-        <div className="space-y-2">
+        <div className="space-y-2 w-full">
           <Label className="text-sm font-medium">
             Cover Image URL (Banner)
           </Label>
           <Skeleton className="h-10 w-full" />
         </div>
         {/* Content */}
-        <div className="space-y-2">
+        <div className="space-y-2 w-full">
           <Label className="text-sm font-medium">Content</Label>
           <Skeleton className="h-[200px] w-full" />
         </div>
         {/* Tags */}
-        <div className="space-y-2">
+        <div className="space-y-2 w-full">
           <Label className="text-sm font-medium">Tags</Label>
           <Skeleton className="h-10 w-full" />
         </div>
         {/* Buttons */}
-        <div className="flex gap-2 pt-4">
-          <Skeleton className="h-10 flex-1" />
-          <Skeleton className="h-10 w-24" />
+        <div className="flex flex-col sm:flex-row gap-2 pt-4 w-full">
+          <Skeleton className="h-10 w-full sm:flex-1" />
+          <Skeleton className="h-10 w-full sm:w-24" />
         </div>
       </div>
     );
@@ -252,24 +252,27 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {/* Title & Slug - 2 columns */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="space-y-4 w-full max-w-full overflow-x-hidden"
+      >
+        {/* Title & Slug - Responsive */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
           <FormField
             control={form.control}
             name="title"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  Title
+              <FormItem className="w-full">
+                <FormLabel className="flex items-center gap-2 text-sm">
+                  <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  Title <span className="text-destructive">*</span>
                 </FormLabel>
                 <FormControl>
                   <Input
                     placeholder="My Amazing Blog Post"
                     {...field}
                     onChange={handleTitleChange}
-                    className="!bg-background"
+                    className="!bg-background w-full min-w-0"
                   />
                 </FormControl>
                 <FormMessage />
@@ -281,21 +284,21 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
             control={form.control}
             name="slug"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-2">
-                  <Link2 className="h-4 w-4 text-muted-foreground" />
-                  Slug (URL)
+              <FormItem className="w-full">
+                <FormLabel className="flex items-center gap-2 text-sm">
+                  <Link2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  Slug (URL) <span className="text-destructive">*</span>
                 </FormLabel>
                 <FormControl>
                   <Input
                     placeholder="my-amazing-blog-post"
                     {...field}
                     disabled={!!initialData}
-                    className="!bg-background"
+                    className="!bg-background w-full min-w-0"
                   />
                 </FormControl>
                 {!initialData && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground break-words">
                     Auto-generated from title. Must be unique.
                   </p>
                 )}
@@ -305,22 +308,22 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
           />
         </div>
 
-        {/* Author & Published - 2 columns */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Author & Published - Responsive */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
           <FormField
             control={form.control}
             name="author"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  Author
+              <FormItem className="w-full">
+                <FormLabel className="flex items-center gap-2 text-sm">
+                  <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  Author <span className="text-destructive">*</span>
                 </FormLabel>
                 <FormControl>
                   <Input
                     placeholder="SINAG Editorial"
                     {...field}
-                    className="!bg-background"
+                    className="!bg-background w-full min-w-0"
                   />
                 </FormControl>
                 <FormMessage />
@@ -332,7 +335,7 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
             control={form.control}
             name="published"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center gap-2 space-y-0 pt-6">
+              <FormItem className="flex flex-row items-center gap-2 space-y-0 pt-1 sm:pt-6 w-full">
                 <FormControl>
                   <Checkbox
                     checked={field.value}
@@ -355,16 +358,16 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
           control={form.control}
           name="excerpt"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
+            <FormItem className="w-full">
+              <FormLabel className="flex items-center gap-2 text-sm">
+                <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 Excerpt (Short Description)
               </FormLabel>
               <FormControl>
                 <Textarea
                   placeholder="A brief summary of your post..."
                   {...field}
-                  className="min-h-[60px] !bg-background"
+                  className="min-h-[60px] !bg-background w-full min-w-0 resize-y"
                 />
               </FormControl>
               <FormMessage />
@@ -377,20 +380,20 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
           control={form.control}
           name="coverImage"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel className="flex items-center gap-2">
-                <Image className="h-4 w-4 text-muted-foreground" />
+            <FormItem className="w-full">
+              <FormLabel className="flex items-center gap-2 text-sm">
+                <Image className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 Cover Image URL (Banner)
               </FormLabel>
-              <div className="space-y-3">
+              <div className="space-y-3 w-full">
                 <FormControl>
-                  <div className="relative">
+                  <div className="relative w-full">
                     <Input
                       placeholder="https://images.unsplash.com/photo-..."
                       {...field}
                       value={field.value || ""}
                       className={cn(
-                        "w-full !bg-background",
+                        "!bg-background w-full min-w-0",
                         imagePreview && "pr-10",
                       )}
                     />
@@ -410,8 +413,8 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
 
                 {/* Image Preview - Banner Ratio (16:9) */}
                 {imagePreview && (
-                  <div className="relative rounded-md overflow-hidden border p-2 !bg-background">
-                    <div className="flex flex-col gap-2">
+                  <div className="relative rounded-md overflow-hidden border p-2 !bg-background w-full">
+                    <div className="flex flex-col gap-2 w-full">
                       <div className="relative w-full aspect-[16/9] rounded-md overflow-hidden bg-muted">
                         {imageLoading ? (
                           <Skeleton className="h-full w-full" />
@@ -426,8 +429,8 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
                           />
                         )}
                       </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-muted-foreground truncate flex-1">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 w-full">
+                        <p className="text-xs text-muted-foreground truncate flex-1 w-full break-all">
                           {imagePreview}
                         </p>
                         {!imageLoading && (
@@ -436,10 +439,10 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
                             variant="ghost"
                             size="sm"
                             onClick={clearImage}
-                            className="text-muted-foreground hover:text-destructive flex-shrink-0 !bg-background hover:!bg-accent"
+                            className="text-muted-foreground hover:text-destructive flex-shrink-0 !bg-background hover:!bg-accent w-full sm:w-auto"
                           >
-                            <X className="h-4 w-4" />
-                            <span className="sr-only">Remove image</span>
+                            <X className="h-4 w-4 mr-1" />
+                            Remove image
                           </Button>
                         )}
                       </div>
@@ -457,16 +460,16 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
           control={form.control}
           name="content"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                Content
+            <FormItem className="w-full">
+              <FormLabel className="flex items-center gap-2 text-sm">
+                <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                Content <span className="text-destructive">*</span>
               </FormLabel>
               <FormControl>
                 <Textarea
                   placeholder="Write your blog post content here..."
                   {...field}
-                  className="min-h-[200px] font-mono !bg-background"
+                  className="min-h-[200px] font-mono !bg-background w-full min-w-0 resize-y"
                 />
               </FormControl>
               <p className="text-xs text-muted-foreground">
@@ -478,40 +481,40 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
         />
 
         {/* Tags - Full width */}
-        <div className="space-y-2">
-          <FormLabel className="flex items-center gap-2">
-            <Tag className="h-4 w-4 text-muted-foreground" />
+        <div className="space-y-2 w-full">
+          <FormLabel className="flex items-center gap-2 text-sm">
+            <Tag className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             Tags
           </FormLabel>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full">
             <Input
               placeholder="Add a tag (press Enter or comma)"
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="flex-1 !bg-background"
+              className="flex-1 !bg-background w-full min-w-0"
             />
             <Button
               type="button"
               variant="outline"
               onClick={addTag}
-              className="!bg-background hover:!bg-accent"
+              className="!bg-background hover:!bg-accent w-full sm:w-auto"
             >
-              Add
+              Add Tag
             </Button>
           </div>
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-2 w-full">
             {tags.map((tag) => (
               <Badge
                 key={tag}
                 variant="secondary"
-                className="flex items-center gap-1"
+                className="flex items-center gap-1 text-xs"
               >
                 {tag}
                 <button
                   type="button"
                   onClick={() => removeTag(tag)}
-                  className="hover:text-destructive"
+                  className="hover:text-destructive ml-1"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -525,9 +528,13 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
           </div>
         </div>
 
-        {/* Buttons */}
-        <div className="flex gap-2 pt-4">
-          <Button type="submit" className="flex-1" disabled={isSubmitting}>
+        {/* Buttons - Responsive */}
+        <div className="flex gap-2 pt-4 w-full">
+          <Button
+            type="submit"
+            className="flex-1 whitespace-nowrap"
+            disabled={isSubmitting}
+          >
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -543,7 +550,7 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
             type="button"
             variant="outline"
             onClick={onCancel}
-            className="!bg-background hover:!bg-accent"
+            className="flex-1 !bg-background hover:!bg-accent whitespace-nowrap"
           >
             Cancel
           </Button>

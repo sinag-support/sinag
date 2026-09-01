@@ -30,6 +30,8 @@ import {
   Users,
   Eye,
   Loader2,
+  Image as ImageIcon,
+  Tag,
 } from "lucide-react";
 import {
   Dialog,
@@ -51,6 +53,7 @@ import {
 import { BlogForm } from "./components/blog-form";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface BlogPost {
   id: string;
@@ -317,7 +320,20 @@ export default function BlogManagementPage() {
       .slice(0, 2);
   };
 
-  // Skeleton rows for table
+  // Truncate text function for mobile - FIXED
+  const truncateText = (text: string | null, maxLength: number = 50) => {
+    if (!text) return "No excerpt";
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + "...";
+  };
+
+  // Truncate title function for mobile
+  const truncateTitle = (text: string, maxLength: number = 40) => {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + "...";
+  };
+
+  // Skeleton rows for desktop table
   const renderSkeletonRows = () => {
     return Array.from({ length: 5 }).map((_, i) => (
       <TableRow key={i}>
@@ -352,8 +368,152 @@ export default function BlogManagementPage() {
     ));
   };
 
+  // Skeleton cards for mobile
+  const renderSkeletonCards = () => {
+    return Array.from({ length: 4 }).map((_, i) => (
+      <Card
+        key={i}
+        className="overflow-hidden !bg-background shadow-none border-border"
+      >
+        <CardContent className="p-3">
+          <div className="flex items-start gap-3">
+            <Skeleton className="h-16 w-20 rounded flex-shrink-0" />
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+              <Skeleton className="h-3 w-1/3" />
+            </div>
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+            <div className="flex gap-1.5">
+              <Skeleton className="h-5 w-16" />
+              <Skeleton className="h-5 w-12" />
+            </div>
+            <div className="flex gap-1">
+              <Skeleton className="h-7 w-7" />
+              <Skeleton className="h-7 w-7" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    ));
+  };
+
+  // Blog Post Card Component for Mobile - FIXED
+  const BlogPostCard = ({ post }: { post: BlogPost }) => {
+    return (
+      <Card className="overflow-hidden !bg-background shadow-none border-border w-full">
+        <CardContent className="p-3">
+          <div className="flex items-start gap-3 w-full">
+            {/* Cover Image */}
+            <div className="h-16 w-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
+              {post.coverImage ? (
+                <img
+                  src={post.coverImage}
+                  alt={post.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                </div>
+              )}
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-sm truncate">
+                {truncateTitle(post.title, 35)}
+              </h3>
+              <p className="text-xs text-muted-foreground truncate">
+                {truncateText(post.excerpt, 45)}
+              </p>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <span className="text-[10px] text-muted-foreground truncate max-w-[80px]">
+                  {post.author}
+                </span>
+                <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                  •
+                </span>
+                <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                  {formatDate(post.createdAt)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tags and Stats */}
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+            <div className="flex items-center gap-1.5 min-w-0">
+              {post.tags.length > 0 && (
+                <div className="flex items-center gap-1 min-w-0">
+                  <Tag className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">
+                    {post.tags.slice(0, 2).join(", ")}
+                    {post.tags.length > 2 && ` +${post.tags.length - 2}`}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Badge
+                variant={post.published ? "default" : "secondary"}
+                className="text-[10px] px-2 py-0 h-5 flex-shrink-0 whitespace-nowrap"
+              >
+                {post.published ? "Published" : "Draft"}
+              </Badge>
+
+              <button
+                onClick={() => viewEngagement(post)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
+              >
+                <Heart className="h-3.5 w-3.5" />
+                <span>{post._count.likes}</span>
+              </button>
+
+              <button
+                onClick={() => viewEngagement(post)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                <span>{post._count.comments}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-border">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 w-7 p-0 !bg-background hover:!bg-accent flex-shrink-0"
+              onClick={() => {
+                setEditingPost(post);
+                setDialogOpen(true);
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-7 w-7 p-0 flex-shrink-0"
+              onClick={() => setDeleteId(post.id)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold">Blog Management</h1>
@@ -362,8 +522,8 @@ export default function BlogManagementPage() {
       </div>
 
       {/* Search, Refresh, and New Post Button */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="relative w-full sm:max-w-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+        <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by title, author, or tag..."
@@ -404,19 +564,36 @@ export default function BlogManagementPage() {
         )}
       </div>
 
-      {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
+      {/* Mobile: Cards View */}
+      <div className="md:hidden space-y-2 w-full">
+        {loading ? (
+          renderSkeletonCards()
+        ) : posts.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            {search
+              ? "No posts found matching your search"
+              : "No blog posts yet"}
+          </div>
+        ) : (
+          posts.map((post) => <BlogPostCard key={post.id} post={post} />)
+        )}
+      </div>
+
+      {/* Desktop: Table View */}
+      <div className="hidden md:block border rounded-lg overflow-hidden w-full">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[200px]">Title</TableHead>
-                <TableHead>Author</TableHead>
-                <TableHead>Tags</TableHead>
-                <TableHead>Stats</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="min-w-[100px]">Author</TableHead>
+                <TableHead className="min-w-[120px]">Tags</TableHead>
+                <TableHead className="min-w-[80px]">Stats</TableHead>
+                <TableHead className="min-w-[100px]">Status</TableHead>
+                <TableHead className="min-w-[100px]">Date</TableHead>
+                <TableHead className="text-right min-w-[100px]">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -502,7 +679,7 @@ export default function BlogManagementPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="!bg-background hover:!bg-accent"
+                        className="!bg-background hover:!bg-accent h-8 w-8 sm:h-9 sm:w-9 p-0"
                         onClick={() => {
                           setEditingPost(post);
                           setDialogOpen(true);
@@ -513,6 +690,7 @@ export default function BlogManagementPage() {
                       <Button
                         size="sm"
                         variant="destructive"
+                        className="h-8 w-8 sm:h-9 sm:w-9 p-0"
                         onClick={() => setDeleteId(post.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -528,15 +706,15 @@ export default function BlogManagementPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between gap-4 py-2">
-          <div className="text-sm text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-2">
+          <div className="text-sm text-muted-foreground order-2 sm:order-1">
             {loading ? (
               <Skeleton className="h-4 w-32 inline-block" />
             ) : (
               `Showing ${(page - 1) * limit + 1} - ${Math.min(page * limit, total)} of ${total}`
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 order-1 sm:order-2">
             <Button
               variant="outline"
               size="sm"

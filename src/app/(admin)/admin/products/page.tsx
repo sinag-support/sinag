@@ -56,6 +56,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface Product {
   id: string;
@@ -170,7 +171,7 @@ export default function ProductsPage() {
     return cat?.title || id;
   };
 
-  // Show loading skeletons only for the table rows
+  // Show loading skeletons for cards on mobile and table rows on desktop
   const renderSkeletonRows = () => {
     return Array.from({ length: 5 }).map((_, i) => (
       <TableRow key={i}>
@@ -205,6 +206,124 @@ export default function ProductsPage() {
     ));
   };
 
+  const renderSkeletonCards = () => {
+    return Array.from({ length: 5 }).map((_, i) => (
+      <Card
+        key={i}
+        className="overflow-hidden !bg-background shadow-none border-border"
+      >
+        <CardContent className="p-2">
+          <div className="flex items-start gap-3">
+            <Skeleton className="w-14 h-14 rounded flex-shrink-0" />
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-3 w-12" />
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+            <div className="flex gap-1.5">
+              <Skeleton className="h-5 w-16" />
+              <Skeleton className="h-5 w-12" />
+            </div>
+            <div className="flex gap-1">
+              <Skeleton className="h-7 w-7" />
+              <Skeleton className="h-7 w-7" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    ));
+  };
+
+  // Product Card Component for Mobile
+  const ProductCard = ({ product }: { product: Product }) => {
+    return (
+      <Card className="overflow-hidden !bg-background shadow-none border-border">
+        <CardContent className="p-2">
+          <div className="flex items-start gap-3">
+            {/* Image */}
+            <div className="w-14 h-14 rounded-md overflow-hidden bg-muted flex-shrink-0">
+              {product.images?.[0] ? (
+                <img
+                  src={product.images[0]}
+                  alt={product.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Package className="h-5 w-5 text-muted-foreground" />
+                </div>
+              )}
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-sm truncate">{product.title}</h3>
+              <p className="text-xs text-muted-foreground">
+                {product.category?.title || "Uncategorized"}
+              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-sm font-bold">
+                  ₱{product.price.toFixed(2)}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Stock: {product.stock}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Row - Compact */}
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+            <div className="flex items-center gap-1.5">
+              <Badge
+                variant={product.isAvailable ? "default" : "secondary"}
+                className="text-[10px] px-2 py-0 h-5"
+              >
+                {product.isAvailable ? "Available" : "Unavailable"}
+              </Badge>
+              {product.options && product.options.length > 0 && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-2 py-0 h-5 flex items-center gap-1"
+                >
+                  <Layers className="h-3 w-3" />
+                  {product.options.length}
+                </Badge>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0 !bg-background hover:!bg-accent"
+                onClick={() => {
+                  setEditingProduct(product);
+                  setDialogOpen(true);
+                }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="h-7 w-7 p-0"
+                onClick={() => setDeleteId(product.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -212,9 +331,9 @@ export default function ProductsPage() {
         <p className="text-muted-foreground">Manage your product catalog</p>
       </div>
 
-      {/* Search, Category Filter, and Add Button */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="relative w-full sm:max-w-xs">
+      {/* Search, Category Filter, and Add Button - Responsive */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+        <div className="relative flex-1 sm:max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search products..."
@@ -254,8 +373,8 @@ export default function ProductsPage() {
         </Button>
       </div>
 
-      {/* Results count - Always visible with loading state */}
-      <p className="text-sm text-muted-foreground">
+      {/* Results count */}
+      <div className="text-sm text-muted-foreground">
         {loading ? (
           <Skeleton className="h-4 w-48 inline-block" />
         ) : (
@@ -266,21 +385,40 @@ export default function ProductsPage() {
             {search && ` matching "${search}"`}
           </>
         )}
-      </p>
+      </div>
 
-      {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
+      {/* Mobile: Cards View */}
+      <div className="md:hidden space-y-2">
+        {loading ? (
+          renderSkeletonCards()
+        ) : products.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            {search || selectedCategory !== "all"
+              ? "No products found matching your filters"
+              : "No products found"}
+          </div>
+        ) : (
+          products.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))
+        )}
+      </div>
+
+      {/* Desktop: Table View */}
+      <div className="hidden md:block border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Options</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="min-w-[140px]">Product</TableHead>
+                <TableHead className="min-w-[100px]">Category</TableHead>
+                <TableHead className="min-w-[80px]">Price</TableHead>
+                <TableHead className="min-w-[60px]">Stock</TableHead>
+                <TableHead className="min-w-[80px]">Options</TableHead>
+                <TableHead className="min-w-[100px]">Status</TableHead>
+                <TableHead className="text-right min-w-[100px]">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -358,11 +496,11 @@ export default function ProductsPage() {
                         {p.isAvailable ? "Available" : "Unavailable"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right space-x-2 whitespace-nowrap">
+                    <TableCell className="text-right space-x-1 sm:space-x-2 whitespace-nowrap">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="!bg-background hover:!bg-accent"
+                        className="!bg-background hover:!bg-accent h-8 w-8 sm:h-9 sm:w-9 p-0"
                         onClick={() => {
                           setEditingProduct(p);
                           setDialogOpen(true);
@@ -373,6 +511,7 @@ export default function ProductsPage() {
                       <Button
                         size="sm"
                         variant="destructive"
+                        className="h-8 w-8 sm:h-9 sm:w-9 p-0"
                         onClick={() => setDeleteId(p.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -386,17 +525,17 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Pagination - Always visible with loading state */}
+      {/* Pagination - Responsive */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between gap-4 py-2">
-          <p className="text-sm text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-2">
+          <div className="text-sm text-muted-foreground order-2 sm:order-1">
             {loading ? (
               <Skeleton className="h-4 w-32 inline-block" />
             ) : (
               `Showing ${(page - 1) * limit + 1} - ${Math.min(page * limit, total)} of ${total}`
             )}
-          </p>
-          <div className="flex items-center gap-1">
+          </div>
+          <div className="flex items-center gap-1 order-1 sm:order-2">
             <Button
               variant="outline"
               size="sm"

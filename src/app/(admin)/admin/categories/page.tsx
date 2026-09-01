@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,6 +32,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { CategoryForm } from "./components/category-form";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface Category {
   id: string;
@@ -93,7 +95,7 @@ export default function CategoriesPage() {
     }
   };
 
-  // Skeleton rows for table
+  // Skeleton rows for desktop table
   const renderSkeletonRows = () => {
     return Array.from({ length: 4 }).map((_, i) => (
       <TableRow key={i}>
@@ -116,6 +118,86 @@ export default function CategoriesPage() {
     ));
   };
 
+  // Skeleton cards for mobile
+  const renderSkeletonCards = () => {
+    return Array.from({ length: 4 }).map((_, i) => (
+      <Card
+        key={i}
+        className="overflow-hidden !bg-background shadow-none border-border"
+      >
+        <CardContent className="p-3">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0 space-y-1">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+            <Skeleton className="h-5 w-12 flex-shrink-0" />
+          </div>
+          <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-border">
+            <Skeleton className="h-7 w-7" />
+            <Skeleton className="h-7 w-7" />
+          </div>
+        </CardContent>
+      </Card>
+    ));
+  };
+
+  // Category Card Component for Mobile - FIXED with truncated description
+  const CategoryCard = ({ category }: { category: Category }) => {
+    // Truncate description to max 50 characters
+    const truncateDescription = (
+      text: string | null,
+      maxLength: number = 50,
+    ) => {
+      if (!text) return "No description";
+      if (text.length <= maxLength) return text;
+      return text.slice(0, maxLength) + "...";
+    };
+
+    return (
+      <Card className="overflow-hidden !bg-background shadow-none border-border">
+        <CardContent className="p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-sm truncate">{category.title}</h3>
+              <p className="text-xs text-muted-foreground truncate">
+                {truncateDescription(category.description)}
+              </p>
+            </div>
+            <Badge
+              variant="secondary"
+              className="text-[10px] px-2 py-0 h-5 flex-shrink-0 whitespace-nowrap"
+            >
+              <Layers className="h-3 w-3 mr-1" />
+              {category._count?.products || 0}
+            </Badge>
+          </div>
+          <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-border">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 w-7 p-0 !bg-background hover:!bg-accent flex-shrink-0"
+              onClick={() => {
+                setEditing(category);
+                setDialogOpen(true);
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-7 w-7 p-0 flex-shrink-0"
+              onClick={() => setDeleteId(category.id)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -123,9 +205,9 @@ export default function CategoriesPage() {
         <p className="text-muted-foreground">Manage product categories</p>
       </div>
 
-      {/* Search Bar & Add Button - Inline */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="relative w-full sm:max-w-xs">
+      {/* Search Bar & Add Button */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+        <div className="relative flex-1 sm:max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search categories..."
@@ -147,7 +229,7 @@ export default function CategoriesPage() {
       </div>
 
       {/* Results count */}
-      <p className="text-sm text-muted-foreground">
+      <div className="text-sm text-muted-foreground">
         {loading ? (
           <Skeleton className="h-4 w-32 inline-block" />
         ) : (
@@ -157,69 +239,91 @@ export default function CategoriesPage() {
             {search && ` matching "${search}"`}
           </>
         )}
-      </p>
+      </div>
 
-      {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Products</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              renderSkeletonRows()
-            ) : filteredCategories.length === 0 ? (
+      {/* Mobile: Cards View */}
+      <div className="md:hidden space-y-2">
+        {loading ? (
+          renderSkeletonCards()
+        ) : filteredCategories.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            {search
+              ? "No categories found matching your search"
+              : "No categories"}
+          </div>
+        ) : (
+          filteredCategories.map((category) => (
+            <CategoryCard key={category.id} category={category} />
+          ))
+        )}
+      </div>
+
+      {/* Desktop: Table View */}
+      <div className="hidden md:block border rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell
-                  colSpan={4}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  {search
-                    ? "No categories found matching your search"
-                    : "No categories"}
-                </TableCell>
+                <TableHead className="min-w-[120px]">Title</TableHead>
+                <TableHead className="min-w-[200px]">Description</TableHead>
+                <TableHead className="min-w-[80px]">Products</TableHead>
+                <TableHead className="text-right min-w-[100px]">
+                  Actions
+                </TableHead>
               </TableRow>
-            ) : (
-              filteredCategories.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.title}</TableCell>
-                  <TableCell>{c.description || "-"}</TableCell>
-                  <TableCell>{c._count?.products || 0}</TableCell>
-                  <TableCell className="text-right space-x-2 whitespace-nowrap">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="!bg-background hover:!bg-accent"
-                      onClick={() => {
-                        setEditing(c);
-                        setDialogOpen(true);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => setDeleteId(c.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                renderSkeletonRows()
+              ) : filteredCategories.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="text-center py-8 text-muted-foreground"
+                  >
+                    {search
+                      ? "No categories found matching your search"
+                      : "No categories"}
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                filteredCategories.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-medium">{c.title}</TableCell>
+                    <TableCell>{c.description || "-"}</TableCell>
+                    <TableCell>{c._count?.products || 0}</TableCell>
+                    <TableCell className="text-right space-x-1 sm:space-x-2 whitespace-nowrap">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="!bg-background hover:!bg-accent h-8 w-8 sm:h-9 sm:w-9 p-0"
+                        onClick={() => {
+                          setEditing(c);
+                          setDialogOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                        onClick={() => setDeleteId(c.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="!bg-background">
+        <DialogContent className="w-[95vw] max-w-md !bg-background">
           <DialogHeader>
             <DialogTitle>
               {editing ? "Edit Category" : "Create Category"}

@@ -193,8 +193,12 @@ export default function AdminDashboard() {
   // Get only top 3 low stock items
   const topLowStock = lowStock.slice(0, 3);
 
+  // Determine if user is admin (can switch views)
+  const isAdmin = role === "ADMIN";
+
   return (
     <div className="flex-1 space-y-4">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center justify-between w-full sm:w-auto">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
@@ -205,45 +209,43 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          {/* Tab switcher strictly visible for Admin users */}
-          {role === "ADMIN" && (
-            <Tabs
-              value={viewRole || "ADMIN"}
-              onValueChange={(value) =>
-                setViewRole(value === "ADMIN" ? null : value)
-              }
-              className="w-auto"
-            >
-              <TabsList className="bg-background border border-border p-1 rounded-lg w-auto">
-                <TabsTrigger
-                  value="ADMIN"
-                  className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 rounded-md font-medium"
-                >
-                  Admin
-                </TabsTrigger>
-                <TabsTrigger
-                  value="STAFF"
-                  className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 rounded-md font-medium"
-                >
-                  Staff
-                </TabsTrigger>
-                <TabsTrigger
-                  value="RIDER"
-                  className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 rounded-md font-medium"
-                >
-                  Rider
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          )}
-        </div>
+        {/* Tab switcher strictly visible for Admin users */}
+        {isAdmin && (
+          <Tabs
+            value={viewRole || "ADMIN"}
+            onValueChange={(value) =>
+              setViewRole(value === "ADMIN" ? null : value)
+            }
+            className="w-auto"
+          >
+            <TabsList className="bg-background border border-border p-1 rounded-lg w-auto">
+              <TabsTrigger
+                value="ADMIN"
+                className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 rounded-md font-medium"
+              >
+                Admin
+              </TabsTrigger>
+              <TabsTrigger
+                value="STAFF"
+                className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 rounded-md font-medium"
+              >
+                Staff
+              </TabsTrigger>
+              <TabsTrigger
+                value="RIDER"
+                className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 rounded-md font-medium"
+              >
+                Rider
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
       </div>
 
       {/* --- ADMIN VIEW --- */}
-      {activeRole === "ADMIN" && (
+      {activeRole === "ADMIN" && isAdmin && (
         <div className="space-y-4">
-          {/* Stats Cards - 2x2 on mobile, 4 columns on desktop */}
+          {/* Stats Cards */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-4">
             <StatCard title="Total Revenue" icon={DollarSign} loading={loading}>
               <div className="text-base sm:text-2xl font-bold">
@@ -411,7 +413,7 @@ export default function AdminDashboard() {
             </Card>
           </div>
 
-          {/* Low Stock Alert - Only show top 3 */}
+          {/* Low Stock Alert */}
           {!loading && lowStock.length > 0 && (
             <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4">
               <CardHeader className="p-0 px-2 pb-3 flex flex-row items-center justify-between space-y-0">
@@ -452,7 +454,7 @@ export default function AdminDashboard() {
       )}
 
       {/* --- STAFF VIEW --- */}
-      {activeRole === "STAFF" && (
+      {(activeRole === "STAFF" || (!isAdmin && role === "STAFF")) && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             <StatCard
@@ -539,7 +541,7 @@ export default function AdminDashboard() {
       )}
 
       {/* --- RIDER VIEW --- */}
-      {activeRole === "RIDER" && (
+      {(activeRole === "RIDER" || (!isAdmin && role === "RIDER")) && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             <StatCard title="Pickups Ready" icon={Package} loading={loading}>

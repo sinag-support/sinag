@@ -32,6 +32,10 @@ import {
   Pencil,
   Trash2,
   DollarSign,
+  Package,
+  User,
+  Calendar,
+  CreditCard,
 } from "lucide-react";
 import {
   Dialog,
@@ -53,6 +57,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { OrderDetailDialog } from "@/components/admin/order-detail-dialog";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 
 const statusOptions = [
   "PENDING",
@@ -378,7 +383,7 @@ export default function OrdersPage() {
     return rider.name || rider.email || "Unknown Rider";
   };
 
-  // Render skeleton rows
+  // Render skeleton rows for desktop
   const renderSkeletonRows = () => {
     return Array.from({ length: 5 }).map((_, i) => (
       <TableRow key={i}>
@@ -416,6 +421,127 @@ export default function OrdersPage() {
     ));
   };
 
+  // Render skeleton cards for mobile
+  const renderSkeletonCards = () => {
+    return Array.from({ length: 5 }).map((_, i) => (
+      <Card
+        key={i}
+        className="overflow-hidden !bg-background shadow-none border-border"
+      >
+        <CardContent className="p-3">
+          <div className="flex items-start gap-3">
+            <Skeleton className="h-10 w-10 rounded flex-shrink-0" />
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+              <Skeleton className="h-3 w-1/3" />
+            </div>
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+            <div className="flex gap-1.5">
+              <Skeleton className="h-5 w-16" />
+              <Skeleton className="h-5 w-12" />
+            </div>
+            <div className="flex gap-1">
+              <Skeleton className="h-7 w-7" />
+              <Skeleton className="h-7 w-7" />
+              <Skeleton className="h-7 w-7" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    ));
+  };
+
+  // Order Card Component for Mobile
+  const OrderCard = ({ order }: { order: Order }) => {
+    const statusColor =
+      statusColors[order.status] || "bg-gray-100 text-gray-800";
+    const isAdmin = role === "ADMIN";
+    const isStaff = role === "STAFF";
+
+    return (
+      <Card className="overflow-hidden !bg-background shadow-none border-border">
+        <CardContent className="p-3">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                <Package className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="font-medium text-sm">#{order.orderNumber}</h3>
+                <p className="text-xs text-muted-foreground truncate max-w-[150px]">
+                  {order.user.name || order.user.email}
+                </p>
+              </div>
+            </div>
+            <Badge className={statusColor}>{formatStatus(order.status)}</Badge>
+          </div>
+
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">
+                ₱{order.payable.toFixed(2)}
+              </span>
+              <Badge
+                variant={order.isPaid ? "default" : "secondary"}
+                className="text-[10px] px-2 py-0 h-5"
+              >
+                {order.isPaid ? "Paid" : "Unpaid"}
+              </Badge>
+              {isAdmin && (
+                <span className="text-[10px]">{getRiderName(order.rider)}</span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0 !bg-background hover:!bg-accent"
+                onClick={() => fetchOrderDetail(order.id)}
+              >
+                <Eye className="h-3.5 w-3.5" />
+              </Button>
+              {(isAdmin || isStaff) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 w-7 p-0 !bg-background hover:!bg-accent"
+                  onClick={() => openEditDialog(order)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {(isAdmin || isStaff) &&
+                order.status === "RETURNED" &&
+                !order.isPaid && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 w-7 p-0 text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
+                    onClick={() => openRefundDialog(order)}
+                  >
+                    <DollarSign className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="h-7 w-7 p-0"
+                  onClick={() => openDeleteDialog(order)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -431,7 +557,8 @@ export default function OrdersPage() {
           <Skeleton className="h-10 w-40" />
           <Skeleton className="h-10 w-24 ml-auto" />
         </div>
-        <div className="border rounded-lg overflow-hidden">
+        <div className="md:hidden space-y-2">{renderSkeletonCards()}</div>
+        <div className="hidden md:block border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -511,7 +638,21 @@ export default function OrdersPage() {
         )}
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
+      {/* Mobile: Cards View */}
+      <div className="md:hidden space-y-2">
+        {orders.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            {search || statusFilter !== "ALL"
+              ? "No orders found matching your filters"
+              : "No orders found"}
+          </div>
+        ) : (
+          orders.map((order) => <OrderCard key={order.id} order={order} />)
+        )}
+      </div>
+
+      {/* Desktop: Table View */}
+      <div className="hidden md:block border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -626,15 +767,15 @@ export default function OrdersPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between gap-4 py-2">
-          <div className="text-sm text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-2">
+          <div className="text-sm text-muted-foreground order-2 sm:order-1">
             {loading ? (
               <Skeleton className="h-4 w-32 inline-block" />
             ) : (
               `Showing ${(page - 1) * limit + 1} - ${Math.min(page * limit, total)} of ${total}`
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 order-1 sm:order-2">
             <Button
               variant="outline"
               size="sm"
@@ -796,28 +937,24 @@ export default function OrdersPage() {
               Delete Order #{deletingOrder?.orderNumber}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              <div>
-                <p>
-                  Are you sure you want to delete this order? This action cannot
-                  be undone.
-                </p>
-                {deletingOrder && (
-                  <div className="mt-3 p-3 bg-muted/30 rounded-lg text-sm space-y-1">
-                    <div>
-                      <span className="text-muted-foreground">Customer:</span>{" "}
-                      {deletingOrder.user.name || deletingOrder.user.email}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Total:</span> ₱
-                      {deletingOrder.payable.toFixed(2)}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Status:</span>{" "}
-                      {deletingOrder.status.replace("_", " ")}
-                    </div>
+              Are you sure you want to delete this order? This action cannot be
+              undone.
+              {deletingOrder && (
+                <div className="mt-3 p-3 bg-muted/30 rounded-lg text-sm space-y-1">
+                  <div>
+                    <span className="text-muted-foreground">Customer:</span>{" "}
+                    {deletingOrder.user.name || deletingOrder.user.email}
                   </div>
-                )}
-              </div>
+                  <div>
+                    <span className="text-muted-foreground">Total:</span> ₱
+                    {deletingOrder.payable.toFixed(2)}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Status:</span>{" "}
+                    {deletingOrder.status.replace("_", " ")}
+                  </div>
+                </div>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -853,28 +990,24 @@ export default function OrdersPage() {
               Refund Order #{refundingOrder?.orderNumber}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              <div>
-                <p>
-                  Are you sure you want to refund this order? This will mark the
-                  order as refunded and process the refund.
-                </p>
-                {refundingOrder && (
-                  <div className="mt-3 p-3 bg-muted/30 rounded-lg text-sm space-y-1">
-                    <div>
-                      <span className="text-muted-foreground">Customer:</span>{" "}
-                      {refundingOrder.user.name || refundingOrder.user.email}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Total:</span> ₱
-                      {refundingOrder.payable.toFixed(2)}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Status:</span>{" "}
-                      {refundingOrder.status.replace("_", " ")}
-                    </div>
+              Are you sure you want to refund this order? This will mark the
+              order as refunded and process the refund.
+              {refundingOrder && (
+                <div className="mt-3 p-3 bg-muted/30 rounded-lg text-sm space-y-1">
+                  <div>
+                    <span className="text-muted-foreground">Customer:</span>{" "}
+                    {refundingOrder.user.name || refundingOrder.user.email}
                   </div>
-                )}
-              </div>
+                  <div>
+                    <span className="text-muted-foreground">Total:</span> ₱
+                    {refundingOrder.payable.toFixed(2)}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Status:</span>{" "}
+                    {refundingOrder.status.replace("_", " ")}
+                  </div>
+                </div>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -27,7 +27,6 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  X,
   Ban,
   RotateCcw,
 } from "lucide-react";
@@ -74,6 +73,7 @@ interface Rider {
   id: string;
   name: string | null;
   email: string;
+  role?: string;
 }
 
 interface PaginatedResponse {
@@ -107,6 +107,15 @@ const statusColors: Record<string, string> = {
   RETURNED: "bg-gray-100 text-gray-800",
 };
 
+const deliveryStatusOptions = [
+  { value: "all", label: "All Statuses" },
+  { value: "ASSIGNED_RIDER", label: "Assigned" },
+  { value: "OUT_FOR_DELIVERY", label: "Out for Delivery" },
+  { value: "DELIVERED", label: "Delivered" },
+  { value: "CANCELLED", label: "Cancelled" },
+  { value: "RETURNED", label: "Returned" },
+];
+
 function formatStatus(status: string) {
   return status
     .replace(/_/g, " ")
@@ -133,6 +142,7 @@ export default function DeliveryPage() {
 
   // Admin specific states
   const [selectedRiderId, setSelectedRiderId] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const fetchRiders = async () => {
     if (role !== "ADMIN") return;
@@ -141,7 +151,10 @@ export default function DeliveryPage() {
       const res = await fetch("/api/admin/users?role=RIDER");
       if (res.ok) {
         const data = await res.json();
-        setRiders(Array.isArray(data) ? data : []);
+        const ridersOnly = Array.isArray(data)
+          ? data.filter((user: any) => user.role === "RIDER")
+          : [];
+        setRiders(ridersOnly);
       } else {
         setRiders([]);
       }
@@ -158,6 +171,7 @@ export default function DeliveryPage() {
     try {
       const params = new URLSearchParams();
 
+      // Role-based status filtering
       if (role === "RIDER") {
         params.append(
           "status",
@@ -165,12 +179,18 @@ export default function DeliveryPage() {
         );
       }
 
+      // Admin rider filter
       if (role === "ADMIN" && selectedRiderId !== "all") {
         params.append("riderId", selectedRiderId);
         params.append(
           "status",
           "ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP",
         );
+      }
+
+      // Status filter (for both admin and rider)
+      if (statusFilter !== "all") {
+        params.append("status", statusFilter);
       }
 
       params.append("page", page.toString());
@@ -208,11 +228,11 @@ export default function DeliveryPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, selectedRiderId]);
+  }, [search, selectedRiderId, statusFilter]);
 
   useEffect(() => {
     fetchDeliveryOrders();
-  }, [role, page, selectedRiderId]);
+  }, [role, page, selectedRiderId, statusFilter]);
 
   const goToPage = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -268,6 +288,13 @@ export default function DeliveryPage() {
     return rider.name || rider.email || "Unknown Rider";
   };
 
+  // Truncate text function for mobile
+  const truncateText = (text: string | null, maxLength: number = 30) => {
+    if (!text) return "";
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + "...";
+  };
+
   // Render skeleton rows for table
   const renderSkeletonRows = () => {
     return Array.from({ length: 5 }).map((_, i) => (
@@ -299,6 +326,34 @@ export default function DeliveryPage() {
           </div>
         </TableCell>
       </TableRow>
+    ));
+  };
+
+  // Render skeleton cards for mobile
+  const renderSkeletonCards = () => {
+    return Array.from({ length: 4 }).map((_, i) => (
+      <Card
+        key={i}
+        className="overflow-hidden !bg-background shadow-none border-border"
+      >
+        <CardContent className="p-3">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-32" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+            <Skeleton className="h-5 w-16 flex-shrink-0" />
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+            <Skeleton className="h-4 w-16" />
+            <div className="flex gap-1">
+              <Skeleton className="h-7 w-7" />
+              <Skeleton className="h-7 w-7" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     ));
   };
 
@@ -338,6 +393,161 @@ export default function DeliveryPage() {
     );
   };
 
+  // Delivery Card Component for Mobile
+  const DeliveryCard = ({ order }: { order: DeliveryOrder }) => {
+    const statusColor =
+      statusColors[order.status] || "bg-gray-100 text-gray-800";
+    const isAdmin = role === "ADMIN";
+    const isRider = role === "RIDER";
+
+    return (
+      <Card className="overflow-hidden !bg-background shadow-none border-border">
+        <CardContent className="p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium text-sm">
+                  #{order.orderNumber}
+                </span>
+                <Badge
+                  className={cn(
+                    "text-[10px] px-2 py-0 h-5 flex-shrink-0",
+                    statusColor,
+                  )}
+                >
+                  {formatStatus(order.status)}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground truncate mt-0.5">
+                {order.user?.name || order.user?.email}
+              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                <span className="text-xs text-muted-foreground truncate">
+                  {order.address?.city}
+                </span>
+              </div>
+              {isAdmin && (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Truck className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                  <span className="text-[10px] text-muted-foreground truncate">
+                    {getRiderName(order.rider)}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-sm font-bold">₱{order.payable.toFixed(2)}</p>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-muted-foreground">
+                {new Date(order.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
+              {/* View Button */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0 !bg-background hover:!bg-accent flex-shrink-0"
+                onClick={() => {
+                  setSelectedOrder(order);
+                  setDetailOpen(true);
+                }}
+              >
+                <MapPin className="h-3.5 w-3.5" />
+              </Button>
+
+              {/* Admin Actions */}
+              {isAdmin && order.status === "OUT_FOR_DELIVERY" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 w-7 p-0 text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700 !bg-background flex-shrink-0"
+                  onClick={() => updateStatus(order.id, "CANCELLED")}
+                  disabled={isUpdating}
+                >
+                  <Ban className="h-3.5 w-3.5" />
+                </Button>
+              )}
+
+              {/* Rider Actions */}
+              {isRider && (
+                <>
+                  {order.status === "ASSIGNED_RIDER" && (
+                    <Button
+                      size="sm"
+                      className="h-7 px-2 text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium flex-shrink-0"
+                      onClick={() => updateStatus(order.id, "OUT_FOR_DELIVERY")}
+                      disabled={isUpdating}
+                    >
+                      {isUpdating ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        "Start"
+                      )}
+                    </Button>
+                  )}
+
+                  {order.status === "OUT_FOR_DELIVERY" && (
+                    <>
+                      <Button
+                        size="sm"
+                        className="h-7 px-2 text-xs bg-green-600 hover:bg-green-700 text-white font-medium flex-shrink-0"
+                        onClick={() => updateStatus(order.id, "DELIVERED")}
+                        disabled={isUpdating}
+                      >
+                        {isUpdating ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          "Deliver"
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 w-7 p-0 text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700 !bg-background flex-shrink-0"
+                        onClick={() => updateStatus(order.id, "CANCELLED")}
+                        disabled={isUpdating}
+                      >
+                        <Ban className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 w-7 p-0 text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background flex-shrink-0"
+                        onClick={() => updateStatus(order.id, "RETURNED")}
+                        disabled={isUpdating}
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
+
+                  {order.status === "DELIVERED" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 w-7 p-0 text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background flex-shrink-0"
+                      onClick={() => updateStatus(order.id, "RETURNED")}
+                      disabled={isUpdating}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -352,7 +562,7 @@ export default function DeliveryPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         {renderStatCard(
           "Total",
           loading ? "" : totalOrders,
@@ -380,8 +590,29 @@ export default function DeliveryPage() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative w-full sm:max-w-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+        {/* Mobile: Search + Refresh inline */}
+        <div className="flex items-center gap-2 sm:hidden flex-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by order #, customer, or city..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 w-full !bg-background"
+            />
+          </div>
+          <Button
+            variant="outline"
+            onClick={fetchDeliveryOrders}
+            className="!bg-background hover:!bg-accent w-10 h-10 flex-shrink-0"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Desktop: Original layout */}
+        <div className="relative flex-1 sm:max-w-sm hidden sm:block">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by order #, customer, or city..."
@@ -391,9 +622,58 @@ export default function DeliveryPage() {
           />
         </div>
 
-        {/* Rider Filter - Admin only */}
+        {/* Desktop Refresh Button */}
+        <Button
+          variant="outline"
+          onClick={fetchDeliveryOrders}
+          className="hidden sm:inline-flex !bg-background hover:!bg-accent"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+        </Button>
+
+        {/* Mobile: Status + Rider Filter (Admin only) - inline with equal width */}
+        <div className="flex sm:hidden gap-2 w-full">
+          {/* Status Filter - Mobile */}
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value)}
+          >
+            <SelectTrigger className="flex-1 h-8 !bg-background">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent className="!bg-background">
+              {deliveryStatusOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Rider Filter - Admin only on mobile */}
+          {role === "ADMIN" && (
+            <Select
+              value={selectedRiderId}
+              onValueChange={(value) => setSelectedRiderId(value)}
+            >
+              <SelectTrigger className="flex-1 h-8 !bg-background">
+                <SelectValue placeholder="Rider" />
+              </SelectTrigger>
+              <SelectContent className="!bg-background">
+                <SelectItem value="all">All Riders</SelectItem>
+                {riders.map((rider) => (
+                  <SelectItem key={rider.id} value={rider.id}>
+                    {rider.name || rider.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        {/* Desktop: Rider Filter + Status Filter - Admin only */}
         {role === "ADMIN" && (
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <Select
               value={selectedRiderId}
               onValueChange={(value) => setSelectedRiderId(value)}
@@ -403,34 +683,52 @@ export default function DeliveryPage() {
               </SelectTrigger>
               <SelectContent className="!bg-background">
                 <SelectItem value="all">All Riders</SelectItem>
-                {Array.isArray(riders) &&
-                  riders.map((rider) => (
-                    <SelectItem key={rider.id} value={rider.id}>
-                      {rider.name || rider.email}
-                    </SelectItem>
-                  ))}
+                {riders.map((rider) => (
+                  <SelectItem key={rider.id} value={rider.id}>
+                    {rider.name || rider.email}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            {selectedRiderId !== "all" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedRiderId("all")}
-                className="h-8 px-2 !bg-background hover:!bg-accent"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value)}
+            >
+              <SelectTrigger className="w-[180px] h-8 !bg-background">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="!bg-background">
+                {deliveryStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 
-        <Button
-          variant="outline"
-          onClick={fetchDeliveryOrders}
-          className="ml-auto !bg-background hover:!bg-accent"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-        </Button>
+        {/* Desktop: Status Filter only for Rider */}
+        {role === "RIDER" && (
+          <div className="hidden sm:block">
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value)}
+            >
+              <SelectTrigger className="w-[180px] h-8 !bg-background">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="!bg-background">
+                {deliveryStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* Results count */}
@@ -442,24 +740,47 @@ export default function DeliveryPage() {
             {total} {total === 1 ? "delivery" : "deliveries"} found
             {selectedRiderId !== "all" &&
               ` for ${riders.find((r) => r.id === selectedRiderId)?.name || "selected rider"}`}
+            {statusFilter !== "all" &&
+              ` with status ${statusFilter.replace(/_/g, " ")}`}
             {search && ` matching "${search}"`}
           </>
         )}
       </div>
 
-      {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
+      {/* Mobile: Cards View */}
+      <div className="md:hidden space-y-2 -mx-4 px-4">
+        {loading ? (
+          renderSkeletonCards()
+        ) : filteredOrders.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            {search
+              ? "No deliveries found matching your search"
+              : "No deliveries found"}
+          </div>
+        ) : (
+          filteredOrders.map((order) => (
+            <DeliveryCard key={order.id} order={order} />
+          ))
+        )}
+      </div>
+
+      {/* Desktop: Table View */}
+      <div className="hidden md:block border rounded-lg overflow-hidden w-full">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order #</TableHead>
-                <TableHead>Customer</TableHead>
-                {role === "ADMIN" && <TableHead>Rider</TableHead>}
-                <TableHead>Address</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="min-w-[80px]">Order #</TableHead>
+                <TableHead className="min-w-[120px]">Customer</TableHead>
+                {role === "ADMIN" && (
+                  <TableHead className="min-w-[120px]">Rider</TableHead>
+                )}
+                <TableHead className="min-w-[120px]">Address</TableHead>
+                <TableHead className="min-w-[80px]">Amount</TableHead>
+                <TableHead className="min-w-[100px]">Status</TableHead>
+                <TableHead className="text-right min-w-[180px]">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -590,7 +911,7 @@ export default function DeliveryPage() {
                                 disabled={isUpdating}
                               >
                                 <Ban className="h-3.5 w-3.5 mr-1" />
-                                Cancel Delivery
+                                Cancel
                               </Button>
                               <Button
                                 size="sm"
@@ -607,7 +928,7 @@ export default function DeliveryPage() {
                             </>
                           )}
 
-                          {/* Return - Only for DELIVERED status (customer wants to return) */}
+                          {/* Return - Only for DELIVERED status */}
                           {order.status === "DELIVERED" && (
                             <Button
                               size="sm"
@@ -633,15 +954,15 @@ export default function DeliveryPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between gap-4 py-2">
-          <div className="text-sm text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-2">
+          <div className="text-sm text-muted-foreground order-2 sm:order-1">
             {loading ? (
               <Skeleton className="h-4 w-32 inline-block" />
             ) : (
               `Showing ${(page - 1) * limit + 1} - ${Math.min(page * limit, total)} of ${total}`
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 order-1 sm:order-2">
             <Button
               variant="outline"
               size="sm"

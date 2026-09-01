@@ -22,7 +22,18 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { isEmailValid, isPasswordValid } from "@/lib/validation";
-import { Loader2, Plus, Trash2, Search, Pencil, X, Phone } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  Search,
+  Pencil,
+  X,
+  Phone,
+  Mail,
+  User as UserIcon,
+  Calendar,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,15 +56,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card";
 
-type UserRole = "STAFF" | "RIDER" | "ADMIN";
+type UserRole = "USER" | "STAFF" | "RIDER";
 
 interface User {
   id: string;
   email: string;
   name: string | null;
   phone: string | null;
-  role: UserRole;
+  role: UserRole | "ADMIN";
   avatar: string | null;
   createdAt: string;
 }
@@ -75,7 +87,7 @@ export function UserManagement() {
     phone: "",
     password: "",
     name: "",
-    role: "STAFF" as "STAFF" | "RIDER",
+    role: "USER" as UserRole,
   });
 
   const [touched, setTouched] = useState({
@@ -186,7 +198,7 @@ export function UserManagement() {
         phone: "",
         password: "",
         name: "",
-        role: "STAFF",
+        role: "USER",
       });
       setTouched({ email: false, phone: false, password: false, name: false });
       fetchUsers();
@@ -245,7 +257,7 @@ export function UserManagement() {
         phone: "",
         password: "",
         name: "",
-        role: "STAFF",
+        role: "USER",
       });
       setTouched({ email: false, phone: false, password: false, name: false });
       fetchUsers();
@@ -282,6 +294,8 @@ export function UserManagement() {
     switch (role) {
       case "ADMIN":
         return "destructive";
+      case "USER":
+        return "outline";
       case "STAFF":
         return "default";
       case "RIDER":
@@ -301,7 +315,12 @@ export function UserManagement() {
       .slice(0, 2);
   };
 
-  // Skeleton rows for table
+  const truncateText = (text: string | null, maxLength: number = 20) => {
+    if (!text) return "";
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + "...";
+  };
+
   const renderSkeletonRows = () => {
     return Array.from({ length: 5 }).map((_, i) => (
       <TableRow key={i}>
@@ -333,17 +352,122 @@ export function UserManagement() {
     ));
   };
 
+  const renderSkeletonCards = () => {
+    return Array.from({ length: 4 }).map((_, i) => (
+      <Card
+        key={i}
+        className="overflow-hidden !bg-background shadow-none border-border w-full max-w-full box-border min-w-0"
+      >
+        <CardContent className="p-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
+            <div className="flex-1 min-w-0 space-y-1">
+              <Skeleton className="h-3 w-3/4" />
+              <Skeleton className="h-2 w-1/2" />
+            </div>
+          </div>
+          <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-border">
+            <Skeleton className="h-4 w-12" />
+            <div className="flex gap-1">
+              <Skeleton className="h-6 w-6" />
+              <Skeleton className="h-6 w-6" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    ));
+  };
+
   const userCounts = {
     all: users.length,
+    USER: users.filter((u) => u.role === "USER").length,
     STAFF: users.filter((u) => u.role === "STAFF").length,
     RIDER: users.filter((u) => u.role === "RIDER").length,
   };
 
+  const UserCard = ({ user }: { user: User }) => {
+    return (
+      <Card className="overflow-hidden !bg-background shadow-none border-border w-full max-w-full box-border min-w-0">
+        <CardContent className="p-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Avatar className="h-8 w-8 flex-shrink-0">
+              <AvatarImage
+                src={user.avatar || undefined}
+                alt={user.name || user.email}
+              />
+              <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                {getInitials(user.name)}
+              </AvatarFallback>
+            </Avatar>
+
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-xs truncate">
+                {user.name || "N/A"}
+              </h3>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {truncateText(user.email, 18)}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-border min-w-0">
+            <Badge
+              variant={getRoleBadgeVariant(user.role)}
+              className="text-[9px] px-1.5 py-0 h-4 flex-shrink-0 whitespace-nowrap"
+            >
+              {user.role}
+            </Badge>
+
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 w-6 p-0 !bg-background hover:!bg-accent"
+                onClick={() => {
+                  setEditingUser(user);
+                  setFormData({
+                    email: user.email,
+                    phone: user.phone || "",
+                    password: "",
+                    name: user.name || "",
+                    role:
+                      user.role === "USER" ||
+                      user.role === "STAFF" ||
+                      user.role === "RIDER"
+                        ? user.role
+                        : "USER",
+                  });
+                  setTouched({
+                    email: false,
+                    phone: false,
+                    password: false,
+                    name: false,
+                  });
+                  setIsEditDialogOpen(true);
+                }}
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 text-destructive hover:text-destructive !bg-background hover:!bg-destructive/10"
+                onClick={() => setDeleteId(user.id)}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full max-w-full overflow-x-clip px-1 box-border">
       {/* Search, Filter, and Add Button */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="relative w-full sm:max-w-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full">
+        <div className="relative flex-1 sm:max-w-sm w-full">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search users by name, email, phone, or role..."
@@ -356,14 +480,20 @@ export function UserManagement() {
         <Tabs
           value={roleFilter}
           onValueChange={setRoleFilter}
-          className="w-auto"
+          className="w-auto max-w-full overflow-x-auto"
         >
-          <TabsList className="bg-background border border-border p-1 rounded-lg w-auto h-8">
+          <TabsList className="bg-background border border-border p-1 rounded-lg w-max max-w-full h-8">
             <TabsTrigger
               value="all"
               className="text-xs px-3 py-1 rounded-md font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               All ({userCounts.all})
+            </TabsTrigger>
+            <TabsTrigger
+              value="USER"
+              className="text-xs px-3 py-1 rounded-md font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              User ({userCounts.USER})
             </TabsTrigger>
             <TabsTrigger
               value="STAFF"
@@ -388,7 +518,7 @@ export function UserManagement() {
               phone: "",
               password: "",
               name: "",
-              role: "STAFF",
+              role: "USER",
             });
             setTouched({
               email: false,
@@ -414,16 +544,40 @@ export function UserManagement() {
         </div>
       )}
 
-      <div className="border rounded-lg overflow-hidden">
+      {/* Mobile: Cards View - 2 columns */}
+      <div className="md:hidden p-px w-full">
+        {loading ? (
+          <div className="grid grid-cols-2 gap-2 w-full">
+            {renderSkeletonCards()}
+          </div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground col-span-2">
+            {search || roleFilter !== "all"
+              ? "No users found matching your filters"
+              : "No users found"}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 w-full">
+            {filteredUsers.map((user) => (
+              <UserCard key={user.id} user={user} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: Table View */}
+      <div className="hidden md:block border rounded-lg overflow-hidden w-full">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="min-w-[150px]">User</TableHead>
+              <TableHead className="min-w-[200px]">Email</TableHead>
+              <TableHead className="min-w-[130px]">Phone</TableHead>
+              <TableHead className="min-w-[100px]">Role</TableHead>
+              <TableHead className="min-w-[100px]">Created</TableHead>
+              <TableHead className="text-right min-w-[100px]">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -480,9 +634,11 @@ export function UserManagement() {
                           password: "",
                           name: user.name || "",
                           role:
-                            user.role === "STAFF" || user.role === "RIDER"
+                            user.role === "USER" ||
+                            user.role === "STAFF" ||
+                            user.role === "RIDER"
                               ? user.role
-                              : "STAFF",
+                              : "USER",
                         });
                         setTouched({
                           email: false,
@@ -517,7 +673,7 @@ export function UserManagement() {
           <DialogHeader>
             <DialogTitle>Create User Account</DialogTitle>
             <DialogDescription>
-              Add a new staff or rider user to the system.
+              Add a new customer, staff, or rider user to the system.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateUser} className="space-y-4">
@@ -667,13 +823,14 @@ export function UserManagement() {
               <Select
                 value={formData.role}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, role: value as "STAFF" | "RIDER" })
+                  setFormData({ ...formData, role: value as UserRole })
                 }
               >
                 <SelectTrigger className="w-full !bg-background">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent className="!bg-background">
+                  <SelectItem value="USER">User</SelectItem>
                   <SelectItem value="STAFF">Staff</SelectItem>
                   <SelectItem value="RIDER">Rider</SelectItem>
                 </SelectContent>
@@ -798,13 +955,14 @@ export function UserManagement() {
               <Select
                 value={formData.role}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, role: value as "STAFF" | "RIDER" })
+                  setFormData({ ...formData, role: value as UserRole })
                 }
               >
                 <SelectTrigger className="w-full !bg-background">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent className="!bg-background">
+                  <SelectItem value="USER">User</SelectItem>
                   <SelectItem value="STAFF">Staff</SelectItem>
                   <SelectItem value="RIDER">Rider</SelectItem>
                 </SelectContent>
