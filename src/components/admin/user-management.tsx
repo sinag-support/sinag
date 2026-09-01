@@ -480,12 +480,12 @@ export function UserManagement() {
         <Tabs
           value={roleFilter}
           onValueChange={setRoleFilter}
-          className="w-auto max-w-full overflow-x-auto"
+          className="w-full sm:w-auto"
         >
-          <TabsList className="bg-background border border-border p-1 rounded-lg w-max max-w-full h-8">
+          <TabsList className="bg-background border border-border rounded-lg w-full sm:w-auto h-auto grid grid-cols-4 sm:flex">
             <TabsTrigger
               value="all"
-              className="text-xs px-3 py-1 rounded-md font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="text-xs rounded-md font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               All ({userCounts.all})
             </TabsTrigger>

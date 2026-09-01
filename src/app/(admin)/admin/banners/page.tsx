@@ -8,6 +8,7 @@ import {
   Search,
   Image as ImageIcon,
   Link as LinkIcon,
+  Hash,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +42,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -92,7 +92,6 @@ export default function BannersPage() {
     );
   });
 
-  // Update image preview when editing
   useEffect(() => {
     if (editing?.image) {
       setImageLoading(true);
@@ -178,12 +177,11 @@ export default function BannersPage() {
     }
   };
 
-  // Skeleton rows for table
   const renderSkeletonRows = () => {
     return Array.from({ length: 4 }).map((_, i) => (
       <TableRow key={i}>
         <TableCell>
-          <Skeleton className="h-12 w-20 rounded" />
+          <Skeleton className="h-12 w-20 rounded-sm" />
         </TableCell>
         <TableCell>
           <Skeleton className="h-4 w-24" />
@@ -202,38 +200,36 @@ export default function BannersPage() {
         </TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-2">
-            <Skeleton className="h-8 w-8" />
-            <Skeleton className="h-8 w-8" />
+            <Skeleton className="h-8 w-8 rounded-sm" />
+            <Skeleton className="h-8 w-8 rounded-sm" />
           </div>
         </TableCell>
       </TableRow>
     ));
   };
 
-  // Skeleton cards for mobile
   const renderSkeletonCards = () => {
     return Array.from({ length: 4 }).map((_, i) => (
       <Card
         key={i}
-        className="overflow-hidden !bg-background shadow-none border-border"
+        className="overflow-hidden !bg-background shadow-none border-none box-border w-auto mx-0.5 rounded-xl min-w-0"
       >
         <CardContent className="p-3">
-          <div className="flex items-start gap-3">
-            <Skeleton className="h-16 w-24 rounded flex-shrink-0" />
-            <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-12 w-16 rounded-sm flex-shrink-0" />
+            <div className="flex-1 min-w-0 space-y-1">
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-3 w-1/2" />
-              <Skeleton className="h-3 w-1/3" />
             </div>
           </div>
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
             <div className="flex gap-1.5">
-              <Skeleton className="h-5 w-16" />
-              <Skeleton className="h-5 w-12" />
+              <Skeleton className="h-5 w-14 rounded-sm" />
+              <Skeleton className="h-5 w-8 rounded-sm" />
             </div>
             <div className="flex gap-1">
-              <Skeleton className="h-7 w-7" />
-              <Skeleton className="h-7 w-7" />
+              <Skeleton className="h-7 w-7 rounded-sm" />
+              <Skeleton className="h-7 w-7 rounded-sm" />
             </div>
           </div>
         </CardContent>
@@ -241,28 +237,13 @@ export default function BannersPage() {
     ));
   };
 
-  // Banner Card Component for Mobile - FIXED with truncated description
   const BannerCard = ({ banner }: { banner: Banner }) => {
-    // Truncate description to max 40 characters
-    const truncateText = (text: string | null, maxLength: number = 40) => {
-      if (!text) return "No description";
-      if (text.length <= maxLength) return text;
-      return text.slice(0, maxLength) + "...";
-    };
-
-    // Truncate link to max 30 characters
-    const truncateLink = (text: string | null, maxLength: number = 30) => {
-      if (!text) return null;
-      if (text.length <= maxLength) return text;
-      return text.slice(0, maxLength) + "...";
-    };
-
     return (
-      <Card className="overflow-hidden !bg-background shadow-none border-border">
+      <Card className="overflow-hidden !bg-background shadow-none border-none box-border w-auto mx-0.5 rounded-xl min-w-0">
         <CardContent className="p-3">
-          <div className="flex items-start gap-3">
-            {/* Image */}
-            <div className="h-16 w-24 rounded-md overflow-hidden bg-muted flex-shrink-0">
+          <div className="flex items-center gap-3">
+            {/* Image Thumbnail */}
+            <div className="h-12 w-16 rounded-sm overflow-hidden bg-muted flex-shrink-0">
               {banner.image ? (
                 <img
                   src={banner.image}
@@ -274,42 +255,44 @@ export default function BannersPage() {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                  <ImageIcon className="h-4 w-4 text-muted-foreground" />
                 </div>
               )}
             </div>
 
-            {/* Info */}
+            {/* Main Info */}
             <div className="flex-1 min-w-0">
               <h3 className="font-medium text-sm truncate">{banner.title}</h3>
-              <p className="text-xs text-muted-foreground truncate">
-                {truncateText(banner.description)}
-              </p>
-              {banner.link && (
-                <div className="flex items-center gap-1 mt-0.5">
+              {banner.link ? (
+                <div className="flex items-center gap-1 mt-0.5 min-w-0">
                   <LinkIcon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                   <span className="text-[10px] text-muted-foreground truncate">
-                    {truncateLink(banner.link)}
+                    {banner.link}
                   </span>
                 </div>
+              ) : (
+                <span className="text-[10px] text-muted-foreground">
+                  No link attached
+                </span>
               )}
             </div>
           </div>
 
-          {/* Bottom Row */}
+          {/* Card Actions & Status */}
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <Badge
                 variant={banner.active ? "default" : "secondary"}
-                className="text-[10px] px-2 py-0 h-5 flex-shrink-0 whitespace-nowrap"
+                className="text-[10px] px-2 py-0 h-5 flex-shrink-0 whitespace-nowrap rounded-sm"
               >
                 {banner.active ? "Active" : "Inactive"}
               </Badge>
               <Badge
                 variant="outline"
-                className="text-[10px] px-2 py-0 h-5 flex-shrink-0 whitespace-nowrap"
+                className="text-[10px] px-1.5 py-0 h-5 flex items-center gap-0.5 flex-shrink-0 whitespace-nowrap rounded-sm"
               >
-                Order: {banner.order}
+                <Hash className="h-2.5 w-2.5" />
+                <span>{banner.order}</span>
               </Badge>
             </div>
 
@@ -317,7 +300,7 @@ export default function BannersPage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 w-7 p-0 !bg-background hover:!bg-accent flex-shrink-0"
+                className="h-7 w-7 p-0 !bg-background hover:!bg-accent flex-shrink-0 rounded-sm"
                 onClick={() => {
                   setEditing(banner);
                   setDialogOpen(true);
@@ -328,7 +311,7 @@ export default function BannersPage() {
               <Button
                 size="sm"
                 variant="destructive"
-                className="h-7 w-7 p-0 flex-shrink-0"
+                className="h-7 w-7 p-0 flex-shrink-0 rounded-sm"
                 onClick={() => setDeleteId(banner.id)}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -341,23 +324,22 @@ export default function BannersPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full overflow-hidden box-border">
       <div>
-        <h1 className="text-3xl font-bold">Banners</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl font-bold truncate">Banners</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground">
           Manage homepage carousel banners
         </p>
       </div>
 
-      {/* Search Bar & Add Button */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-        <div className="relative flex-1 sm:max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full min-w-0 box-border">
+        <div className="relative flex-1 min-w-0 sm:max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
             placeholder="Search banners..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 w-full !bg-background"
+            className="pl-8 w-full !bg-background rounded-md"
           />
         </div>
 
@@ -367,14 +349,13 @@ export default function BannersPage() {
             setImagePreview("");
             setDialogOpen(true);
           }}
-          className="w-full sm:w-auto sm:ml-auto"
+          className="w-full sm:w-auto sm:ml-auto flex-shrink-0 rounded-md"
         >
           <Plus className="mr-2 h-4 w-4" /> Add Banner
         </Button>
       </div>
 
-      {/* Results count */}
-      <div className="text-sm text-muted-foreground">
+      <div className="text-sm text-muted-foreground truncate">
         {loading ? (
           <Skeleton className="h-4 w-32 inline-block" />
         ) : (
@@ -386,12 +367,12 @@ export default function BannersPage() {
         )}
       </div>
 
-      {/* Mobile: Cards View */}
-      <div className="md:hidden space-y-2">
+      {/* Mobile Card List */}
+      <div className="md:hidden space-y-2 w-full min-w-0 box-border">
         {loading ? (
           renderSkeletonCards()
         ) : filteredBanners.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-8 text-muted-foreground text-sm">
             {search ? "No banners found matching your search" : "No banners"}
           </div>
         ) : (
@@ -401,10 +382,10 @@ export default function BannersPage() {
         )}
       </div>
 
-      {/* Desktop: Table View */}
-      <div className="hidden md:block border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
+      {/* Desktop Table View */}
+      <div className="hidden md:block border border-border rounded-md overflow-hidden w-full max-w-full box-border">
+        <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [ms-overflow-style:none] [scrollbar-width:none]">
+          <Table className="w-full">
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[100px]">Image</TableHead>
@@ -439,13 +420,15 @@ export default function BannersPage() {
                       <img
                         src={b.image}
                         alt={b.title}
-                        className="h-12 w-20 object-cover rounded"
+                        className="h-12 w-20 object-cover rounded-sm"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                         }}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{b.title}</TableCell>
+                    <TableCell className="font-medium max-w-[150px] truncate">
+                      {b.title}
+                    </TableCell>
                     <TableCell className="max-w-xs truncate">
                       {b.description || "-"}
                     </TableCell>
@@ -463,7 +446,7 @@ export default function BannersPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="!bg-background hover:!bg-accent h-8 w-8 sm:h-9 sm:w-9 p-0"
+                        className="!bg-background hover:!bg-accent h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-sm"
                         onClick={() => {
                           setEditing(b);
                           setDialogOpen(true);
@@ -474,7 +457,7 @@ export default function BannersPage() {
                       <Button
                         size="sm"
                         variant="destructive"
-                        className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                        className="h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-sm"
                         onClick={() => setDeleteId(b.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -488,9 +471,8 @@ export default function BannersPage() {
         </div>
       </div>
 
-      {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto !bg-background">
+        <DialogContent className="w-[90vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto !bg-background rounded-md [&::-webkit-scrollbar]:hidden [ms-overflow-style:none] [scrollbar-width:none]">
           <DialogHeader>
             <DialogTitle>
               {editing ? "Edit Banner" : "Create Banner"}
@@ -512,7 +494,7 @@ export default function BannersPage() {
                   name="title"
                   placeholder="Enter banner title"
                   defaultValue={editing?.title || ""}
-                  className="!bg-background"
+                  className="!bg-background rounded-md"
                   required
                 />
               </div>
@@ -528,7 +510,7 @@ export default function BannersPage() {
                   min="0"
                   placeholder="0"
                   defaultValue={editing?.order || 0}
-                  className="!bg-background"
+                  className="!bg-background rounded-md"
                 />
               </div>
             </div>
@@ -545,7 +527,7 @@ export default function BannersPage() {
                 name="description"
                 placeholder="Enter banner description"
                 defaultValue={editing?.description || ""}
-                className="!bg-background"
+                className="!bg-background rounded-md"
                 rows={2}
               />
             </div>
@@ -560,7 +542,7 @@ export default function BannersPage() {
                   name="image"
                   placeholder="https://example.com/image.jpg"
                   defaultValue={editing?.image || ""}
-                  className="!bg-background"
+                  className="!bg-background rounded-md"
                   required
                 />
               </div>
@@ -577,12 +559,11 @@ export default function BannersPage() {
                   name="link"
                   placeholder="/products or https://example.com"
                   defaultValue={editing?.link || ""}
-                  className="!bg-background"
+                  className="!bg-background rounded-md"
                 />
               </div>
             </div>
 
-            {/* Image Preview */}
             {imagePreview && (
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">Preview:</p>
@@ -603,19 +584,18 @@ export default function BannersPage() {
               </div>
             )}
 
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full rounded-md">
               {editing ? "Update Banner" : "Create Banner"}
             </Button>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
       <AlertDialog
         open={!!deleteId}
         onOpenChange={(open) => !open && setDeleteId(null)}
       >
-        <AlertDialogContent className="!bg-background">
+        <AlertDialogContent className="w-[90vw] max-w-md !bg-background rounded-md">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Banner?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -623,11 +603,13 @@ export default function BannersPage() {
               banner.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="!bg-background hover:!bg-accent">
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+            <AlertDialogCancel className="!bg-background hover:!bg-accent mt-0 rounded-sm">
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="rounded-sm">
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

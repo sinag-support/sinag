@@ -144,6 +144,9 @@ export default function DeliveryPage() {
   const [selectedRiderId, setSelectedRiderId] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
+  const isAdmin = role === "ADMIN";
+  const isRider = role === "RIDER";
+
   const fetchRiders = async () => {
     if (role !== "ADMIN") return;
     setLoadingRiders(true);
@@ -172,7 +175,7 @@ export default function DeliveryPage() {
       const params = new URLSearchParams();
 
       // Role-based status filtering
-      if (role === "RIDER") {
+      if (isRider) {
         params.append(
           "status",
           "ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP",
@@ -180,7 +183,7 @@ export default function DeliveryPage() {
       }
 
       // Admin rider filter
-      if (role === "ADMIN" && selectedRiderId !== "all") {
+      if (isAdmin && selectedRiderId !== "all") {
         params.append("riderId", selectedRiderId);
         params.append(
           "status",
@@ -221,7 +224,7 @@ export default function DeliveryPage() {
   };
 
   useEffect(() => {
-    if (role === "ADMIN") {
+    if (isAdmin) {
       fetchRiders();
     }
   }, [role]);
@@ -305,7 +308,7 @@ export default function DeliveryPage() {
         <TableCell>
           <Skeleton className="h-4 w-24" />
         </TableCell>
-        {role === "ADMIN" && (
+        {isAdmin && (
           <TableCell>
             <Skeleton className="h-4 w-20" />
           </TableCell>
@@ -357,7 +360,7 @@ export default function DeliveryPage() {
     ));
   };
 
-  // Show loading state for stats cards only
+  // Show loading state for stats cards (Admin only)
   const renderStatCard = (
     title: string,
     value: number | string,
@@ -397,8 +400,6 @@ export default function DeliveryPage() {
   const DeliveryCard = ({ order }: { order: DeliveryOrder }) => {
     const statusColor =
       statusColors[order.status] || "bg-gray-100 text-gray-800";
-    const isAdmin = role === "ADMIN";
-    const isRider = role === "RIDER";
 
     return (
       <Card className="overflow-hidden !bg-background shadow-none border-border">
@@ -553,41 +554,41 @@ export default function DeliveryPage() {
       <div>
         <h1 className="text-3xl font-bold">Delivery Management</h1>
         <p className="text-muted-foreground">
-          {role === "ADMIN"
+          {isAdmin
             ? "Manage all deliveries and filter by rider"
-            : role === "RIDER"
-              ? "Manage your assigned deliveries"
-              : "Delivery management"}
+            : "Manage your assigned deliveries"}
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-        {renderStatCard(
-          "Total",
-          loading ? "" : totalOrders,
-          Package,
-          "All deliveries",
-        )}
-        {renderStatCard(
-          "Assigned",
-          loading ? "" : assignedOrders,
-          Truck,
-          "Ready to pick up",
-        )}
-        {renderStatCard(
-          "Out for Delivery",
-          loading ? "" : outForDelivery,
-          Navigation,
-          "On the way",
-        )}
-        {renderStatCard(
-          "Delivered",
-          loading ? "" : deliveredOrders,
-          CheckCircle,
-          "Completed",
-        )}
-      </div>
+      {/* Stats Cards - Admin only */}
+      {isAdmin && (
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+          {renderStatCard(
+            "Total",
+            loading ? "" : totalOrders,
+            Package,
+            "All deliveries",
+          )}
+          {renderStatCard(
+            "Assigned",
+            loading ? "" : assignedOrders,
+            Truck,
+            "Ready to pick up",
+          )}
+          {renderStatCard(
+            "Out for Delivery",
+            loading ? "" : outForDelivery,
+            Navigation,
+            "On the way",
+          )}
+          {renderStatCard(
+            "Delivered",
+            loading ? "" : deliveredOrders,
+            CheckCircle,
+            "Completed",
+          )}
+        </div>
+      )}
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
@@ -651,7 +652,7 @@ export default function DeliveryPage() {
           </Select>
 
           {/* Rider Filter - Admin only on mobile */}
-          {role === "ADMIN" && (
+          {isAdmin && (
             <Select
               value={selectedRiderId}
               onValueChange={(value) => setSelectedRiderId(value)}
@@ -672,7 +673,7 @@ export default function DeliveryPage() {
         </div>
 
         {/* Desktop: Rider Filter + Status Filter - Admin only */}
-        {role === "ADMIN" && (
+        {isAdmin && (
           <div className="hidden sm:flex items-center gap-2">
             <Select
               value={selectedRiderId}
@@ -710,7 +711,7 @@ export default function DeliveryPage() {
         )}
 
         {/* Desktop: Status Filter only for Rider */}
-        {role === "RIDER" && (
+        {isRider && (
           <div className="hidden sm:block">
             <Select
               value={statusFilter}
@@ -772,7 +773,7 @@ export default function DeliveryPage() {
               <TableRow>
                 <TableHead className="min-w-[80px]">Order #</TableHead>
                 <TableHead className="min-w-[120px]">Customer</TableHead>
-                {role === "ADMIN" && (
+                {isAdmin && (
                   <TableHead className="min-w-[120px]">Rider</TableHead>
                 )}
                 <TableHead className="min-w-[120px]">Address</TableHead>
@@ -789,7 +790,7 @@ export default function DeliveryPage() {
               ) : filteredOrders.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={role === "ADMIN" ? 7 : 6}
+                    colSpan={isAdmin ? 7 : 6}
                     className="text-center py-8 text-muted-foreground"
                   >
                     {search
@@ -808,7 +809,7 @@ export default function DeliveryPage() {
                     </TableCell>
 
                     {/* Rider column - Admin only */}
-                    {role === "ADMIN" && (
+                    {isAdmin && (
                       <TableCell>
                         <Badge variant="outline" className="text-xs">
                           {getRiderName(order.rider)}
@@ -843,7 +844,7 @@ export default function DeliveryPage() {
                       </Button>
 
                       {/* ADMIN ACTIONS - Only view and cancel */}
-                      {role === "ADMIN" && (
+                      {isAdmin && (
                         <>
                           {/* Cancel Delivery - Only for OUT_FOR_DELIVERY status */}
                           {order.status === "OUT_FOR_DELIVERY" && (
@@ -864,7 +865,7 @@ export default function DeliveryPage() {
                       )}
 
                       {/* RIDER ACTIONS */}
-                      {role === "RIDER" && (
+                      {isRider && (
                         <>
                           {/* Start Delivery - Only for ASSIGNED_RIDER status */}
                           {order.status === "ASSIGNED_RIDER" && (

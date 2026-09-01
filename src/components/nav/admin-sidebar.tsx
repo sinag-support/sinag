@@ -280,7 +280,6 @@ export default function AdminSidebar() {
     }));
   };
 
-  // ✅ Updated handleLogout with full cleanup
   const handleLogout = async () => {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
@@ -289,29 +288,23 @@ export default function AdminSidebar() {
     setProfilePopoverOpen(false);
 
     try {
-      // Call logout API first
-      const response = await fetch("/api/auth/logout", { method: "POST" });
-
-      // Sign out from Supabase client
+      await fetch("/api/auth/logout", { method: "POST" });
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error("Supabase signout error:", error);
       }
 
-      // Clear any client-side auth data
       localStorage.removeItem("supabase-auth-token");
       localStorage.removeItem("sb-access-token");
       localStorage.removeItem("sb-refresh-token");
       sessionStorage.clear();
 
-      // Clear all cookies manually (client-side)
       document.cookie.split(";").forEach((c) => {
         document.cookie = c
           .replace(/^ +/, "")
           .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
 
-      // Force hard navigation
       window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);
@@ -526,13 +519,6 @@ export default function AdminSidebar() {
     const mobileItems = getMobileNavItems(normalizedRole);
     const isAnyPopoverOpen = storePopoverOpen || profilePopoverOpen;
 
-    // ✅ Calculate grid columns based on number of items
-    const getGridCols = () => {
-      const count = mobileItems.length;
-      if (count <= 4) return `grid-cols-${count}`;
-      return "grid-cols-5";
-    };
-
     return (
       <>
         {isAnyPopoverOpen && (
@@ -554,12 +540,10 @@ export default function AdminSidebar() {
           )}
         >
           <nav
-            className={cn(
-              "grid w-full h-16 items-center",
-              mobileItems.length <= 4
-                ? `grid-cols-${mobileItems.length}`
-                : "grid-cols-5",
-            )}
+            className="grid w-full h-16 items-center"
+            style={{
+              gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0, 1fr))`,
+            }}
           >
             {mobileItems.map((item) => {
               const Icon = item.icon;
@@ -670,12 +654,13 @@ export default function AdminSidebar() {
     );
   };
 
-  // Show sidebar layout with skeleton only for user data
   if (loading) {
+    const skeletonCount =
+      normalizedRole === "STAFF" ? 4 : normalizedRole === "RIDER" ? 3 : 5;
+
     return (
       <>
         <aside className="hidden lg:flex h-screen flex-col border-r bg-background w-64 fixed left-0 top-0 z-30">
-          {/* Header - Always visible with skeleton for logo text */}
           <div className="flex items-center justify-between border-b p-2">
             <div className="flex items-center gap-3">
               <Image
@@ -691,7 +676,6 @@ export default function AdminSidebar() {
             <ThemeToggle />
           </div>
 
-          {/* Nav items - Show skeleton for nav items */}
           <nav className="flex-1 px-3 py-4">
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -703,7 +687,6 @@ export default function AdminSidebar() {
             </div>
           </nav>
 
-          {/* User profile - Skeleton for user data only */}
           <div className="border-t border-border px-2 py-3">
             <div className="flex items-center gap-3 px-1">
               <div className="h-8 w-8 shrink-0 rounded-full bg-muted animate-pulse" />
@@ -715,10 +698,14 @@ export default function AdminSidebar() {
           </div>
         </aside>
 
-        {/* Mobile bottom nav - Always visible with skeleton for icons */}
         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t bg-background">
-          <div className="grid grid-cols-5 w-full h-16">
-            {[1, 2, 3, 4, 5].map((i) => (
+          <div
+            className="grid w-full h-16"
+            style={{
+              gridTemplateColumns: `repeat(${skeletonCount}, minmax(0, 1fr))`,
+            }}
+          >
+            {Array.from({ length: skeletonCount }).map((_, i) => (
               <div
                 key={i}
                 className="flex flex-col items-center justify-center gap-1"

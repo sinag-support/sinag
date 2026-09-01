@@ -24,11 +24,9 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
-  Newspaper,
   Heart,
   MessageCircle,
   Users,
-  Eye,
   Loader2,
   Image as ImageIcon,
   Tag,
@@ -52,7 +50,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { BlogForm } from "./components/blog-form";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface BlogPost {
@@ -81,7 +78,6 @@ interface PaginatedResponse {
   totalPages: number;
 }
 
-// Comment type
 interface Comment {
   id: string;
   content: string;
@@ -96,7 +92,6 @@ interface Comment {
   replies?: Comment[];
 }
 
-// Like type
 interface Like {
   id: string;
   userId: string;
@@ -186,7 +181,6 @@ export default function BlogManagementPage() {
     setActiveTab("comments");
 
     try {
-      // Fetch comments
       const commentsRes = await fetch(`/api/blog/${post.slug}/comments`);
       if (commentsRes.ok) {
         const data = await commentsRes.json();
@@ -195,7 +189,6 @@ export default function BlogManagementPage() {
         setComments([]);
       }
 
-      // Fetch likes with user info
       const likesRes = await fetch(`/api/admin/blog/${post.id}/likes`);
       if (likesRes.ok) {
         const data = await likesRes.json();
@@ -320,20 +313,6 @@ export default function BlogManagementPage() {
       .slice(0, 2);
   };
 
-  // Truncate text function for mobile - FIXED
-  const truncateText = (text: string | null, maxLength: number = 50) => {
-    if (!text) return "No excerpt";
-    if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength) + "...";
-  };
-
-  // Truncate title function for mobile
-  const truncateTitle = (text: string, maxLength: number = 40) => {
-    if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength) + "...";
-  };
-
-  // Skeleton rows for desktop table
   const renderSkeletonRows = () => {
     return Array.from({ length: 5 }).map((_, i) => (
       <TableRow key={i}>
@@ -368,30 +347,28 @@ export default function BlogManagementPage() {
     ));
   };
 
-  // Skeleton cards for mobile
   const renderSkeletonCards = () => {
     return Array.from({ length: 4 }).map((_, i) => (
       <Card
         key={i}
-        className="overflow-hidden !bg-background shadow-none border-border"
+        className="overflow-hidden !bg-background shadow-none border-none box-border w-auto mx-0.5 rounded-xl min-w-0"
       >
         <CardContent className="p-3">
           <div className="flex items-start gap-3">
-            <Skeleton className="h-16 w-20 rounded flex-shrink-0" />
+            <Skeleton className="h-16 w-20 rounded-md flex-shrink-0" />
             <div className="flex-1 min-w-0 space-y-1.5">
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-3 w-1/2" />
-              <Skeleton className="h-3 w-1/3" />
             </div>
           </div>
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
             <div className="flex gap-1.5">
-              <Skeleton className="h-5 w-16" />
-              <Skeleton className="h-5 w-12" />
+              <Skeleton className="h-5 w-16 rounded-sm" />
+              <Skeleton className="h-5 w-12 rounded-sm" />
             </div>
             <div className="flex gap-1">
-              <Skeleton className="h-7 w-7" />
-              <Skeleton className="h-7 w-7" />
+              <Skeleton className="h-7 w-7 rounded-sm" />
+              <Skeleton className="h-7 w-7 rounded-sm" />
             </div>
           </div>
         </CardContent>
@@ -399,10 +376,9 @@ export default function BlogManagementPage() {
     ));
   };
 
-  // Blog Post Card Component for Mobile - FIXED
   const BlogPostCard = ({ post }: { post: BlogPost }) => {
     return (
-      <Card className="overflow-hidden !bg-background shadow-none border-border w-full">
+      <Card className="overflow-hidden !bg-background shadow-none border-none box-border w-auto mx-0.5 rounded-xl min-w-0">
         <CardContent className="p-3">
           <div className="flex items-start gap-3 w-full">
             {/* Cover Image */}
@@ -423,15 +399,12 @@ export default function BlogManagementPage() {
               )}
             </div>
 
-            {/* Info */}
+            {/* Main Info */}
             <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-sm truncate">
-                {truncateTitle(post.title, 35)}
+              <h3 className="font-medium text-sm line-clamp-2 leading-snug break-words">
+                {post.title}
               </h3>
-              <p className="text-xs text-muted-foreground truncate">
-                {truncateText(post.excerpt, 45)}
-              </p>
-              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-[10px] text-muted-foreground truncate max-w-[80px]">
                   {post.author}
                 </span>
@@ -462,7 +435,7 @@ export default function BlogManagementPage() {
             <div className="flex items-center gap-2 flex-shrink-0">
               <Badge
                 variant={post.published ? "default" : "secondary"}
-                className="text-[10px] px-2 py-0 h-5 flex-shrink-0 whitespace-nowrap"
+                className="text-[10px] px-2 py-0 h-5 flex-shrink-0 whitespace-nowrap rounded-sm"
               >
                 {post.published ? "Published" : "Draft"}
               </Badge>
@@ -490,7 +463,7 @@ export default function BlogManagementPage() {
             <Button
               size="sm"
               variant="outline"
-              className="h-7 w-7 p-0 !bg-background hover:!bg-accent flex-shrink-0"
+              className="h-7 w-7 p-0 !bg-background hover:!bg-accent flex-shrink-0 rounded-sm"
               onClick={() => {
                 setEditingPost(post);
                 setDialogOpen(true);
@@ -501,7 +474,7 @@ export default function BlogManagementPage() {
             <Button
               size="sm"
               variant="destructive"
-              className="h-7 w-7 p-0 flex-shrink-0"
+              className="h-7 w-7 p-0 flex-shrink-0 rounded-sm"
               onClick={() => setDeleteId(post.id)}
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -513,47 +486,53 @@ export default function BlogManagementPage() {
   };
 
   return (
-    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
+    <div className="space-y-6 w-full max-w-full overflow-hidden box-border">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Blog Management</h1>
-          <p className="text-muted-foreground">Create and manage blog posts</p>
+          <h1 className="text-2xl sm:text-3xl font-bold truncate">
+            Blog Management
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Create and manage blog posts
+          </p>
         </div>
       </div>
 
-      {/* Search, Refresh, and New Post Button */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-        <div className="relative flex-1 sm:max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* Search Bar & 1-Line Equal-Width Action Buttons */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full min-w-0 box-border">
+        <div className="relative flex-1 min-w-0 sm:max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
             placeholder="Search by title, author, or tag..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 w-full !bg-background"
+            className="pl-8 w-full !bg-background rounded-md"
           />
         </div>
 
-        <Button
-          variant="outline"
-          onClick={fetchPosts}
-          className="w-full sm:w-auto !bg-background hover:!bg-accent"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-        </Button>
+        <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center sm:ml-auto flex-shrink-0">
+          <Button
+            variant="outline"
+            onClick={fetchPosts}
+            className="w-full !bg-background hover:!bg-accent rounded-md"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+          </Button>
 
-        <Button
-          onClick={() => {
-            setEditingPost(null);
-            setDialogOpen(true);
-          }}
-          className="w-full sm:w-auto sm:ml-auto"
-        >
-          <Plus className="mr-2 h-4 w-4" /> New Post
-        </Button>
+          <Button
+            onClick={() => {
+              setEditingPost(null);
+              setDialogOpen(true);
+            }}
+            className="w-full rounded-md"
+          >
+            <Plus className="mr-2 h-4 w-4" /> New Post
+          </Button>
+        </div>
       </div>
 
-      {/* Results count */}
-      <div className="text-sm text-muted-foreground">
+      {/* Results Count */}
+      <div className="text-sm text-muted-foreground truncate">
         {loading ? (
           <Skeleton className="h-4 w-32 inline-block" />
         ) : (
@@ -564,12 +543,12 @@ export default function BlogManagementPage() {
         )}
       </div>
 
-      {/* Mobile: Cards View */}
-      <div className="md:hidden space-y-2 w-full">
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-2 w-full min-w-0 box-border">
         {loading ? (
           renderSkeletonCards()
         ) : posts.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-8 text-muted-foreground text-sm">
             {search
               ? "No posts found matching your search"
               : "No blog posts yet"}
@@ -579,10 +558,10 @@ export default function BlogManagementPage() {
         )}
       </div>
 
-      {/* Desktop: Table View */}
-      <div className="hidden md:block border rounded-lg overflow-hidden w-full">
-        <div className="overflow-x-auto">
-          <Table>
+      {/* Desktop Table View */}
+      <div className="hidden md:block border border-border rounded-md overflow-hidden w-full max-w-full box-border">
+        <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [ms-overflow-style:none] [scrollbar-width:none]">
+          <Table className="w-full">
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[200px]">Title</TableHead>
@@ -679,7 +658,7 @@ export default function BlogManagementPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="!bg-background hover:!bg-accent h-8 w-8 sm:h-9 sm:w-9 p-0"
+                        className="!bg-background hover:!bg-accent h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-sm"
                         onClick={() => {
                           setEditingPost(post);
                           setDialogOpen(true);
@@ -690,7 +669,7 @@ export default function BlogManagementPage() {
                       <Button
                         size="sm"
                         variant="destructive"
-                        className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                        className="h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-sm"
                         onClick={() => setDeleteId(post.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -704,14 +683,17 @@ export default function BlogManagementPage() {
         </div>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination Controls */}
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-2">
           <div className="text-sm text-muted-foreground order-2 sm:order-1">
             {loading ? (
               <Skeleton className="h-4 w-32 inline-block" />
             ) : (
-              `Showing ${(page - 1) * limit + 1} - ${Math.min(page * limit, total)} of ${total}`
+              `Showing ${(page - 1) * limit + 1} - ${Math.min(
+                page * limit,
+                total,
+              )} of ${total}`
             )}
           </div>
           <div className="flex items-center gap-1 order-1 sm:order-2">
@@ -720,7 +702,7 @@ export default function BlogManagementPage() {
               size="sm"
               onClick={() => goToPage(page - 1)}
               disabled={page === 1 || loading}
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 rounded-sm"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -743,7 +725,7 @@ export default function BlogManagementPage() {
                     size="sm"
                     onClick={() => goToPage(pageNum)}
                     disabled={loading}
-                    className="h-8 w-8 p-0 text-sm"
+                    className="h-8 w-8 p-0 text-sm rounded-sm"
                   >
                     {pageNum}
                   </Button>
@@ -755,7 +737,7 @@ export default function BlogManagementPage() {
               size="sm"
               onClick={() => goToPage(page + 1)}
               disabled={page === totalPages || loading}
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 rounded-sm"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -763,9 +745,9 @@ export default function BlogManagementPage() {
         </div>
       )}
 
-      {/* Create/Edit Dialog */}
+      {/* Blog Creation & Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto scrollbar-hide !bg-background">
+        <DialogContent className="max-w-3xl w-[90vw] max-h-[90vh] overflow-y-auto !bg-background rounded-md [&::-webkit-scrollbar]:hidden [ms-overflow-style:none] [scrollbar-width:none]">
           <DialogHeader>
             <DialogTitle>
               {editingPost ? "Edit Post" : "Create New Post"}
@@ -790,7 +772,7 @@ export default function BlogManagementPage() {
         open={engagementDialogOpen}
         onOpenChange={setEngagementDialogOpen}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto !bg-background">
+        <DialogContent className="max-w-2xl w-[90vw] max-h-[90vh] overflow-y-auto !bg-background rounded-md [&::-webkit-scrollbar]:hidden [ms-overflow-style:none] [scrollbar-width:none]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
@@ -807,7 +789,7 @@ export default function BlogManagementPage() {
               variant={activeTab === "comments" ? "default" : "ghost"}
               size="sm"
               onClick={() => setActiveTab("comments")}
-              className="gap-2"
+              className="gap-2 rounded-sm"
             >
               <MessageCircle className="h-4 w-4" />
               Comments ({comments.length})
@@ -816,7 +798,7 @@ export default function BlogManagementPage() {
               variant={activeTab === "likes" ? "default" : "ghost"}
               size="sm"
               onClick={() => setActiveTab("likes")}
-              className="gap-2"
+              className="gap-2 rounded-sm"
             >
               <Heart className="h-4 w-4" />
               Likes ({likes.length})
@@ -898,7 +880,7 @@ export default function BlogManagementPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 !bg-background"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 !bg-background rounded-sm"
                           onClick={() => deleteComment(comment.id)}
                           disabled={deletingEngagement === comment.id}
                         >
@@ -940,7 +922,7 @@ export default function BlogManagementPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 !bg-background"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 !bg-background rounded-sm"
                         onClick={() => deleteLike(like.id)}
                         disabled={deletingEngagement === like.id}
                       >
@@ -959,12 +941,12 @@ export default function BlogManagementPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation Alert */}
       <AlertDialog
         open={!!deleteId}
         onOpenChange={(open) => !open && setDeleteId(null)}
       >
-        <AlertDialogContent className="!bg-background">
+        <AlertDialogContent className="w-[90vw] max-w-md !bg-background rounded-md">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Blog Post?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -972,11 +954,13 @@ export default function BlogManagementPage() {
               blog post and all associated comments and likes.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="!bg-background hover:!bg-accent">
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+            <AlertDialogCancel className="!bg-background hover:!bg-accent mt-0 rounded-sm">
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="rounded-sm">
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

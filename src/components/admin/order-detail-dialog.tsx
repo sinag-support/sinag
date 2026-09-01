@@ -66,7 +66,6 @@ interface Order {
   items?: OrderItem[];
 }
 
-// Use the same status colors as the Orders page
 const statusColors: Record<string, string> = {
   PENDING: "text-yellow-600",
   CONFIRMED: "text-blue-600",
@@ -121,95 +120,100 @@ export function OrderDetailDialog({
 }: OrderDetailDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto scrollbar-hide !bg-background">
+      <DialogContent className="w-[92vw] max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 md:p-6 !bg-background [&::-webkit-scrollbar]:hidden [ms-overflow-style:none] [scrollbar-width:none]">
         <DialogHeader className="border-b pb-4">
-          <DialogTitle className="text-2xl flex items-center gap-2">
-            <ShoppingBag className="h-6 w-6" />
-            Order #{order?.orderNumber || "..."}
+          <DialogTitle className="text-xl md:text-2xl flex items-center gap-2 truncate">
+            <ShoppingBag className="h-5 w-5 md:h-6 md:w-6 flex-shrink-0" />
+            <span className="truncate">
+              Order #{order?.orderNumber || "..."}
+            </span>
           </DialogTitle>
         </DialogHeader>
+
         {loading ? (
           <OrderDetailSkeleton />
         ) : (
           order && (
-            <div className="space-y-6 py-2">
-              {/* Row 1: Customer, Payment, Date - 3 columns */}
+            <div className="space-y-6 py-2 w-full min-w-0">
+              {/* Row 1: Customer, Payment, Date */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
-                <div className="!bg-background border rounded-lg p-2.5 md:p-3">
+                <div className="!bg-background border rounded-lg p-2.5 md:p-3 min-w-0">
                   <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground mb-0.5">
-                    <User className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                    <User className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
                     Customer
                   </div>
                   <p className="font-medium text-xs md:text-sm truncate">
                     {order.user.name || order.user.email}
                   </p>
                   {order.user.phone && (
-                    <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 truncate">
                       {order.user.phone}
                     </p>
                   )}
                 </div>
 
-                <div className="!bg-background border rounded-lg p-2.5 md:p-3">
+                <div className="!bg-background border rounded-lg p-2.5 md:p-3 min-w-0">
                   <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground mb-0.5">
-                    <CreditCard className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                    <CreditCard className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
                     Payment
                   </div>
                   <p className="font-medium text-xs md:text-sm">
                     {order.isPaid ? "Paid" : "Unpaid"}
                   </p>
-                  <p className="text-[10px] md:text-xs text-muted-foreground">
+                  <p className="text-[10px] md:text-xs text-muted-foreground truncate">
                     ₱{order.payable.toFixed(2)}
                   </p>
                 </div>
 
-                <div className="!bg-background border rounded-lg p-2.5 md:p-3 col-span-2 md:col-span-1">
+                <div className="!bg-background border rounded-lg p-2.5 md:p-3 col-span-2 md:col-span-1 min-w-0">
                   <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground mb-0.5">
-                    <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                    <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
                     Date
                   </div>
-                  <p className="font-medium text-xs md:text-sm">
+                  <p className="font-medium text-xs md:text-sm truncate">
                     {formatDate(order.createdAt)}
                   </p>
-                  <p className="text-[10px] md:text-xs text-muted-foreground">
+                  <p className="text-[10px] md:text-xs text-muted-foreground truncate">
                     {formatTime(order.createdAt)}
                   </p>
                 </div>
               </div>
 
-              {/* Row 2: Status, Rider, Address - 4 columns (Address takes 2 columns) */}
+              {/* Row 2: Status, Rider, Address */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-3">
-                <div className="!bg-background border rounded-lg p-2.5 md:p-3">
+                <div className="!bg-background border rounded-lg p-2.5 md:p-3 min-w-0">
                   <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground mb-0.5">
-                    <Flag className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                    <Flag className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
                     Status
                   </div>
                   <p
-                    className={`font-medium text-xs md:text-sm ${statusColors[order.status] || "text-foreground"}`}
+                    className={`font-medium text-xs md:text-sm truncate ${
+                      statusColors[order.status] || "text-foreground"
+                    }`}
                   >
                     {formatStatus(order.status)}
                   </p>
                 </div>
 
-                <div className="!bg-background border rounded-lg p-2.5 md:p-3">
+                <div className="!bg-background border rounded-lg p-2.5 md:p-3 min-w-0">
                   <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground mb-0.5">
-                    <Truck className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                    <Truck className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
                     Assigned Rider
                   </div>
-                  <p className="font-medium text-xs md:text-sm">
+                  <p className="font-medium text-xs md:text-sm truncate">
                     {order.rider
                       ? order.rider.name || order.rider.email
                       : "Not assigned"}
                   </p>
                 </div>
 
-                <div className="!bg-background border rounded-lg p-2.5 md:p-3 md:col-span-2">
+                <div className="!bg-background border rounded-lg p-2.5 md:p-3 md:col-span-2 min-w-0">
                   <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground mb-0.5">
-                    <MapPin className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                    <MapPin className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
                     Delivery Address
                   </div>
                   {order.address ? (
-                    <p className="font-medium text-xs md:text-sm truncate">
+                    <p className="font-medium text-xs md:text-sm break-words">
                       {order.address.address}, {order.address.city},{" "}
                       {order.address.province}
                     </p>
@@ -222,16 +226,16 @@ export function OrderDetailDialog({
               </div>
 
               {/* Order Items */}
-              <div>
+              <div className="w-full min-w-0">
                 <h3 className="font-semibold text-sm md:text-base mb-2 md:mb-3 flex items-center gap-2">
-                  <Package className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                  <Package className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
                   Order Items ({order.items?.length || 0})
                 </h3>
-                <div className="border rounded-lg overflow-hidden">
-                  <Table>
+                <div className="border rounded-lg overflow-x-auto w-full max-w-full [&::-webkit-scrollbar]:hidden [ms-overflow-style:none] [scrollbar-width:none]">
+                  <Table className="w-full min-w-[500px]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[180px] md:min-w-[280px] text-xs md:text-sm">
+                        <TableHead className="text-xs md:text-sm">
                           Product
                         </TableHead>
                         <TableHead className="text-right text-xs md:text-sm">
@@ -258,10 +262,10 @@ export function OrderDetailDialog({
                                 isLastItem ? "border-b-2 border-border" : ""
                               }
                             >
-                              <TableCell>
-                                <div className="flex items-center gap-2 md:gap-3">
+                              <TableCell className="p-2 md:p-4">
+                                <div className="flex items-center gap-2 md:gap-3 min-w-0">
                                   {imageUrl ? (
-                                    <div className="relative h-10 w-10 md:h-12 md:w-12 flex-shrink-0 overflow-hidden rounded-md border bg-white">
+                                    <div className="relative h-9 w-9 md:h-12 md:w-12 flex-shrink-0 overflow-hidden rounded-md border bg-white">
                                       <Image
                                         src={imageUrl}
                                         alt={item.product?.title || "Product"}
@@ -289,16 +293,16 @@ export function OrderDetailDialog({
                                         }}
                                       />
                                       <div className="fallback-icon hidden absolute inset-0 flex items-center justify-center bg-muted">
-                                        <Package className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+                                        <Package className="h-4 w-4 text-muted-foreground" />
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="flex h-10 w-10 md:h-12 md:w-12 flex-shrink-0 items-center justify-center rounded-md border bg-muted">
-                                      <Package className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+                                    <div className="flex h-9 w-9 md:h-12 md:w-12 flex-shrink-0 items-center justify-center rounded-md border bg-muted">
+                                      <Package className="h-4 w-4 text-muted-foreground" />
                                     </div>
                                   )}
-                                  <div className="flex flex-col gap-0.5">
-                                    <span className="font-medium text-xs md:text-sm truncate max-w-[100px] md:max-w-none">
+                                  <div className="flex flex-col gap-0.5 min-w-0">
+                                    <span className="font-medium text-xs md:text-sm truncate max-w-[120px] md:max-w-[200px]">
                                       {item.product?.title || "Unknown Product"}
                                     </span>
                                     {item.option && (
@@ -312,13 +316,13 @@ export function OrderDetailDialog({
                                   </div>
                                 </div>
                               </TableCell>
-                              <TableCell className="text-right text-xs md:text-sm">
+                              <TableCell className="text-right text-xs md:text-sm p-2 md:p-4 whitespace-nowrap">
                                 ×{item.quantity}
                               </TableCell>
-                              <TableCell className="text-right text-xs md:text-sm">
+                              <TableCell className="text-right text-xs md:text-sm p-2 md:p-4 whitespace-nowrap">
                                 ₱{item.price.toFixed(2)}
                               </TableCell>
-                              <TableCell className="text-right font-medium text-xs md:text-sm">
+                              <TableCell className="text-right font-medium text-xs md:text-sm p-2 md:p-4 whitespace-nowrap">
                                 ₱{(item.price * item.quantity).toFixed(2)}
                               </TableCell>
                             </TableRow>
@@ -328,7 +332,7 @@ export function OrderDetailDialog({
                         <TableRow>
                           <TableCell
                             colSpan={4}
-                            className="text-center py-6 md:py-8 text-muted-foreground text-sm"
+                            className="text-center py-6 text-muted-foreground text-sm"
                           >
                             No items found
                           </TableCell>
@@ -340,8 +344,8 @@ export function OrderDetailDialog({
               </div>
 
               {/* Total Section */}
-              <div className="flex justify-end">
-                <div className="w-full md:w-1/3">
+              <div className="flex justify-end pt-2">
+                <div className="w-full sm:w-1/2 md:w-1/3 border-t pt-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs md:text-sm font-medium text-muted-foreground">
                       Total
@@ -362,112 +366,43 @@ export function OrderDetailDialog({
 
 function OrderDetailSkeleton() {
   return (
-    <div className="space-y-4 md:space-y-6 py-2">
-      {/* Row 1: Customer, Payment, Date - Skeleton only for values */}
+    <div className="space-y-4 md:space-y-6 py-2 w-full min-w-0">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
         <div className="!bg-background border rounded-lg p-2.5 md:p-3">
-          <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground mb-0.5">
-            <User className="h-3 w-3 md:h-3.5 md:w-3.5" />
-            Customer
-          </div>
+          <Skeleton className="h-4 w-20 mb-2" />
           <Skeleton className="h-4 w-24 md:h-5 md:w-32" />
-          <Skeleton className="h-3 w-28 md:h-3.5 md:w-36 mt-1" />
         </div>
         <div className="!bg-background border rounded-lg p-2.5 md:p-3">
-          <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground mb-0.5">
-            <CreditCard className="h-3 w-3 md:h-3.5 md:w-3.5" />
-            Payment
-          </div>
+          <Skeleton className="h-4 w-20 mb-2" />
           <Skeleton className="h-4 w-16 md:h-5 md:w-20" />
-          <Skeleton className="h-3 w-16 md:h-3.5 md:w-20 mt-1" />
         </div>
         <div className="!bg-background border rounded-lg p-2.5 md:p-3 col-span-2 md:col-span-1">
-          <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground mb-0.5">
-            <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5" />
-            Date
-          </div>
-          <Skeleton className="h-4 w-32 md:h-5 md:w-40" />
-          <Skeleton className="h-3 w-20 md:h-3.5 md:w-24 mt-1" />
-        </div>
-      </div>
-
-      {/* Row 2: Status, Rider, Address - Skeleton only for values */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-3">
-        <div className="!bg-background border rounded-lg p-2.5 md:p-3">
-          <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground mb-0.5">
-            <Flag className="h-3 w-3 md:h-3.5 md:w-3.5" />
-            Status
-          </div>
-          <Skeleton className="h-4 w-20 md:h-5 md:w-24" />
-        </div>
-        <div className="!bg-background border rounded-lg p-2.5 md:p-3">
-          <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground mb-0.5">
-            <Truck className="h-3 w-3 md:h-3.5 md:w-3.5" />
-            Assigned Rider
-          </div>
+          <Skeleton className="h-4 w-20 mb-2" />
           <Skeleton className="h-4 w-28 md:h-5 md:w-36" />
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-3">
+        <div className="!bg-background border rounded-lg p-2.5 md:p-3">
+          <Skeleton className="h-4 w-16 mb-2" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+        <div className="!bg-background border rounded-lg p-2.5 md:p-3">
+          <Skeleton className="h-4 w-20 mb-2" />
+          <Skeleton className="h-4 w-24" />
+        </div>
         <div className="!bg-background border rounded-lg p-2.5 md:p-3 md:col-span-2">
-          <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground mb-0.5">
-            <MapPin className="h-3 w-3 md:h-3.5 md:w-3.5" />
-            Delivery Address
-          </div>
-          <Skeleton className="h-4 w-full max-w-md" />
+          <Skeleton className="h-4 w-24 mb-2" />
+          <Skeleton className="h-4 w-full" />
         </div>
       </div>
 
-      {/* Order Items */}
-      <div>
-        <div className="flex items-center gap-2 mb-2 md:mb-3">
-          <Package className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
-          <span className="font-semibold text-sm md:text-base">
-            Order Items
-          </span>
-          <Skeleton className="h-3 w-8 md:h-4 md:w-10 inline-block" />
-        </div>
-        <div className="border rounded-lg overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                <TableHead className="text-right">Price</TableHead>
-                <TableHead className="text-right">Subtotal</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[1, 2, 3].map((i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <Skeleton className="h-10 w-10 md:h-12 md:w-12 rounded-md" />
-                      <Skeleton className="h-4 w-24 md:h-5 md:w-32" />
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="h-4 w-6 md:h-5 md:w-8 ml-auto" />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="h-4 w-12 md:h-5 md:w-16 ml-auto" />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="h-4 w-16 md:h-5 md:w-20 ml-auto" />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-
-      {/* Total */}
-      <div className="flex justify-end">
-        <div className="w-full md:w-1/3">
-          <div className="flex justify-between items-center">
-            <span className="text-xs md:text-sm font-medium text-muted-foreground">
-              Total
-            </span>
-            <Skeleton className="h-5 w-20 md:h-6 md:w-28" />
+      <div className="w-full min-w-0">
+        <Skeleton className="h-5 w-32 mb-3" />
+        <div className="border rounded-lg overflow-x-auto [&::-webkit-scrollbar]:hidden [ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="p-4 space-y-3 min-w-[500px]">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
           </div>
         </div>
       </div>

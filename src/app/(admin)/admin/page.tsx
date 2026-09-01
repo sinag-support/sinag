@@ -18,6 +18,7 @@ import {
   CheckCircle,
   AlertCircle,
   TrendingUp,
+  ClipboardList,
 } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import {
@@ -34,6 +35,32 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+
+interface RiderOrder {
+  id: string;
+  orderNumber: number;
+  total: number;
+  status: string;
+  createdAt: string;
+  address: { city: string };
+  user: { name: string | null; email: string };
+  rider?: { name: string | null; email: string };
+}
+
+interface RiderStats {
+  total: number;
+  assigned: number;
+  outForDelivery: number;
+  delivered: number;
+  recentOrders: RiderOrder[];
+}
+
+interface StaffStats {
+  total: number;
+  pending: number;
+  outForDelivery: number;
+  completed: number;
+}
 
 interface Stats {
   revenue: number;
@@ -53,6 +80,9 @@ interface Stats {
   revenueData?: { date: string; revenue: number }[];
   monthlyRevenueData?: { date: string; revenue: number }[];
   yearlyRevenueData?: { date: string; revenue: number }[];
+  riderOrders?: RiderStats;
+  staffOrders?: StaffStats;
+  allRiderStats?: RiderStats;
 }
 
 type RevenuePeriod = "week" | "month" | "year" | "full";
@@ -61,15 +91,24 @@ export default function AdminDashboard() {
   const { role } = useRole();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [viewRole, setViewRole] = useState<string | null>(null);
+  const [viewRole, setViewRole] = useState<string>("ADMIN");
   const [revenuePeriod, setRevenuePeriod] = useState<RevenuePeriod>("week");
   const [revenueData, setRevenueData] = useState<
     { date: string; revenue: number }[]
   >([]);
 
+  const isAdmin = role === "ADMIN";
+  const isStaff = role === "STAFF";
+  const isRider = role === "RIDER";
+
+  // Active view role selection logic
+  const activeRole = isAdmin ? viewRole : role;
+
   useEffect(() => {
-    fetchStats();
-  }, []);
+    if (role) {
+      fetchStats();
+    }
+  }, [role, viewRole]);
 
   useEffect(() => {
     if (stats) {
@@ -78,10 +117,104 @@ export default function AdminDashboard() {
   }, [stats, revenuePeriod]);
 
   const fetchStats = async () => {
+    setLoading(true);
     try {
       const response = await fetch("/api/admin/stats");
       if (!response.ok) throw new Error("Failed to fetch stats");
       const data = await response.json();
+
+      let riderOrdersData: RiderStats | undefined = undefined;
+      let allRiderOrdersData: RiderStats | undefined = undefined;
+      let staffOrdersData: StaffStats | undefined = undefined;
+
+      // RIDER VIEW: Individual rider's assigned orders
+      if (isRider) {
+        try {
+          const url =
+            "/api/admin/orders?status=ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP,DELIVERED";
+          const riderOrdersRes = await fetch(url);
+          if (riderOrdersRes.ok) {
+            const riderOrders = await riderOrdersRes.json();
+            const orders = riderOrders.orders || [];
+
+            riderOrdersData = {
+              total: orders.length,
+              assigned: orders.filter(
+                (o: any) =>
+                  o.status === "ASSIGNED_RIDER" ||
+                  o.status === "READY_FOR_PICKUP",
+              ).length,
+              outForDelivery: orders.filter(
+                (o: any) => o.status === "OUT_FOR_DELIVERY",
+              ).length,
+              delivered: orders.filter((o: any) => o.status === "DELIVERED")
+                .length,
+              recentOrders: orders.slice(0, 5).map((o: any) => ({
+                id: o.id,
+                orderNumber: o.orderNumber,
+                total: o.payable,
+                status: o.status,
+                createdAt: o.createdAt,
+                address: o.address,
+                user: o.user,
+              })),
+            };
+          }
+        } catch (err) {
+          console.error("Error fetching rider orders:", err);
+        }
+      }
+
+      // ADMIN VIEWING RIDER TAB: Aggregated data for ALL riders
+      if (isAdmin && activeRole === "RIDER") {
+        try {
+          const url =
+            "/api/admin/orders?status=ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP,DELIVERED";
+          const riderOrdersRes = await fetch(url);
+          if (riderOrdersRes.ok) {
+            const riderOrders = await riderOrdersRes.json();
+            const orders = riderOrders.orders || [];
+
+            allRiderOrdersData = {
+              total: orders.length,
+              assigned: orders.filter(
+                (o: any) =>
+                  o.status === "ASSIGNED_RIDER" ||
+                  o.status === "READY_FOR_PICKUP",
+              ).length,
+              outForDelivery: orders.filter(
+                (o: any) => o.status === "OUT_FOR_DELIVERY",
+              ).length,
+              delivered: orders.filter((o: any) => o.status === "DELIVERED")
+                .length,
+              recentOrders: orders.slice(0, 5).map((o: any) => ({
+                id: o.id,
+                orderNumber: o.orderNumber,
+                total: o.payable,
+                status: o.status,
+                createdAt: o.createdAt,
+                address: o.address,
+                user: o.user,
+                rider: o.rider,
+              })),
+            };
+          }
+        } catch (err) {
+          console.error("Error fetching all rider orders:", err);
+        }
+      }
+
+      // STAFF OR ADMIN VIEWING STAFF TAB: Aggregated ALL staff stats
+      if (isStaff || (isAdmin && activeRole === "STAFF")) {
+        staffOrdersData = {
+          total: data.orders ?? 0,
+          pending: data.pendingOrders ?? 0,
+          outForDelivery: data.outForDelivery ?? 0,
+          completed:
+            data.recentOrders?.filter((o: any) => o.status === "DELIVERED")
+              .length ?? 0,
+        };
+      }
 
       setStats({
         revenue: data.revenue ?? 0,
@@ -96,6 +229,9 @@ export default function AdminDashboard() {
         revenueData: data.revenueData ?? [],
         monthlyRevenueData: data.monthlyRevenueData ?? [],
         yearlyRevenueData: data.yearlyRevenueData ?? [],
+        riderOrders: riderOrdersData,
+        allRiderStats: allRiderOrdersData,
+        staffOrders: staffOrdersData,
       });
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -127,29 +263,6 @@ export default function AdminDashboard() {
         data = stats.revenueData || [];
     }
 
-    if (!data || data.length === 0) {
-      const days =
-        period === "week"
-          ? 7
-          : period === "month"
-            ? 30
-            : period === "year"
-              ? 365
-              : 30;
-      const sampleData = [];
-      for (let i = days - 1; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split("T")[0];
-        sampleData.push({
-          date: dateStr,
-          revenue: Math.floor(Math.random() * 2000) + 500,
-        });
-      }
-      setRevenueData(sampleData);
-      return;
-    }
-
     setRevenueData(data);
   };
 
@@ -177,8 +290,6 @@ export default function AdminDashboard() {
       .replace(/\b\w/g, (char) => char.toUpperCase());
   };
 
-  const activeRole = viewRole || role;
-
   const statusCounts = {
     pending:
       stats?.pendingOrders ||
@@ -190,11 +301,7 @@ export default function AdminDashboard() {
     cancelled: recentOrders.filter((o) => o.status === "CANCELLED").length,
   };
 
-  // Get only top 3 low stock items
   const topLowStock = lowStock.slice(0, 3);
-
-  // Determine if user is admin (can switch views)
-  const isAdmin = role === "ADMIN";
 
   return (
     <div className="flex-1 space-y-4">
@@ -209,13 +316,11 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Tab switcher strictly visible for Admin users */}
+        {/* Tab switcher - ONLY Visible for Admin */}
         {isAdmin && (
           <Tabs
-            value={viewRole || "ADMIN"}
-            onValueChange={(value) =>
-              setViewRole(value === "ADMIN" ? null : value)
-            }
+            value={viewRole}
+            onValueChange={(value) => setViewRole(value)}
             className="w-auto"
           >
             <TabsList className="bg-background border border-border p-1 rounded-lg w-auto">
@@ -245,7 +350,6 @@ export default function AdminDashboard() {
       {/* --- ADMIN VIEW --- */}
       {activeRole === "ADMIN" && isAdmin && (
         <div className="space-y-4">
-          {/* Stats Cards */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-4">
             <StatCard title="Total Revenue" icon={DollarSign} loading={loading}>
               <div className="text-base sm:text-2xl font-bold">
@@ -265,7 +369,7 @@ export default function AdminDashboard() {
               loading={loading}
             >
               <div className="text-base sm:text-2xl font-bold">
-                +{stats?.orders || 0}
+                {stats?.orders || 0}
               </div>
               <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                 +5% from last month
@@ -292,7 +396,7 @@ export default function AdminDashboard() {
 
             <StatCard title="Active Users" icon={Users} loading={loading}>
               <div className="text-base sm:text-2xl font-bold">
-                +{stats?.users || 0}
+                {stats?.users || 0}
               </div>
               <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                 +3% from last month
@@ -413,7 +517,6 @@ export default function AdminDashboard() {
             </Card>
           </div>
 
-          {/* Low Stock Alert */}
           {!loading && lowStock.length > 0 && (
             <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4">
               <CardHeader className="p-0 px-2 pb-3 flex flex-row items-center justify-between space-y-0">
@@ -454,29 +557,47 @@ export default function AdminDashboard() {
       )}
 
       {/* --- STAFF VIEW --- */}
-      {(activeRole === "STAFF" || (!isAdmin && role === "STAFF")) && (
+      {activeRole === "STAFF" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <StatCard
               title="Total Orders"
               icon={ShoppingCart}
               loading={loading}
             >
               <div className="text-base sm:text-2xl font-bold">
-                {stats?.orders || 0}
+                {stats?.staffOrders?.total || 0}
               </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                {isAdmin ? "Aggregated system orders" : "All orders"}
+              </p>
             </StatCard>
 
-            <StatCard title="Pending Orders" icon={Clock} loading={loading}>
+            <StatCard title="Pending" icon={Clock} loading={loading}>
               <div className="text-base sm:text-2xl font-bold">
-                {stats?.pendingOrders || 0}
+                {stats?.staffOrders?.pending || 0}
               </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                Awaiting processing
+              </p>
             </StatCard>
 
-            <StatCard title="Out for Delivery" icon={Truck} loading={loading}>
+            <StatCard title="In Transit" icon={Truck} loading={loading}>
               <div className="text-base sm:text-2xl font-bold">
-                {stats?.outForDelivery || 0}
+                {stats?.staffOrders?.outForDelivery || 0}
               </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                Out for delivery
+              </p>
+            </StatCard>
+
+            <StatCard title="Completed" icon={CheckCircle} loading={loading}>
+              <div className="text-base sm:text-2xl font-bold">
+                {stats?.staffOrders?.completed || 0}
+              </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                Delivered orders
+              </p>
             </StatCard>
           </div>
 
@@ -485,6 +606,7 @@ export default function AdminDashboard() {
               <CardTitle className="text-base font-semibold">
                 Orders Queue
               </CardTitle>
+              <CardDescription>Recent orders for processing</CardDescription>
             </CardHeader>
             <CardContent className="p-0 px-2">
               <div className="space-y-6">
@@ -541,33 +663,116 @@ export default function AdminDashboard() {
       )}
 
       {/* --- RIDER VIEW --- */}
-      {(activeRole === "RIDER" || (!isAdmin && role === "RIDER")) && (
+      {activeRole === "RIDER" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-            <StatCard title="Pickups Ready" icon={Package} loading={loading}>
-              <div className="text-base sm:text-2xl font-bold">
-                {stats?.pendingOrders || 0}
-              </div>
-            </StatCard>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {isAdmin ? (
+              // ADMIN VIEWING RIDER TAB: Aggregated ALL riders data
+              <>
+                <StatCard title="Total" icon={ClipboardList} loading={loading}>
+                  <div className="text-base sm:text-2xl font-bold">
+                    {stats?.allRiderStats?.total || 0}
+                  </div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                    All riders combined
+                  </p>
+                </StatCard>
 
-            <StatCard title="In Transit" icon={Truck} loading={loading}>
-              <div className="text-base sm:text-2xl font-bold">
-                {stats?.outForDelivery || 0}
-              </div>
-            </StatCard>
+                <StatCard
+                  title="Pickups Ready"
+                  icon={Package}
+                  loading={loading}
+                >
+                  <div className="text-base sm:text-2xl font-bold">
+                    {stats?.allRiderStats?.assigned || 0}
+                  </div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                    Ready to pickup
+                  </p>
+                </StatCard>
 
-            <StatCard title="Completed" icon={CheckCircle} loading={loading}>
-              <div className="text-base sm:text-2xl font-bold">
-                {recentOrders.filter((o) => o.status === "DELIVERED").length}
-              </div>
-            </StatCard>
+                <StatCard title="In Transit" icon={Truck} loading={loading}>
+                  <div className="text-base sm:text-2xl font-bold">
+                    {stats?.allRiderStats?.outForDelivery || 0}
+                  </div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                    On the way
+                  </p>
+                </StatCard>
+
+                <StatCard
+                  title="Completed"
+                  icon={CheckCircle}
+                  loading={loading}
+                >
+                  <div className="text-base sm:text-2xl font-bold">
+                    {stats?.allRiderStats?.delivered || 0}
+                  </div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                    Delivered
+                  </p>
+                </StatCard>
+              </>
+            ) : (
+              // RIDER LOGGED IN: Individual rider stats
+              <>
+                <StatCard title="Total" icon={ClipboardList} loading={loading}>
+                  <div className="text-base sm:text-2xl font-bold">
+                    {stats?.riderOrders?.total || 0}
+                  </div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                    Your total deliveries
+                  </p>
+                </StatCard>
+
+                <StatCard
+                  title="Pickups Ready"
+                  icon={Package}
+                  loading={loading}
+                >
+                  <div className="text-base sm:text-2xl font-bold">
+                    {stats?.riderOrders?.assigned || 0}
+                  </div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                    Ready to pickup
+                  </p>
+                </StatCard>
+
+                <StatCard title="In Transit" icon={Truck} loading={loading}>
+                  <div className="text-base sm:text-2xl font-bold">
+                    {stats?.riderOrders?.outForDelivery || 0}
+                  </div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                    On the way
+                  </p>
+                </StatCard>
+
+                <StatCard
+                  title="Completed"
+                  icon={CheckCircle}
+                  loading={loading}
+                >
+                  <div className="text-base sm:text-2xl font-bold">
+                    {stats?.riderOrders?.delivered || 0}
+                  </div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                    Delivered
+                  </p>
+                </StatCard>
+              </>
+            )}
           </div>
 
           <Card className="rounded-xl bg-background text-card-foreground shadow-none px-2 py-4">
             <CardHeader className="p-0 px-2 pb-4">
               <CardTitle className="text-base font-semibold">
-                Assigned Deliveries
+                {isAdmin ? "All Riders Deliveries" : "Your Assigned Deliveries"}
               </CardTitle>
+              <CardDescription>
+                {isAdmin
+                  ? "Overview of all deliveries assigned to riders"
+                  : "Orders assigned to you for delivery"}
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0 px-2">
               <div className="space-y-6">
@@ -581,6 +786,7 @@ export default function AdminDashboard() {
                         <div className="space-y-1">
                           <Skeleton className="h-4 w-24" />
                           <Skeleton className="h-3 w-32" />
+                          <Skeleton className="h-3 w-20" />
                         </div>
                         <div className="flex items-center gap-4">
                           <Skeleton className="h-4 w-16" />
@@ -590,32 +796,66 @@ export default function AdminDashboard() {
                     ))}
                   </>
                 ) : (
-                  recentOrders.slice(0, 5).map((order) => (
-                    <div
-                      key={order.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0 gap-2"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">
-                          Order #{order.id.slice(-6)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatLongDate(order.createdAt)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm font-bold">
-                          ₱{order.total.toFixed(2)}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className="text-xs border-border font-normal"
-                        >
-                          {formatStatus(order.status)}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))
+                  <>
+                    {(() => {
+                      const ordersToShow = isAdmin
+                        ? stats?.allRiderStats?.recentOrders
+                        : stats?.riderOrders?.recentOrders;
+
+                      if (ordersToShow && ordersToShow.length > 0) {
+                        return ordersToShow.map((order) => (
+                          <div
+                            key={order.id}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0 gap-2"
+                          >
+                            <div>
+                              <p className="text-sm font-medium">
+                                Order #{order.orderNumber}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {order.user?.name || order.user?.email}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {order.address?.city}
+                              </p>
+                              {isAdmin && order.rider && (
+                                <p className="text-xs text-muted-foreground">
+                                  Rider: {order.rider.name || order.rider.email}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <span className="text-sm font-bold">
+                                ₱{order.total.toFixed(2)}
+                              </span>
+                              <Badge
+                                variant="secondary"
+                                className="text-xs font-normal"
+                              >
+                                {formatStatus(order.status)}
+                              </Badge>
+                            </div>
+                          </div>
+                        ));
+                      } else {
+                        return (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                            <p>
+                              {isAdmin
+                                ? "No rider deliveries yet"
+                                : "No assigned deliveries yet"}
+                            </p>
+                            <p className="text-xs mt-1">
+                              {isAdmin
+                                ? "Orders will appear here once assigned to riders"
+                                : "You'll see orders here once they're assigned to you"}
+                            </p>
+                          </div>
+                        );
+                      }
+                    })()}
+                  </>
                 )}
               </div>
             </CardContent>
