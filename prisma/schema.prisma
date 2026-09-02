@@ -27,7 +27,6 @@ model User {
   blogComments BlogComment[]
   blogLikes    BlogLike[]
   
-  // Orders where this user is the assigned rider
   assignedOrders Order[] @relation("RiderOrders")
 }
 

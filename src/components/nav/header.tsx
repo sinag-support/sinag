@@ -148,7 +148,6 @@ export default function Header() {
     fetchUser();
   }, [pathname]);
 
-  // ✅ Listen for auth state changes and update user state
   useEffect(() => {
     const {
       data: { subscription },
@@ -158,7 +157,6 @@ export default function Header() {
       if (event === "SIGNED_OUT") {
         setUser(null);
         setLoading(false);
-        // ✅ Force a re-render to update navigation
         router.refresh();
       } else if (
         event === "SIGNED_IN" ||
@@ -196,7 +194,6 @@ export default function Header() {
           .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
 
-      // ✅ Clear user state immediately
       setUser(null);
       setLoading(false);
 

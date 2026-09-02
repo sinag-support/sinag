@@ -37,7 +37,6 @@ export function useRole() {
 
     fetchRole();
 
-    // ✅ Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {

@@ -45,7 +45,6 @@ export function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
     },
   });
 
-  // Reset form when initialData changes (editing)
   useEffect(() => {
     if (initialData) {
       form.reset({
@@ -78,7 +77,6 @@ export function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
     }
   };
 
-  // Show skeleton ONLY when editing (loading existing category data)
   if (initialData && !form.formState.isDirty && !form.formState.isValid) {
     return (
       <div className="space-y-4">

@@ -171,7 +171,6 @@ export default function ProductsPage() {
     return cat?.title || id;
   };
 
-  // Show loading skeletons for cards on mobile and table rows on desktop
   const renderSkeletonRows = () => {
     return Array.from({ length: 5 }).map((_, i) => (
       <TableRow key={i}>
@@ -239,7 +238,6 @@ export default function ProductsPage() {
     ));
   };
 
-  // Product Card Component for Mobile
   const ProductCard = ({ product }: { product: Product }) => {
     return (
       <Card className="overflow-hidden !bg-background shadow-none border-border">

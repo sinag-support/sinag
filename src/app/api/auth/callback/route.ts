@@ -40,11 +40,9 @@ export async function GET(request: Request) {
 
     if (user) {
       try {
-        // ✅ Get avatar from user metadata
         const avatarUrl =
           user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
-        // Check if user exists in database
         const existingUser = await prisma.user.findUnique({
           where: { email: user.email! },
         });
@@ -59,7 +57,7 @@ export async function GET(request: Request) {
               email: user.email!,
               name: user.user_metadata?.name || user.email?.split("@")[0],
               role: role,
-              avatar: avatarUrl, // ✅ Save avatar
+              avatar: avatarUrl,
             },
           });
 
@@ -76,11 +74,10 @@ export async function GET(request: Request) {
           });
 
           console.log(
-            "✅ Created user and welcome notification from OAuth callback:",
+            "Created user and welcome notification from OAuth callback:",
             user.email,
           );
         } else {
-          // ✅ Update avatar if changed
           if (existingUser.avatar !== avatarUrl && avatarUrl) {
             await prisma.user.update({
               where: { email: user.email! },
@@ -89,7 +86,7 @@ export async function GET(request: Request) {
                 name: user.user_metadata?.name || existingUser.name,
               },
             });
-            console.log("✅ Updated user from OAuth:", user.email);
+            console.log("Updated user from OAuth:", user.email);
           }
         }
       } catch (dbError) {

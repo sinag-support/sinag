@@ -109,8 +109,7 @@ function isDeliveryNotification(notification: Notification): boolean {
     notification.metadata?.status === "DELIVERED" ||
     notification.title?.includes("on the way") ||
     notification.title?.includes("delivered") ||
-    notification.title?.includes("🚚") ||
-    notification.title?.includes("✅")
+    notification.title?.includes("🚚")
   );
 }
 

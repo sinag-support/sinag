@@ -29,7 +29,6 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 
-// ✅ Simplified schema - NO .default()
 const optionSchema = z.object({
   name: z.string().min(1, "Option name is required"),
   price: z.number().min(0, "Price must be positive"),
@@ -85,15 +84,12 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
     name: "options",
   });
 
-  // Watch the images field for preview
   const imagesValue = form.watch("images");
 
-  // Update image preview when images field changes
   useEffect(() => {
     if (imagesValue && imagesValue.trim() !== "") {
       setImageLoading(true);
       setImagePreview(imagesValue.trim());
-      // Simulate image loading
       setTimeout(() => setImageLoading(false), 500);
     } else {
       setImagePreview("");
@@ -101,7 +97,6 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
     }
   }, [imagesValue]);
 
-  // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -119,7 +114,6 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
     fetchCategories();
   }, []);
 
-  // Reset form when editing
   useEffect(() => {
     if (!initialData) {
       setIsLoading(false);
@@ -190,7 +184,6 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
     form.setValue("images", "");
   };
 
-  // Show skeleton ONLY when editing (loading existing product data)
   if (isLoading) {
     return (
       <div className="space-y-4">

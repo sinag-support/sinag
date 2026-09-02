@@ -99,7 +99,6 @@ export default function ReportsPage() {
   const [timeRange, setTimeRange] = useState("30d");
   const [viewMode, setViewMode] = useState<ViewMode>("admin");
 
-  // If rider, show access denied
   if (role === "RIDER") {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -132,7 +131,6 @@ export default function ReportsPage() {
     }
   };
 
-  // Export as Excel
   const exportExcel = () => {
     if (!data) return;
 
@@ -271,7 +269,6 @@ export default function ReportsPage() {
     toast.success("Report exported as Excel!");
   };
 
-  // Print as PDF
   const handlePrint = () => {
     if (!data) return;
 
@@ -539,7 +536,6 @@ export default function ReportsPage() {
     return <div className="text-center py-12">Failed to load report data</div>;
   }
 
-  // Determine which view to show
   const activeView = role === "ADMIN" ? viewMode : "staff";
 
   return (
@@ -919,7 +915,6 @@ export default function ReportsPage() {
   );
 }
 
-// Stat Card Component
 interface StatCardProps {
   title: string;
   icon: React.ElementType;
@@ -950,7 +945,6 @@ function StatCard({ title, icon: Icon, children, loading }: StatCardProps) {
   );
 }
 
-// Skeleton
 function ReportsSkeleton({
   role,
   viewMode,

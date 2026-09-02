@@ -233,17 +233,15 @@ export async function POST(request: Request) {
           );
         }
 
-        // ✅ Create user in Prisma
         const newUser = await prisma.user.create({
           data: {
             email,
             name: storedName,
             role: "USER",
-            avatar: null, // No avatar for manual signup
+            avatar: null,
           },
         });
 
-        // ✅ Create welcome notification for the new user
         await prisma.notification.create({
           data: {
             userId: newUser.id,
@@ -255,7 +253,7 @@ export async function POST(request: Request) {
           },
         });
 
-        console.log("✅ Welcome notification created for:", email);
+        console.log("Welcome notification created for:", email);
 
         await supabase.auth.signInWithPassword({
           email,

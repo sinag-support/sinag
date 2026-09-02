@@ -32,7 +32,6 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 
-// Schema with all fields required or optional with defaults
 const blogSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   slug: z
@@ -49,7 +48,6 @@ const blogSchema = z.object({
   published: z.boolean(),
 });
 
-// Infer the type
 type BlogFormValues = z.infer<typeof blogSchema>;
 
 interface BlogFormProps {
@@ -79,10 +77,8 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
     },
   });
 
-  // Watch the coverImage field for preview
   const coverImageValue = form.watch("coverImage");
 
-  // Update image preview when coverImage changes
   useEffect(() => {
     if (coverImageValue && coverImageValue.trim() !== "") {
       setImageLoading(true);
@@ -94,7 +90,6 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
     }
   }, [coverImageValue]);
 
-  // Populate form when editing
   useEffect(() => {
     if (initialData) {
       const imageUrl = initialData.coverImage || "";
@@ -156,7 +151,6 @@ export function BlogForm({ initialData, onSuccess, onCancel }: BlogFormProps) {
     form.setValue("coverImage", "");
   };
 
-  // Show skeleton ONLY when editing (loading existing blog data)
   if (isLoading) {
     return (
       <div className="space-y-4 w-full">

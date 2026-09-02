@@ -38,11 +38,40 @@ declare global {
   }
 }
 
-const STORE_LOCATION = {
+// Default fallback location
+const DEFAULT_STORE_LOCATION = {
   lat: 14.5995,
   lng: 120.9842,
-  name: "SINAG Store",
+  name: "Store Location",
 };
+
+async function fetchStoreLocation() {
+  try {
+    const response = await fetch("/api/admin/profile");
+    if (!response.ok) {
+      console.error("Failed to fetch store location:", response.status);
+      return DEFAULT_STORE_LOCATION;
+    }
+    const data = await response.json();
+
+    if (
+      data.storeLocation &&
+      data.storeLocation.latitude &&
+      data.storeLocation.longitude
+    ) {
+      return {
+        lat: data.storeLocation.latitude,
+        lng: data.storeLocation.longitude,
+        name: data.storeLocation.address || "Store Location",
+      };
+    }
+
+    return DEFAULT_STORE_LOCATION;
+  } catch (error) {
+    console.error("Error fetching store location:", error);
+    return DEFAULT_STORE_LOCATION;
+  }
+}
 
 const TILE_LAYERS = {
   street: {
@@ -50,26 +79,29 @@ const TILE_LAYERS = {
     options: {
       maxZoom: 19,
       subdomains: ["a", "b", "c"],
+      className: "leaflet-normal-tiles",
     },
   },
   dark: {
-    url: "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     options: {
-      maxZoom: 20,
-      subdomains: "",
+      maxZoom: 19,
+      subdomains: ["a", "b", "c"],
+      className: "leaflet-dark-tiles",
     },
   },
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     options: {
-      maxZoom: 19,
+      maxZoom: 18,
+      className: "leaflet-satellite-tiles",
     },
   },
-  // ✅ Add satelliteLabels
   satelliteLabels: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
     options: {
-      maxZoom: 19,
+      maxZoom: 18,
+      className: "leaflet-satellite-labels",
     },
   },
 };
@@ -180,7 +212,42 @@ function OrderDetailContent({
   } | null>(null);
   const [mapError, setMapError] = useState(false);
   const [isLeafletReady, setIsLeafletReady] = useState(false);
-  const [mapReady, setMapReady] = useState(false); // ✅ Added missing state
+  const [mapReady, setMapReady] = useState(false);
+
+  const [storeLocation, setStoreLocation] = useState<{
+    lat: number;
+    lng: number;
+    name: string;
+  }>(DEFAULT_STORE_LOCATION);
+  const [storeLoading, setStoreLoading] = useState(true);
+
+  useEffect(() => {
+    const loadStoreLocation = async () => {
+      const location = await fetchStoreLocation();
+      setStoreLocation(location);
+      setStoreLoading(false);
+    };
+    loadStoreLocation();
+  }, []);
+
+  useEffect(() => {
+    if (!document.getElementById("leaflet-dark-filter")) {
+      const style = document.createElement("style");
+      style.id = "leaflet-dark-filter";
+      style.textContent = `
+        .leaflet-dark-tiles {
+          filter: invert(1) hue-rotate(180deg) brightness(0.78) contrast(0.9) saturate(0.65);
+        }
+        .leaflet-normal-tiles {
+          filter: none;
+        }
+        .leaflet-satellite-tiles {
+          filter: none;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
 
   // Set initial map theme based on device theme
   useEffect(() => {
@@ -231,26 +298,6 @@ function OrderDetailContent({
         "https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs";
       lottieScript.type = "module";
       document.body.appendChild(lottieScript);
-    }
-  }, []);
-
-  // Add dark theme CSS filter
-  useEffect(() => {
-    if (!document.getElementById("leaflet-dark-filter")) {
-      const style = document.createElement("style");
-      style.id = "leaflet-dark-filter";
-      style.textContent = `
-        .leaflet-dark-tiles {
-          filter: invert(1) hue-rotate(180deg) brightness(0.78) contrast(0.9) saturate(0.65);
-        }
-        .leaflet-normal-tiles {
-          filter: none;
-        }
-        .leaflet-satellite-tiles {
-          filter: none;
-        }
-      `;
-      document.head.appendChild(style);
     }
   }, []);
 
@@ -307,9 +354,9 @@ function OrderDetailContent({
     }
   };
 
-  // Initialize map - runs when coordinates are ready AND Leaflet is loaded
   useEffect(() => {
-    if (!coordinates || !mapRef.current || !isLeafletReady) return;
+    if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
+      return;
     if (!window.L) return;
 
     cleanupMap();
@@ -322,9 +369,10 @@ function OrderDetailContent({
           coordinates.lat,
           coordinates.lng,
         ];
+
         const storePos: [number, number] = [
-          STORE_LOCATION.lat,
-          STORE_LOCATION.lng,
+          storeLocation.lat,
+          storeLocation.lng,
         ];
 
         if (mapInstanceRef.current) {
@@ -346,7 +394,6 @@ function OrderDetailContent({
         ).addTo(map);
         tileLayerRef.current = tileLayer;
 
-        // ✅ Add labels overlay for satellite theme
         if (mapTheme === "satellite") {
           const labelsConfig = TILE_LAYERS.satelliteLabels;
           const labelsLayer = window.L.tileLayer(labelsConfig.url, {
@@ -393,8 +440,10 @@ function OrderDetailContent({
           `);
         }
 
-        // Get route from store to customer
-        const routePoints = await getRouteGeometry(STORE_LOCATION, coordinates);
+        const routePoints = await getRouteGeometry(
+          { lat: storeLocation.lat, lng: storeLocation.lng },
+          coordinates,
+        );
         polylineRef.current = window.L.polyline(routePoints, {
           color: "#dc2626",
           weight: 5,
@@ -428,8 +477,8 @@ function OrderDetailContent({
           });
 
           // Set initial rider position - use real location if available, otherwise start at store
-          const initialRiderLat = order?.riderLat || STORE_LOCATION.lat;
-          const initialRiderLng = order?.riderLng || STORE_LOCATION.lng;
+          const initialRiderLat = order?.riderLat || storeLocation.lat;
+          const initialRiderLng = order?.riderLng || storeLocation.lng;
 
           const riderMarker = window.L.marker(
             [initialRiderLat, initialRiderLng],
@@ -507,13 +556,18 @@ function OrderDetailContent({
       clearTimeout(timer);
       cleanupMap();
     };
-  }, [coordinates, order, mapTheme, isLeafletReady]);
+  }, [
+    coordinates,
+    order,
+    mapTheme,
+    isLeafletReady,
+    storeLocation,
+    storeLoading,
+  ]);
 
-  // ✅ Real-time subscription for rider location updates (Customer view)
   useEffect(() => {
     if (!order?.id) return;
 
-    // Only subscribe if order status is OUT_FOR_DELIVERY or ASSIGNED_RIDER
     if (!["OUT_FOR_DELIVERY", "ASSIGNED_RIDER"].includes(order.status)) return;
 
     const channel = supabase

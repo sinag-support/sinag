@@ -64,7 +64,6 @@ export default function AdminProfilePage() {
   const [name, setName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
-  // Store location states
   const [storeDialogOpen, setStoreDialogOpen] = useState(false);
   const [storeFormData, setStoreFormData] = useState({
     address: "",
@@ -94,7 +93,6 @@ export default function AdminProfilePage() {
       setProfile(data);
       setName(data.name || "");
 
-      // Populate store form data if exists
       if (data.storeLocation) {
         setStoreFormData({
           address: data.storeLocation.address,
@@ -191,7 +189,6 @@ export default function AdminProfilePage() {
       const data = await res.json();
       setProfile(data);
 
-      // Update form data with saved values
       if (data.storeLocation) {
         setStoreFormData({
           address: data.storeLocation.address,

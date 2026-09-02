@@ -38,11 +38,9 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ✅ Get avatar from user metadata
     const avatarUrl =
       user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
-    // Try to find user in Prisma
     let dbUser = await prisma.user.findUnique({
       where: { email: user.email! },
       select: { role: true, avatar: true },
@@ -60,14 +58,13 @@ export async function GET() {
           email: user.email!,
           name: user.user_metadata?.name || user.email?.split("@")[0],
           role,
-          avatar: avatarUrl, // ✅ Save avatar
+          avatar: avatarUrl,
         },
         select: { role: true, avatar: true },
       });
 
-      console.log("✅ Created user in Prisma from role check:", user.email);
+      console.log("Created user in Prisma from role check:", user.email);
     } else {
-      // ✅ Update avatar if changed
       if (dbUser.avatar !== avatarUrl && avatarUrl) {
         await prisma.user.update({
           where: { email: user.email! },

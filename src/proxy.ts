@@ -42,7 +42,6 @@ export async function proxy(req: NextRequest) {
   const isAuthRoute = pathname === "/login" || pathname === "/register";
   const isHomeRoute = pathname === "/";
 
-  // ✅ If on home page and logged in as admin/staff/rider, redirect to /admin
   if (isHomeRoute && session) {
     try {
       const {
@@ -61,21 +60,17 @@ export async function proxy(req: NextRequest) {
       }
     } catch (error) {
       console.error("Error checking user role:", error);
-      // If error, allow access to home page
       return res;
     }
   }
 
-  // ✅ If admin route and no session, redirect to login
   if (isAdminRoute && !session) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // ✅ If logged in and trying to access auth routes
   if (session && isAuthRoute) {
-    // Check role for redirect target
     try {
       const {
         data: { user },
@@ -98,7 +93,6 @@ export async function proxy(req: NextRequest) {
   return res;
 }
 
-// ✅ IMPORTANT: Add '/' to the matcher
 export const config = {
   matcher: ["/admin/:path*", "/login", "/register", "/"],
 };

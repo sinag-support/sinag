@@ -52,7 +52,7 @@ export async function GET() {
     const addresses = await prisma.address.findMany({
       where: {
         userId,
-        isStoreLocation: false, // ✅ Exclude store location
+        isStoreLocation: false,
       },
       orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
     });
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
         longitude: longitude || null,
         landmark: landmark || null,
         isDefault: isDefault || false,
-        isStoreLocation: false, // ✅ Force false for users
+        isStoreLocation: false,
       },
     });
 

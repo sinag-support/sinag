@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import { getCurrentUserRole } from "@/lib/role";
 import { createClient } from "@supabase/supabase-js";
 
-// ✅ Lazy initialize the admin client
 function getSupabaseAdmin() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -62,7 +61,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         email: true,
-        phone: true, // ✅ Added phone
+        phone: true,
         name: true,
         role: true,
         avatar: true,
@@ -154,7 +153,7 @@ export async function POST(request: NextRequest) {
     const newUser = await prisma.user.create({
       data: {
         email,
-        phone: phone || null, // ✅ Added phone
+        phone: phone || null,
         name,
         role: userRole as "STAFF" | "RIDER",
         avatar: null,
@@ -172,7 +171,7 @@ export async function POST(request: NextRequest) {
           read: false,
         },
       });
-      console.log("✅ Welcome notification created for:", email);
+      console.log("Welcome notification created for:", email);
     } catch (notifError) {
       console.error("Error creating welcome notification:", notifError);
     }

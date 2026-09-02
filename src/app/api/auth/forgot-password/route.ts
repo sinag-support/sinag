@@ -80,7 +80,6 @@ export async function POST(request: Request) {
       });
     } catch (emailError) {
       console.error("Email error:", emailError);
-      // ✅ Return error if email fails
       return NextResponse.json(
         { error: "Failed to send OTP email. Please try again." },
         { status: 500 },

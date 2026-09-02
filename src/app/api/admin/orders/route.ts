@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     conditions.push(
       { user: { name: { contains: search, mode: "insensitive" } } },
       { user: { email: { contains: search, mode: "insensitive" } } },
-      { user: { phone: { contains: search, mode: "insensitive" } } }, // ✅ Add phone search
+      { user: { phone: { contains: search, mode: "insensitive" } } },
     );
     where.OR = conditions;
   }
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
         select: {
           name: true,
           email: true,
-          phone: true, // ✅ Add phone to user select
+          phone: true,
         },
       },
       rider: { select: { id: true, name: true, email: true } },

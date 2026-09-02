@@ -64,7 +64,7 @@ export async function PUT(
               }
 
               console.log(
-                "✅ Email updated in Supabase Auth:",
+                "Email updated in Supabase Auth:",
                 currentUser.email,
                 "→",
                 email,
@@ -84,7 +84,7 @@ export async function PUT(
       data: {
         name,
         email,
-        phone: phone || null, // ✅ Added phone
+        phone: phone || null,
         role: newRole,
       },
     });
@@ -114,7 +114,7 @@ export async function PUT(
               if (updateError) {
                 console.error("Error updating password:", updateError);
               } else {
-                console.log("✅ Password updated for user:", email);
+                console.log("Password updated for user:", email);
               }
             }
           }
@@ -177,7 +177,7 @@ export async function DELETE(
             if (deleteError) {
               console.error("Error deleting auth user:", deleteError);
             } else {
-              console.log("✅ Deleted user from Supabase Auth:", user.email);
+              console.log("Deleted user from Supabase Auth:", user.email);
             }
           } else {
             console.log(
@@ -200,9 +200,8 @@ export async function DELETE(
       );
     }
 
-    // ✅ ALWAYS delete from Prisma - this is the main goal
     await prisma.user.delete({ where: { id } });
-    console.log("✅ Deleted user from Prisma:", user.email);
+    console.log("Deleted user from Prisma:", user.email);
 
     return NextResponse.json({ success: true });
   } catch (error) {

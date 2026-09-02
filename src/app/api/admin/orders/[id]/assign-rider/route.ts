@@ -46,7 +46,7 @@ export async function POST(
           select: {
             name: true,
             email: true,
-            phone: true, // ✅ Add phone to user select
+            phone: true,
           },
         },
         rider: { select: { id: true, name: true, email: true } },
@@ -87,7 +87,7 @@ export async function POST(
         select: {
           name: true,
           email: true,
-          phone: true, // ✅ Add phone to user select
+          phone: true,
         },
       },
       rider: { select: { id: true, name: true, email: true } },

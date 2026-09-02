@@ -29,7 +29,6 @@ export async function POST() {
       },
     );
 
-    // Sign out from Supabase
     const { error } = await supabase.auth.signOut();
 
     if (error) {
@@ -37,10 +36,8 @@ export async function POST() {
       return NextResponse.json({ error: "Logout failed" }, { status: 500 });
     }
 
-    // ✅ Create response and clear all auth cookies
     const response = NextResponse.json({ success: true });
 
-    // Clear all possible Supabase auth cookies
     const allCookies = cookieStore.getAll();
     const authCookieNames = allCookies
       .map((c) => c.name)

@@ -168,7 +168,7 @@ export async function PATCH(
 
       await sendNotification(
         order.userId,
-        `✅ Order #${order.orderNumber} delivered!`,
+        `Order #${order.orderNumber} delivered!`,
         `Your order has been successfully delivered by ${riderName}. Thank you for shopping with us!`,
         "ORDER",
         `/orders/${order.orderNumber}`,

@@ -118,7 +118,6 @@ export default function BlogManagementPage() {
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Engagement states
   const [engagementDialogOpen, setEngagementDialogOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);

@@ -140,7 +140,6 @@ export default function DeliveryPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Admin specific states
   const [selectedRiderId, setSelectedRiderId] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -174,7 +173,6 @@ export default function DeliveryPage() {
     try {
       const params = new URLSearchParams();
 
-      // Role-based status filtering
       if (isRider) {
         params.append(
           "status",
@@ -182,7 +180,6 @@ export default function DeliveryPage() {
         );
       }
 
-      // Admin rider filter
       if (isAdmin && selectedRiderId !== "all") {
         params.append("riderId", selectedRiderId);
         params.append(
@@ -191,7 +188,6 @@ export default function DeliveryPage() {
         );
       }
 
-      // Status filter (for both admin and rider)
       if (statusFilter !== "all") {
         params.append("status", statusFilter);
       }
@@ -291,14 +287,12 @@ export default function DeliveryPage() {
     return rider.name || rider.email || "Unknown Rider";
   };
 
-  // Truncate text function for mobile
   const truncateText = (text: string | null, maxLength: number = 30) => {
     if (!text) return "";
     if (text.length <= maxLength) return text;
     return text.slice(0, maxLength) + "...";
   };
 
-  // Render skeleton rows for table
   const renderSkeletonRows = () => {
     return Array.from({ length: 5 }).map((_, i) => (
       <TableRow key={i}>
@@ -332,7 +326,6 @@ export default function DeliveryPage() {
     ));
   };
 
-  // Render skeleton cards for mobile
   const renderSkeletonCards = () => {
     return Array.from({ length: 4 }).map((_, i) => (
       <Card
@@ -360,7 +353,6 @@ export default function DeliveryPage() {
     ));
   };
 
-  // Show loading state for stats cards (Admin only)
   const renderStatCard = (
     title: string,
     value: number | string,
@@ -396,7 +388,6 @@ export default function DeliveryPage() {
     );
   };
 
-  // Delivery Card Component for Mobile
   const DeliveryCard = ({ order }: { order: DeliveryOrder }) => {
     const statusColor =
       statusColors[order.status] || "bg-gray-100 text-gray-800";

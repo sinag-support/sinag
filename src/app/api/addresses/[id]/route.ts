@@ -86,7 +86,6 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // ❌ Prevent users from editing store location
     if (existing.isStoreLocation) {
       return NextResponse.json(
         { error: "Cannot edit store location" },
@@ -94,7 +93,6 @@ export async function PUT(
       );
     }
 
-    // If setting as default, unset other defaults
     if (isDefault) {
       await prisma.address.updateMany({
         where: { userId, isDefault: true },
@@ -114,7 +112,6 @@ export async function PUT(
         longitude: longitude || null,
         landmark: landmark || null,
         isDefault: isDefault || false,
-        // ✅ isStoreLocation stays unchanged
       },
     });
 
@@ -128,7 +125,6 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete an address
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -141,7 +137,6 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Check if address belongs to user
     const existing = await prisma.address.findUnique({
       where: { id },
       select: { userId: true, isStoreLocation: true },
@@ -155,7 +150,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // ❌ Prevent users from deleting store location
     if (existing.isStoreLocation) {
       return NextResponse.json(
         { error: "Cannot delete store location" },

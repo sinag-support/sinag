@@ -101,7 +101,6 @@ export default function AdminDashboard() {
   const isStaff = role === "STAFF";
   const isRider = role === "RIDER";
 
-  // Active view role selection logic
   const activeRole = isAdmin ? viewRole : role;
 
   useEffect(() => {
@@ -127,7 +126,6 @@ export default function AdminDashboard() {
       let allRiderOrdersData: RiderStats | undefined = undefined;
       let staffOrdersData: StaffStats | undefined = undefined;
 
-      // RIDER VIEW: Individual rider's assigned orders
       if (isRider) {
         try {
           const url =
@@ -165,7 +163,6 @@ export default function AdminDashboard() {
         }
       }
 
-      // ADMIN VIEWING RIDER TAB: Aggregated data for ALL riders
       if (isAdmin && activeRole === "RIDER") {
         try {
           const url =
@@ -204,7 +201,6 @@ export default function AdminDashboard() {
         }
       }
 
-      // STAFF OR ADMIN VIEWING STAFF TAB: Aggregated ALL staff stats
       if (isStaff || (isAdmin && activeRole === "STAFF")) {
         staffOrdersData = {
           total: data.orders ?? 0,
@@ -667,7 +663,6 @@ export default function AdminDashboard() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {isAdmin ? (
-              // ADMIN VIEWING RIDER TAB: Aggregated ALL riders data
               <>
                 <StatCard title="Total" icon={ClipboardList} loading={loading}>
                   <div className="text-base sm:text-2xl font-bold">
@@ -714,7 +709,6 @@ export default function AdminDashboard() {
                 </StatCard>
               </>
             ) : (
-              // RIDER LOGGED IN: Individual rider stats
               <>
                 <StatCard title="Total" icon={ClipboardList} loading={loading}>
                   <div className="text-base sm:text-2xl font-bold">
@@ -866,7 +860,6 @@ export default function AdminDashboard() {
   );
 }
 
-// Helper Components
 interface StatCardProps {
   title: string;
   icon: React.ElementType;

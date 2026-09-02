@@ -140,7 +140,6 @@ export async function getRouteGeometry(
   ] as [number, number][];
 }
 
-// ✅ NEW: Function to fetch store location from admin profile
 async function fetchStoreLocation() {
   try {
     const response = await fetch("/api/admin/profile");
@@ -269,7 +268,6 @@ export function OrderMap({
   const [mapError, setMapError] = useState(false);
   const [isLeafletReady, setIsLeafletReady] = useState(false);
 
-  // ✅ NEW: Store location state
   const [storeLocation, setStoreLocation] = useState<{
     lat: number;
     lng: number;
@@ -283,7 +281,6 @@ export function OrderMap({
     return false;
   };
 
-  // ✅ NEW: Fetch store location on mount
   useEffect(() => {
     const loadStoreLocation = async () => {
       const location = await fetchStoreLocation();
@@ -520,9 +517,7 @@ export function OrderMap({
     }
   };
 
-  // Initialize map - runs when coordinates, storeLocation, and Leaflet are ready
   useEffect(() => {
-    // ✅ Wait for store location to load
     if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
       return;
     if (!window.L) return;
@@ -537,7 +532,6 @@ export function OrderMap({
           coordinates.lat,
           coordinates.lng,
         ];
-        // ✅ Use dynamic store location
         const storePos: [number, number] = [
           storeLocation.lat,
           storeLocation.lng,
@@ -591,7 +585,6 @@ export function OrderMap({
           }
         }
 
-        // ✅ Use dynamic store location for route
         const routePoints = await getRouteGeometry(
           { lat: storeLocation.lat, lng: storeLocation.lng },
           coordinates,
@@ -610,7 +603,6 @@ export function OrderMap({
           const riderIcon = createRiderIcon(currentZoom);
 
           if (riderIcon) {
-            // ✅ Use dynamic store location as initial rider position
             const initialRiderLat = order?.riderLat || storeLocation.lat;
             const initialRiderLng = order?.riderLng || storeLocation.lng;
 

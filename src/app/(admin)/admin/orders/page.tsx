@@ -144,19 +144,16 @@ export default function OrdersPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  // Edit dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [editStatus, setEditStatus] = useState<string>("");
   const [editRiderId, setEditRiderId] = useState<string>("");
   const [updating, setUpdating] = useState(false);
 
-  // Delete dialog states
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingOrder, setDeletingOrder] = useState<Order | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Refund dialog states
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [refundingOrder, setRefundingOrder] = useState<Order | null>(null);
   const [refunding, setRefunding] = useState(false);
@@ -286,12 +283,10 @@ export default function OrdersPage() {
 
     setUpdating(true);
     try {
-      // Update status if changed
       if (editStatus !== editingOrder.status) {
         await handleStatusUpdate(editingOrder.id, editStatus);
       }
 
-      // Update rider if changed (including removing rider) - Admin only
       if (role === "ADMIN" && editRiderId !== (editingOrder.rider?.id || "")) {
         const riderIdToAssign = editRiderId || null;
 
@@ -383,7 +378,6 @@ export default function OrdersPage() {
     return rider.name || rider.email || "Unknown Rider";
   };
 
-  // Render skeleton rows for desktop
   const renderSkeletonRows = () => {
     return Array.from({ length: 5 }).map((_, i) => (
       <TableRow key={i}>
@@ -421,7 +415,6 @@ export default function OrdersPage() {
     ));
   };
 
-  // Render skeleton cards for mobile
   const renderSkeletonCards = () => {
     return Array.from({ length: 5 }).map((_, i) => (
       <Card
@@ -453,7 +446,6 @@ export default function OrdersPage() {
     ));
   };
 
-  // Order Card Component for Mobile
   const OrderCard = ({ order }: { order: Order }) => {
     const statusColor =
       statusColors[order.status] || "bg-gray-100 text-gray-800";

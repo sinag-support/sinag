@@ -7,10 +7,8 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // ✅ Check if user has admin access
   const role = await getCurrentUserRole();
 
-  // ✅ If no role or user role, redirect to login
   if (!role || role === "USER") {
     redirect("/login");
   }
