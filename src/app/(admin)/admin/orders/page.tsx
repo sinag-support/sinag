@@ -158,6 +158,7 @@ export default function OrdersPage() {
   const [refundingOrder, setRefundingOrder] = useState<Order | null>(null);
   const [refunding, setRefunding] = useState(false);
 
+  // ✅ Fetch only RIDER users
   const fetchRiders = async () => {
     if (role !== "ADMIN") return;
     setLoadingRiders(true);
@@ -165,7 +166,11 @@ export default function OrdersPage() {
       const res = await fetch("/api/admin/users?role=RIDER");
       if (res.ok) {
         const data = await res.json();
-        setRiders(Array.isArray(data) ? data : []);
+        // ✅ Filter to only show RIDER role
+        const ridersOnly = Array.isArray(data)
+          ? data.filter((user: any) => user.role === "RIDER")
+          : [];
+        setRiders(ridersOnly);
       } else {
         setRiders([]);
       }
@@ -865,12 +870,11 @@ export default function OrdersPage() {
                     </SelectTrigger>
                     <SelectContent className="!bg-background">
                       <SelectItem value="">None</SelectItem>
-                      {Array.isArray(riders) &&
-                        riders.map((rider) => (
-                          <SelectItem key={rider.id} value={rider.id}>
-                            {rider.name || rider.email}
-                          </SelectItem>
-                        ))}
+                      {riders.map((rider) => (
+                        <SelectItem key={rider.id} value={rider.id}>
+                          {rider.name || rider.email}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

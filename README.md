@@ -446,3 +446,620 @@ MIT © SINAG
 ## 📬 Contact
 
 **SINAG Support** – [support@sinag.com](mailto:support@sinag.com)
+
+```
+sinag-ecommerce
+├─ AGENTS.md
+├─ CLAUDE.md
+├─ components.json
+├─ eslint.config.mjs
+├─ next.config.ts
+├─ package-lock.json
+├─ package.json
+├─ postcss.config.mjs
+├─ prisma
+│  └─ schema.prisma
+├─ public
+│  ├─ 16x16.png
+│  ├─ 192x192.png
+│  ├─ 32x32.png
+│  ├─ 512x512.png
+│  ├─ animations
+│  │  ├─ location.json
+│  │  ├─ rider.json
+│  │  ├─ store.json
+│  │  └─ truck.json
+│  ├─ cod.jpg
+│  ├─ favicon.ico
+│  ├─ gcash.png
+│  ├─ manifest.json
+│  ├─ sinag.png
+│  └─ sinag.webp
+├─ README.md
+├─ src
+│  ├─ app
+│  │  ├─ (admin)
+│  │  │  ├─ admin
+│  │  │  │  ├─ banners
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ blog
+│  │  │  │  │  ├─ components
+│  │  │  │  │  │  └─ blog-form.tsx
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ categories
+│  │  │  │  │  ├─ components
+│  │  │  │  │  │  └─ category-form.tsx
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ delivery
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ orders
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ page.tsx
+│  │  │  │  ├─ products
+│  │  │  │  │  ├─ components
+│  │  │  │  │  │  └─ product-form.tsx
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ profile
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ reports
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  └─ users
+│  │  │  │     └─ page.tsx
+│  │  │  └─ layout.tsx
+│  │  ├─ (store)
+│  │  │  ├─ about-us
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ blog
+│  │  │  │  ├─ page.tsx
+│  │  │  │  └─ [slug]
+│  │  │  │     ├─ blog-post-client.tsx
+│  │  │  │     └─ page.tsx
+│  │  │  ├─ cart
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ checkout
+│  │  │  │  ├─ checkout-client.tsx
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ contact
+│  │  │  │  ├─ components
+│  │  │  │  │  └─ contact-form.tsx
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ faq
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ help
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ layout.tsx
+│  │  │  ├─ notifications
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ page.tsx
+│  │  │  ├─ privacy
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ privacy-policy
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ products
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ profile
+│  │  │  │  ├─ addresses
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ help
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ notifications
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ orders
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ page.tsx
+│  │  │  │  ├─ payments
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ privacy
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ security
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ settings
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  └─ wishlist
+│  │  │  │     └─ page.tsx
+│  │  │  ├─ returns-policy
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ shipping-policy
+│  │  │  │  └─ page.tsx
+│  │  │  └─ terms
+│  │  │     └─ page.tsx
+│  │  ├─ api
+│  │  │  ├─ addresses
+│  │  │  │  ├─ route.ts
+│  │  │  │  └─ [id]
+│  │  │  │     └─ route.ts
+│  │  │  ├─ admin
+│  │  │  │  ├─ banners
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     └─ route.ts
+│  │  │  │  ├─ blog
+│  │  │  │  │  ├─ comments
+│  │  │  │  │  │  └─ [id]
+│  │  │  │  │  │     └─ route.ts
+│  │  │  │  │  ├─ likes
+│  │  │  │  │  │  └─ [id]
+│  │  │  │  │  │     └─ route.ts
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     ├─ likes
+│  │  │  │  │     │  └─ route.ts
+│  │  │  │  │     └─ route.ts
+│  │  │  │  ├─ categories
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     └─ route.ts
+│  │  │  │  ├─ orders
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     ├─ assign-rider
+│  │  │  │  │     │  └─ route.ts
+│  │  │  │  │     ├─ location
+│  │  │  │  │     │  └─ route.ts
+│  │  │  │  │     ├─ route.ts
+│  │  │  │  │     └─ status
+│  │  │  │  │        └─ route.ts
+│  │  │  │  ├─ products
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     └─ route.ts
+│  │  │  │  ├─ profile
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ reports
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ stats
+│  │  │  │  │  └─ route.ts
+│  │  │  │  └─ users
+│  │  │  │     ├─ route.ts
+│  │  │  │     └─ [id]
+│  │  │  │        └─ route.ts
+│  │  │  ├─ auth
+│  │  │  │  ├─ callback
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ forgot-password
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ login
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ logout
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ resend-otp
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ role
+│  │  │  │  │  └─ route.ts
+│  │  │  │  └─ signup
+│  │  │  │     └─ route.ts
+│  │  │  ├─ blog
+│  │  │  │  └─ [slug]
+│  │  │  │     ├─ comments
+│  │  │  │     │  └─ route.ts
+│  │  │  │     └─ like
+│  │  │  │        └─ route.ts
+│  │  │  ├─ cart
+│  │  │  │  ├─ items
+│  │  │  │  │  └─ [itemId]
+│  │  │  │  │     └─ route.ts
+│  │  │  │  └─ route.ts
+│  │  │  ├─ checkout
+│  │  │  │  └─ buy-now
+│  │  │  │     └─ route.ts
+│  │  │  ├─ notifications
+│  │  │  │  ├─ route.ts
+│  │  │  │  └─ [id]
+│  │  │  │     └─ route.ts
+│  │  │  ├─ orders
+│  │  │  │  └─ route.ts
+│  │  │  ├─ products
+│  │  │  │  ├─ route.ts
+│  │  │  │  └─ [id]
+│  │  │  │     └─ route.ts
+│  │  │  └─ wishlist
+│  │  │     ├─ check
+│  │  │     │  └─ route.ts
+│  │  │     ├─ route.ts
+│  │  │     └─ [id]
+│  │  │        └─ route.ts
+│  │  ├─ favicon.ico
+│  │  ├─ forgot-password
+│  │  │  ├─ components
+│  │  │  │  └─ forgot-password-form.tsx
+│  │  │  └─ page.tsx
+│  │  ├─ globals.css
+│  │  ├─ layout.tsx
+│  │  ├─ login
+│  │  │  ├─ components
+│  │  │  │  └─ login-form.tsx
+│  │  │  └─ page.tsx
+│  │  ├─ offline
+│  │  │  └─ page.tsx
+│  │  ├─ register
+│  │  │  ├─ components
+│  │  │  │  └─ register-form.tsx
+│  │  │  └─ page.tsx
+│  │  └─ verify-otp
+│  │     ├─ components
+│  │     │  └─ verify-otp-form.tsx
+│  │     └─ page.tsx
+│  ├─ components
+│  │  ├─ admin
+│  │  │  ├─ address-map-picker.tsx
+│  │  │  ├─ delivery-order-detail.tsx
+│  │  │  ├─ order-detail-dialog.tsx
+│  │  │  ├─ order-map.tsx
+│  │  │  └─ user-management.tsx
+│  │  ├─ home
+│  │  │  ├─ banner-carousel.tsx
+│  │  │  ├─ blog-section.tsx
+│  │  │  ├─ footer.tsx
+│  │  │  └─ product-grid.tsx
+│  │  ├─ nav
+│  │  │  ├─ admin-sidebar.tsx
+│  │  │  └─ header.tsx
+│  │  ├─ notifications
+│  │  │  └─ notifications-dropdown.tsx
+│  │  ├─ orders
+│  │  │  └─ order-detail-sheet.tsx
+│  │  ├─ products
+│  │  │  ├─ category-chips.tsx
+│  │  │  ├─ mobile-filter-button.tsx
+│  │  │  ├─ mobile-shortcuts.tsx
+│  │  │  ├─ product-detail-sheet.tsx
+│  │  │  ├─ product-filters.tsx
+│  │  │  └─ product-sort.tsx
+│  │  ├─ theme-provider.tsx
+│  │  ├─ theme-toggle.tsx
+│  │  └─ ui
+│  │     ├─ accordion.tsx
+│  │     ├─ alert-dialog.tsx
+│  │     ├─ avatar.tsx
+│  │     ├─ back-button.tsx
+│  │     ├─ badge.tsx
+│  │     ├─ button.tsx
+│  │     ├─ card.tsx
+│  │     ├─ checkbox.tsx
+│  │     ├─ collapsible.tsx
+│  │     ├─ command.tsx
+│  │     ├─ dialog.tsx
+│  │     ├─ dropdown-menu.tsx
+│  │     ├─ form.tsx
+│  │     ├─ input-group.tsx
+│  │     ├─ input.tsx
+│  │     ├─ label.tsx
+│  │     ├─ popover.tsx
+│  │     ├─ radio-group.tsx
+│  │     ├─ select.tsx
+│  │     ├─ separator.tsx
+│  │     ├─ sheet.tsx
+│  │     ├─ skeleton.tsx
+│  │     ├─ slider.tsx
+│  │     ├─ switch.tsx
+│  │     ├─ table.tsx
+│  │     ├─ tabs.tsx
+│  │     ├─ textarea.tsx
+│  │     └─ tooltip.tsx
+│  ├─ hooks
+│  │  ├─ use-mobile.ts
+│  │  └─ use-role.ts
+│  ├─ lib
+│  │  ├─ jwt.ts
+│  │  ├─ prisma.ts
+│  │  ├─ role.ts
+│  │  ├─ safe-query.ts
+│  │  ├─ supabase.ts
+│  │  ├─ utils.ts
+│  │  └─ validation.ts
+│  ├─ proxy.ts
+│  └─ types
+│     └─ order.ts
+├─ tailwind.config.js
+├─ tsconfig.json
+└─ vercel.json
+
+```
+```
+sinag-ecommerce
+├─ AGENTS.md
+├─ CLAUDE.md
+├─ components.json
+├─ eslint.config.mjs
+├─ next.config.ts
+├─ package-lock.json
+├─ package.json
+├─ postcss.config.mjs
+├─ prisma
+│  └─ schema.prisma
+├─ public
+│  ├─ 16x16.png
+│  ├─ 192x192.png
+│  ├─ 32x32.png
+│  ├─ 512x512.png
+│  ├─ animations
+│  │  ├─ location.json
+│  │  ├─ rider.json
+│  │  ├─ store.json
+│  │  └─ truck.json
+│  ├─ cod.jpg
+│  ├─ favicon.ico
+│  ├─ gcash.png
+│  ├─ manifest.json
+│  ├─ sinag.png
+│  └─ sinag.webp
+├─ README.md
+├─ src
+│  ├─ app
+│  │  ├─ (admin)
+│  │  │  ├─ admin
+│  │  │  │  ├─ banners
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ blog
+│  │  │  │  │  ├─ components
+│  │  │  │  │  │  └─ blog-form.tsx
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ categories
+│  │  │  │  │  ├─ components
+│  │  │  │  │  │  └─ category-form.tsx
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ delivery
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ orders
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ page.tsx
+│  │  │  │  ├─ products
+│  │  │  │  │  ├─ components
+│  │  │  │  │  │  └─ product-form.tsx
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ profile
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ reports
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  └─ users
+│  │  │  │     └─ page.tsx
+│  │  │  └─ layout.tsx
+│  │  ├─ (store)
+│  │  │  ├─ about-us
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ blog
+│  │  │  │  ├─ page.tsx
+│  │  │  │  └─ [slug]
+│  │  │  │     ├─ blog-post-client.tsx
+│  │  │  │     └─ page.tsx
+│  │  │  ├─ cart
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ checkout
+│  │  │  │  ├─ checkout-client.tsx
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ contact
+│  │  │  │  ├─ components
+│  │  │  │  │  └─ contact-form.tsx
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ faq
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ help
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ layout.tsx
+│  │  │  ├─ notifications
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ page.tsx
+│  │  │  ├─ privacy
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ privacy-policy
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ products
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ profile
+│  │  │  │  ├─ addresses
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ help
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ notifications
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ orders
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ page.tsx
+│  │  │  │  ├─ payments
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ privacy
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ security
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  ├─ settings
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  └─ wishlist
+│  │  │  │     └─ page.tsx
+│  │  │  ├─ returns-policy
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ shipping-policy
+│  │  │  │  └─ page.tsx
+│  │  │  └─ terms
+│  │  │     └─ page.tsx
+│  │  ├─ api
+│  │  │  ├─ addresses
+│  │  │  │  ├─ route.ts
+│  │  │  │  └─ [id]
+│  │  │  │     └─ route.ts
+│  │  │  ├─ admin
+│  │  │  │  ├─ banners
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     └─ route.ts
+│  │  │  │  ├─ blog
+│  │  │  │  │  ├─ comments
+│  │  │  │  │  │  └─ [id]
+│  │  │  │  │  │     └─ route.ts
+│  │  │  │  │  ├─ likes
+│  │  │  │  │  │  └─ [id]
+│  │  │  │  │  │     └─ route.ts
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     ├─ likes
+│  │  │  │  │     │  └─ route.ts
+│  │  │  │  │     └─ route.ts
+│  │  │  │  ├─ categories
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     └─ route.ts
+│  │  │  │  ├─ orders
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     ├─ assign-rider
+│  │  │  │  │     │  └─ route.ts
+│  │  │  │  │     ├─ location
+│  │  │  │  │     │  └─ route.ts
+│  │  │  │  │     ├─ route.ts
+│  │  │  │  │     └─ status
+│  │  │  │  │        └─ route.ts
+│  │  │  │  ├─ products
+│  │  │  │  │  ├─ route.ts
+│  │  │  │  │  └─ [id]
+│  │  │  │  │     └─ route.ts
+│  │  │  │  ├─ profile
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ reports
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ stats
+│  │  │  │  │  └─ route.ts
+│  │  │  │  └─ users
+│  │  │  │     ├─ route.ts
+│  │  │  │     └─ [id]
+│  │  │  │        └─ route.ts
+│  │  │  ├─ auth
+│  │  │  │  ├─ callback
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ forgot-password
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ login
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ logout
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ resend-otp
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ role
+│  │  │  │  │  └─ route.ts
+│  │  │  │  └─ signup
+│  │  │  │     └─ route.ts
+│  │  │  ├─ blog
+│  │  │  │  └─ [slug]
+│  │  │  │     ├─ comments
+│  │  │  │     │  └─ route.ts
+│  │  │  │     └─ like
+│  │  │  │        └─ route.ts
+│  │  │  ├─ cart
+│  │  │  │  ├─ items
+│  │  │  │  │  └─ [itemId]
+│  │  │  │  │     └─ route.ts
+│  │  │  │  └─ route.ts
+│  │  │  ├─ checkout
+│  │  │  │  └─ buy-now
+│  │  │  │     └─ route.ts
+│  │  │  ├─ notifications
+│  │  │  │  ├─ route.ts
+│  │  │  │  └─ [id]
+│  │  │  │     └─ route.ts
+│  │  │  ├─ orders
+│  │  │  │  └─ route.ts
+│  │  │  ├─ products
+│  │  │  │  ├─ route.ts
+│  │  │  │  └─ [id]
+│  │  │  │     └─ route.ts
+│  │  │  └─ wishlist
+│  │  │     ├─ check
+│  │  │     │  └─ route.ts
+│  │  │     ├─ route.ts
+│  │  │     └─ [id]
+│  │  │        └─ route.ts
+│  │  ├─ favicon.ico
+│  │  ├─ forgot-password
+│  │  │  ├─ components
+│  │  │  │  └─ forgot-password-form.tsx
+│  │  │  └─ page.tsx
+│  │  ├─ globals.css
+│  │  ├─ layout.tsx
+│  │  ├─ login
+│  │  │  ├─ components
+│  │  │  │  └─ login-form.tsx
+│  │  │  └─ page.tsx
+│  │  ├─ offline
+│  │  │  └─ page.tsx
+│  │  ├─ register
+│  │  │  ├─ components
+│  │  │  │  └─ register-form.tsx
+│  │  │  └─ page.tsx
+│  │  └─ verify-otp
+│  │     ├─ components
+│  │     │  └─ verify-otp-form.tsx
+│  │     └─ page.tsx
+│  ├─ components
+│  │  ├─ admin
+│  │  │  ├─ address-map-picker.tsx
+│  │  │  ├─ delivery-order-detail.tsx
+│  │  │  ├─ order-detail-dialog.tsx
+│  │  │  ├─ order-map.tsx
+│  │  │  └─ user-management.tsx
+│  │  ├─ home
+│  │  │  ├─ banner-carousel.tsx
+│  │  │  ├─ blog-section.tsx
+│  │  │  ├─ footer.tsx
+│  │  │  └─ product-grid.tsx
+│  │  ├─ nav
+│  │  │  ├─ admin-sidebar.tsx
+│  │  │  └─ header.tsx
+│  │  ├─ notifications
+│  │  │  └─ notifications-dropdown.tsx
+│  │  ├─ orders
+│  │  │  └─ order-detail-sheet.tsx
+│  │  ├─ products
+│  │  │  ├─ category-chips.tsx
+│  │  │  ├─ mobile-filter-button.tsx
+│  │  │  ├─ mobile-shortcuts.tsx
+│  │  │  ├─ product-detail-sheet.tsx
+│  │  │  ├─ product-filters.tsx
+│  │  │  └─ product-sort.tsx
+│  │  ├─ theme-provider.tsx
+│  │  ├─ theme-toggle.tsx
+│  │  └─ ui
+│  │     ├─ accordion.tsx
+│  │     ├─ alert-dialog.tsx
+│  │     ├─ avatar.tsx
+│  │     ├─ back-button.tsx
+│  │     ├─ badge.tsx
+│  │     ├─ button.tsx
+│  │     ├─ card.tsx
+│  │     ├─ checkbox.tsx
+│  │     ├─ collapsible.tsx
+│  │     ├─ command.tsx
+│  │     ├─ dialog.tsx
+│  │     ├─ dropdown-menu.tsx
+│  │     ├─ form.tsx
+│  │     ├─ input-group.tsx
+│  │     ├─ input.tsx
+│  │     ├─ label.tsx
+│  │     ├─ popover.tsx
+│  │     ├─ radio-group.tsx
+│  │     ├─ select.tsx
+│  │     ├─ separator.tsx
+│  │     ├─ sheet.tsx
+│  │     ├─ skeleton.tsx
+│  │     ├─ slider.tsx
+│  │     ├─ switch.tsx
+│  │     ├─ table.tsx
+│  │     ├─ tabs.tsx
+│  │     ├─ textarea.tsx
+│  │     └─ tooltip.tsx
+│  ├─ hooks
+│  │  ├─ use-mobile.ts
+│  │  └─ use-role.ts
+│  ├─ lib
+│  │  ├─ jwt.ts
+│  │  ├─ prisma.ts
+│  │  ├─ role.ts
+│  │  ├─ safe-query.ts
+│  │  ├─ supabase.ts
+│  │  ├─ utils.ts
+│  │  └─ validation.ts
+│  ├─ proxy.ts
+│  └─ types
+│     └─ order.ts
+├─ tailwind.config.js
+├─ tsconfig.json
+└─ vercel.json
+
+```
