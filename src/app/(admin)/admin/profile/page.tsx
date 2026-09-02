@@ -64,6 +64,7 @@ export default function AdminProfilePage() {
   const [name, setName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
+  // Store location states - only for ADMIN
   const [storeDialogOpen, setStoreDialogOpen] = useState(false);
   const [storeFormData, setStoreFormData] = useState({
     address: "",
@@ -77,6 +78,8 @@ export default function AdminProfilePage() {
   });
   const [storeAddressChanged, setStoreAddressChanged] = useState(0);
   const [savingStore, setSavingStore] = useState(false);
+
+  const isAdmin = role === "ADMIN";
 
   useEffect(() => {
     fetchProfile();
@@ -93,6 +96,7 @@ export default function AdminProfilePage() {
       setProfile(data);
       setName(data.name || "");
 
+      // Populate store form data if exists (only for admin)
       if (data.storeLocation) {
         setStoreFormData({
           address: data.storeLocation.address,
@@ -149,6 +153,8 @@ export default function AdminProfilePage() {
   };
 
   const handleUpdateStoreLocation = async () => {
+    if (!isAdmin) return; // Only admin can update store location
+
     const { address, city, province, postalCode, latitude, longitude } =
       storeFormData;
 
@@ -421,7 +427,7 @@ export default function AdminProfilePage() {
       </Card>
 
       {/* Store Location Card - Admin only */}
-      {profile.role === "ADMIN" && (
+      {isAdmin && (
         <Card className="py-4 px-2 border-primary/20 bg-primary/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -527,162 +533,171 @@ export default function AdminProfilePage() {
         </Card>
       </div>
 
-      {/* Store Location Dialog */}
-      <Dialog open={storeDialogOpen} onOpenChange={setStoreDialogOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Store className="h-5 w-5 text-primary" />
-              {profile.storeLocation
-                ? "Update Store Location"
-                : "Set Store Location"}
-            </DialogTitle>
-          </DialogHeader>
+      {/* Store Location Dialog - Admin only */}
+      {isAdmin && (
+        <Dialog open={storeDialogOpen} onOpenChange={setStoreDialogOpen}>
+          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Store className="h-5 w-5 text-primary" />
+                {profile.storeLocation
+                  ? "Update Store Location"
+                  : "Set Store Location"}
+              </DialogTitle>
+            </DialogHeader>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
-            <div className="flex flex-col space-y-1.5 h-full">
-              <Label className="text-sm font-medium">
-                Drag Map to Set Store Location
-              </Label>
-              <div className="flex-1 min-h-[280px]">
-                {storeDialogOpen && (
-                  <AddressMapPicker
-                    key="store-location-map"
-                    formData={storeFormData}
-                    onLocationChange={handleStoreLocationChange}
-                    addressChanged={storeAddressChanged}
-                  />
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground text-center pt-1">
-                Move the map under the pin to automatically detect the address.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="store-address" className="text-sm font-medium">
-                  Address / Street
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
+              <div className="flex flex-col space-y-1.5 h-full">
+                <Label className="text-sm font-medium">
+                  Drag Map to Set Store Location
                 </Label>
-                <Input
-                  id="store-address"
-                  value={storeFormData.address}
-                  onChange={(e) =>
-                    handleStoreTextChange("address", e.target.value)
-                  }
-                  placeholder="123 Main St"
-                  className="h-10"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="store-city" className="text-sm font-medium">
-                    City
-                  </Label>
-                  <Input
-                    id="store-city"
-                    value={storeFormData.city}
-                    onChange={(e) =>
-                      handleStoreTextChange("city", e.target.value)
-                    }
-                    placeholder="Lipa"
-                    className="h-10"
-                  />
+                <div className="flex-1 min-h-[280px]">
+                  {storeDialogOpen && (
+                    <AddressMapPicker
+                      key="store-location-map"
+                      formData={storeFormData}
+                      onLocationChange={handleStoreLocationChange}
+                      addressChanged={storeAddressChanged}
+                    />
+                  )}
                 </div>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="store-province"
-                    className="text-sm font-medium"
-                  >
-                    Province
-                  </Label>
-                  <Input
-                    id="store-province"
-                    value={storeFormData.province}
-                    onChange={(e) =>
-                      handleStoreTextChange("province", e.target.value)
-                    }
-                    placeholder="Batangas"
-                    className="h-10"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="store-postal" className="text-sm font-medium">
-                    Postal Code
-                  </Label>
-                  <Input
-                    id="store-postal"
-                    value={storeFormData.postalCode}
-                    onChange={(e) =>
-                      handleStoreTextChange("postalCode", e.target.value)
-                    }
-                    placeholder="4217"
-                    className="h-10"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="store-country"
-                    className="text-sm font-medium"
-                  >
-                    Country
-                  </Label>
-                  <Input
-                    id="store-country"
-                    value={storeFormData.country}
-                    onChange={(e) =>
-                      handleStoreTextChange("country", e.target.value)
-                    }
-                    placeholder="Philippines"
-                    className="h-10"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor="store-landmark"
-                  className="text-sm font-medium flex items-center gap-1.5"
-                >
-                  <Flag className="h-4 w-4 text-muted-foreground" />
-                  Landmark (Optional)
-                </Label>
-                <Input
-                  id="store-landmark"
-                  value={storeFormData.landmark}
-                  onChange={(e) =>
-                    handleStoreTextChange("landmark", e.target.value)
-                  }
-                  placeholder="e.g., Near Barangay Hall, Yellow gate"
-                  className="h-10"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Add a landmark to help customers find your store.
+                <p className="text-xs text-muted-foreground text-center pt-1">
+                  Move the map under the pin to automatically detect the
+                  address.
                 </p>
               </div>
 
-              <Button
-                className="w-full h-11 mt-2"
-                onClick={handleUpdateStoreLocation}
-                disabled={savingStore}
-              >
-                {savingStore ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  "Save Store Location"
-                )}
-              </Button>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="store-address"
+                    className="text-sm font-medium"
+                  >
+                    Address / Street
+                  </Label>
+                  <Input
+                    id="store-address"
+                    value={storeFormData.address}
+                    onChange={(e) =>
+                      handleStoreTextChange("address", e.target.value)
+                    }
+                    placeholder="123 Main St"
+                    className="h-10"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="store-city" className="text-sm font-medium">
+                      City
+                    </Label>
+                    <Input
+                      id="store-city"
+                      value={storeFormData.city}
+                      onChange={(e) =>
+                        handleStoreTextChange("city", e.target.value)
+                      }
+                      placeholder="Lipa"
+                      className="h-10"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="store-province"
+                      className="text-sm font-medium"
+                    >
+                      Province
+                    </Label>
+                    <Input
+                      id="store-province"
+                      value={storeFormData.province}
+                      onChange={(e) =>
+                        handleStoreTextChange("province", e.target.value)
+                      }
+                      placeholder="Batangas"
+                      className="h-10"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="store-postal"
+                      className="text-sm font-medium"
+                    >
+                      Postal Code
+                    </Label>
+                    <Input
+                      id="store-postal"
+                      value={storeFormData.postalCode}
+                      onChange={(e) =>
+                        handleStoreTextChange("postalCode", e.target.value)
+                      }
+                      placeholder="4217"
+                      className="h-10"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="store-country"
+                      className="text-sm font-medium"
+                    >
+                      Country
+                    </Label>
+                    <Input
+                      id="store-country"
+                      value={storeFormData.country}
+                      onChange={(e) =>
+                        handleStoreTextChange("country", e.target.value)
+                      }
+                      placeholder="Philippines"
+                      className="h-10"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="store-landmark"
+                    className="text-sm font-medium flex items-center gap-1.5"
+                  >
+                    <Flag className="h-4 w-4 text-muted-foreground" />
+                    Landmark (Optional)
+                  </Label>
+                  <Input
+                    id="store-landmark"
+                    value={storeFormData.landmark}
+                    onChange={(e) =>
+                      handleStoreTextChange("landmark", e.target.value)
+                    }
+                    placeholder="e.g., Near Barangay Hall, Yellow gate"
+                    className="h-10"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Add a landmark to help customers find your store.
+                  </p>
+                </div>
+
+                <Button
+                  className="w-full h-11 mt-2"
+                  onClick={handleUpdateStoreLocation}
+                  disabled={savingStore}
+                >
+                  {savingStore ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Store Location"
+                  )}
+                </Button>
+              </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

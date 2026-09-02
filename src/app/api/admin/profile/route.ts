@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-async function getAdminUser() {
+async function getAuthUser() {
   try {
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -37,39 +37,39 @@ async function getAdminUser() {
       },
     });
 
-    // Only allow ADMIN
-    if (dbUser?.role !== "ADMIN") return null;
-
     return dbUser;
   } catch (error) {
-    console.error("Error in getAdminUser:", error);
+    console.error("Error in getAuthUser:", error);
     return null;
   }
 }
 
-// GET - Fetch admin profile with store location
+// GET - Fetch user profile with store location (only for ADMIN)
 export async function GET() {
   try {
-    const admin = await getAdminUser();
-    if (!admin) {
+    const user = await getAuthUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Find store location address
-    const storeLocation = await prisma.address.findFirst({
-      where: {
-        userId: admin.id,
-        isStoreLocation: true,
-      },
-    });
+    // Find store location address (only for ADMIN)
+    let storeLocation = null;
+    if (user.role === "ADMIN") {
+      storeLocation = await prisma.address.findFirst({
+        where: {
+          userId: user.id,
+          isStoreLocation: true,
+        },
+      });
+    }
 
     return NextResponse.json({
-      id: admin.id,
-      email: admin.email,
-      name: admin.name,
-      role: admin.role,
-      avatar: admin.avatar,
-      createdAt: admin.createdAt,
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      avatar: user.avatar,
+      createdAt: user.createdAt,
       storeLocation: storeLocation || null,
     });
   } catch (error) {
@@ -81,30 +81,30 @@ export async function GET() {
   }
 }
 
-// PUT - Update admin profile and store location
+// PUT - Update user profile (name only for non-admin, full for admin)
 export async function PUT(request: NextRequest) {
   try {
-    const admin = await getAdminUser();
-    if (!admin) {
+    const user = await getAuthUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { name, storeLocation } = await request.json();
 
-    // Update admin name if provided
+    // Update user name if provided
     if (name !== undefined) {
       await prisma.user.update({
-        where: { id: admin.id },
+        where: { id: user.id },
         data: { name },
       });
     }
 
-    // Update store location if provided
-    if (storeLocation) {
+    // Only ADMIN can update store location
+    if (storeLocation && user.role === "ADMIN") {
       // Check if store location already exists
       const existingStore = await prisma.address.findFirst({
         where: {
-          userId: admin.id,
+          userId: user.id,
           isStoreLocation: true,
         },
       });
@@ -128,7 +128,7 @@ export async function PUT(request: NextRequest) {
         // Create new store location
         await prisma.address.create({
           data: {
-            userId: admin.id,
+            userId: user.id,
             address: storeLocation.address,
             city: storeLocation.city,
             province: storeLocation.province,
@@ -143,28 +143,31 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Fetch updated admin with store location
-    const updatedAdmin = await prisma.user.findUnique({
-      where: { id: admin.id },
+    // Fetch updated user
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: {
         addresses: true,
       },
     });
 
-    const storeLocationData = await prisma.address.findFirst({
-      where: {
-        userId: admin.id,
-        isStoreLocation: true,
-      },
-    });
+    let storeLocationData = null;
+    if (updatedUser?.role === "ADMIN") {
+      storeLocationData = await prisma.address.findFirst({
+        where: {
+          userId: updatedUser.id,
+          isStoreLocation: true,
+        },
+      });
+    }
 
     return NextResponse.json({
-      id: updatedAdmin?.id,
-      email: updatedAdmin?.email,
-      name: updatedAdmin?.name,
-      role: updatedAdmin?.role,
-      avatar: updatedAdmin?.avatar,
-      createdAt: updatedAdmin?.createdAt,
+      id: updatedUser?.id,
+      email: updatedUser?.email,
+      name: updatedUser?.name,
+      role: updatedUser?.role,
+      avatar: updatedUser?.avatar,
+      createdAt: updatedUser?.createdAt,
       storeLocation: storeLocationData || null,
     });
   } catch (error) {
