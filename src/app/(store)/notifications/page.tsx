@@ -109,7 +109,8 @@ function isDeliveryNotification(notification: Notification): boolean {
     notification.metadata?.status === "DELIVERED" ||
     notification.title?.includes("on the way") ||
     notification.title?.includes("delivered") ||
-    notification.title?.includes("🚚")
+    notification.title?.includes("🚚") ||
+    notification.title?.includes("✅")
   );
 }
 
@@ -214,6 +215,13 @@ export default function NotificationsPage() {
     } catch (error) {
       console.error("Error deleting notification:", error);
       toast.error("Failed to delete notification");
+    }
+  };
+
+  // ✅ Handle notification click - ONLY mark as read, NO navigation
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.read) {
+      await markAsRead(notification.id);
     }
   };
 
@@ -359,12 +367,13 @@ export default function NotificationsPage() {
                     <Card
                       key={notif.id}
                       className={cn(
-                        "transition-colors",
+                        "transition-colors cursor-pointer",
                         isUnread ? "border-primary/20 bg-primary/5" : "",
                         isDelivery && !isUnread
                           ? "border-green-200 bg-green-50/30 dark:bg-green-950/10"
                           : "",
                       )}
+                      onClick={() => handleNotificationClick(notif)}
                     >
                       <CardContent className="p-3 sm:p-4 flex items-start gap-3">
                         <div
@@ -403,7 +412,10 @@ export default function NotificationsPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => markAsRead(notif.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markAsRead(notif.id);
+                              }}
                               aria-label="Mark as read"
                             >
                               <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -413,7 +425,10 @@ export default function NotificationsPage() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={() => deleteNotification(notif.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteNotification(notif.id);
+                            }}
                             aria-label="Delete notification"
                           >
                             <Trash2 className="h-4 w-4" />

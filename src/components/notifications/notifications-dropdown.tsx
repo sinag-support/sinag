@@ -179,18 +179,13 @@ export function NotificationsDropdown() {
     }
   };
 
+  // ✅ FIXED: Only mark as read, NO navigation
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.read) {
       markAsRead(notification.id);
     }
-
-    if (notification.link) {
-      router.push(notification.link);
-    } else if (notification.metadata?.orderId) {
-      router.push(`/profile/orders/${notification.metadata.orderId}`);
-    } else if (notification.metadata?.productId) {
-      router.push(`/products/${notification.metadata.productId}`);
-    }
+    // ❌ REMOVED all router.push() calls
+    // ❌ REMOVED all navigation
     setOpen(false);
   };
 
