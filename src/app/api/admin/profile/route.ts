@@ -1,3 +1,5 @@
+// app/api/admin/profile/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createServerClient } from "@supabase/ssr";
@@ -44,7 +46,7 @@ async function getAuthUser() {
   }
 }
 
-// GET - Fetch user profile with store location (only for ADMIN)
+// ✅ GET - Fetch user profile with store location for ALL authenticated users
 export async function GET() {
   try {
     const user = await getAuthUser();
@@ -52,16 +54,12 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Find store location address (only for ADMIN)
-    let storeLocation = null;
-    if (user.role === "ADMIN") {
-      storeLocation = await prisma.address.findFirst({
-        where: {
-          userId: user.id,
-          isStoreLocation: true,
-        },
-      });
-    }
+    // ✅ Always fetch the store location (global setting, not tied to a specific user)
+    const storeLocation = await prisma.address.findFirst({
+      where: {
+        isStoreLocation: true, // ✅ Just find the store location
+      },
+    });
 
     return NextResponse.json({
       id: user.id,
@@ -81,7 +79,7 @@ export async function GET() {
   }
 }
 
-// PUT - Update user profile (name only for non-admin, full for admin)
+// ✅ PUT - Update user profile (only ADMIN can update store location)
 export async function PUT(request: NextRequest) {
   try {
     const user = await getAuthUser();
@@ -99,12 +97,11 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    // Only ADMIN can update store location
+    // ✅ Only ADMIN can update store location
     if (storeLocation && user.role === "ADMIN") {
       // Check if store location already exists
       const existingStore = await prisma.address.findFirst({
         where: {
-          userId: user.id,
           isStoreLocation: true,
         },
       });
@@ -151,15 +148,12 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    let storeLocationData = null;
-    if (updatedUser?.role === "ADMIN") {
-      storeLocationData = await prisma.address.findFirst({
-        where: {
-          userId: updatedUser.id,
-          isStoreLocation: true,
-        },
-      });
-    }
+    // ✅ Always fetch store location (no userId restriction)
+    const storeLocationData = await prisma.address.findFirst({
+      where: {
+        isStoreLocation: true,
+      },
+    });
 
     return NextResponse.json({
       id: updatedUser?.id,

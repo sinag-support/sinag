@@ -1,42 +1,50 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import { toast } from 'sonner'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { ChevronRight, Calendar, Package, ShoppingBag, ArrowLeft, Clock, MapPin } from 'lucide-react'
-import { OrderDetailSheet } from '@/components/orders/order-detail-sheet'
-import type { Order } from '@/types/order'
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ChevronRight,
+  Calendar,
+  Package,
+  ShoppingBag,
+  ArrowLeft,
+  Clock,
+  MapPin,
+} from "lucide-react";
+import { OrderDetailSheet } from "@/components/orders/order-detail-sheet";
+import type { Order } from "@/types/order";
 
 const statusColors: Record<string, string> = {
-  PENDING: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
-  CONFIRMED: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-  PREPARING: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
-  PACKED: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
-  READY_FOR_PICKUP: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
-  ASSIGNED_RIDER: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-  OUT_FOR_DELIVERY: 'bg-[#8EC801]/10 text-[#429801] border-[#8EC801]/20',
-  DELIVERED: 'bg-green-500/10 text-green-600 border-green-500/20',
-  CANCELLED: 'bg-red-500/10 text-red-600 border-red-500/20',
-  REFUNDED: 'bg-gray-500/10 text-gray-600 border-gray-500/20',
-}
+  PENDING: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+  CONFIRMED: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  PREPARING: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  PACKED: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
+  READY_FOR_PICKUP: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
+  ASSIGNED_RIDER: "bg-orange-500/10 text-orange-600 border-orange-500/20",
+  OUT_FOR_DELIVERY: "bg-[#8EC801]/10 text-[#429801] border-[#8EC801]/20",
+  DELIVERED: "bg-green-500/10 text-green-600 border-green-500/20",
+  CANCELLED: "bg-red-500/10 text-red-600 border-red-500/20",
+  REFUNDED: "bg-gray-500/10 text-gray-600 border-gray-500/20",
+};
 
 const statusLabels: Record<string, string> = {
-  PENDING: 'Pending',
-  CONFIRMED: 'Confirmed',
-  PREPARING: 'Preparing',
-  PACKED: 'Packed',
-  READY_FOR_PICKUP: 'Ready for Pickup',
-  ASSIGNED_RIDER: 'Assigned Rider',
-  OUT_FOR_DELIVERY: 'Out for Delivery',
-  DELIVERED: 'Delivered',
-  CANCELLED: 'Cancelled',
-  REFUNDED: 'Refunded',
-}
+  PENDING: "Pending",
+  CONFIRMED: "Confirmed",
+  PREPARING: "Preparing",
+  PACKED: "Packed",
+  READY_FOR_PICKUP: "Ready for Pickup",
+  ASSIGNED_RIDER: "Assigned Rider",
+  OUT_FOR_DELIVERY: "Out for Delivery",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
+  REFUNDED: "Refunded",
+};
 
 const statusIcons: Record<string, any> = {
   PENDING: Clock,
@@ -49,53 +57,55 @@ const statusIcons: Record<string, any> = {
   DELIVERED: Package,
   CANCELLED: Package,
   REFUNDED: Package,
-}
+};
 
 export default function OrdersPage() {
-  const router = useRouter()
-  const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const router = useRouter();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
-    fetchOrders()
-  }, [])
+    fetchOrders();
+  }, []);
 
   const fetchOrders = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
-        router.push('/login')
-        return
+        router.push("/login");
+        return;
       }
 
-      const response = await fetch('/api/orders')
+      const response = await fetch("/api/orders");
       if (!response.ok) {
-        throw new Error('Failed to fetch orders')
+        throw new Error("Failed to fetch orders");
       }
-      const data = await response.json()
-      setOrders(data)
+      const data = await response.json();
+      setOrders(data);
     } catch (error) {
-      console.error('Error fetching orders:', error)
-      toast.error('Failed to load orders')
+      console.error("Error fetching orders:", error);
+      toast.error("Failed to load orders");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const openOrderDetail = (order: Order) => {
-    setSelectedOrder(order)
-    setSheetOpen(true)
-  }
+    setSelectedOrder(order);
+    setSheetOpen(true);
+  };
 
   const goBack = () => {
-    router.back()
-  }
+    router.back();
+  };
 
   const formatOrderNumber = (num: number) => {
-    return `Order #SNG-${String(num).padStart(4, '0')}`
-  }
+    return `Order #SNG-${String(num).padStart(4, "0")}`;
+  };
 
   if (loading) {
     return (
@@ -124,7 +134,7 @@ export default function OrdersPage() {
           ))}
         </div>
       </div>
-    )
+    );
   }
 
   if (orders.length === 0) {
@@ -138,7 +148,9 @@ export default function OrdersPage() {
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">My Orders</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+            My Orders
+          </h1>
         </div>
 
         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -157,7 +169,7 @@ export default function OrdersPage() {
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -170,20 +182,23 @@ export default function OrdersPage() {
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">My Orders</h1>
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+          My Orders
+        </h1>
       </div>
 
       <div className="space-y-3">
         {orders.map((order) => {
-          const StatusIcon = statusIcons[order.status] || Package
-          const statusColor = statusColors[order.status] || statusColors.PENDING
-          const statusLabel = statusLabels[order.status] || order.status
-          const items = order.items
-          const itemCount = items.length
+          const StatusIcon = statusIcons[order.status] || Package;
+          const statusColor =
+            statusColors[order.status] || statusColors.PENDING;
+          const statusLabel = statusLabels[order.status] || order.status;
+          const items = order.items;
+          const itemCount = items.length;
 
           // Get up to 3 items for stacking
-          const displayItems = items.slice(0, 3)
-          const remainingCount = itemCount - 3
+          const displayItems = items.slice(0, 3);
+          const remainingCount = itemCount - 3;
 
           return (
             <Card
@@ -196,17 +211,17 @@ export default function OrdersPage() {
                   {/* Stacked Product Images */}
                   <div className="relative h-16 w-16 flex-shrink-0">
                     {displayItems.map((item, index) => {
-                      const imageUrl = item.product.images?.[0]
-                      const offset = index * 5
-                      const zIndex = displayItems.length - index
+                      const imageUrl = item.product.images?.[0];
+                      const offset = index * 5;
+                      const zIndex = displayItems.length - index;
 
                       return (
                         <div
                           key={item.id}
                           className="absolute rounded-md overflow-hidden bg-muted border-2 border-background shadow-sm"
                           style={{
-                            width: 'calc(100% - 10px)',
-                            height: 'calc(100% - 10px)',
+                            width: "calc(100% - 10px)",
+                            height: "calc(100% - 10px)",
                             top: `${offset}px`,
                             left: `${offset}px`,
                             zIndex: zIndex,
@@ -219,7 +234,7 @@ export default function OrdersPage() {
                               className="w-full h-full object-cover"
                               loading="lazy"
                               onError={(e) => {
-                                e.currentTarget.style.display = 'none'
+                                e.currentTarget.style.display = "none";
                               }}
                             />
                           ) : (
@@ -228,14 +243,14 @@ export default function OrdersPage() {
                             </div>
                           )}
                         </div>
-                      )
+                      );
                     })}
                     {remainingCount > 0 && (
                       <div
                         className="absolute rounded-md bg-muted flex items-center justify-center border-2 border-background text-[10px] font-medium text-muted-foreground"
                         style={{
-                          width: 'calc(100% - 10px)',
-                          height: 'calc(100% - 10px)',
+                          width: "calc(100% - 10px)",
+                          height: "calc(100% - 10px)",
                           top: `${displayItems.length * 5}px`,
                           left: `${displayItems.length * 5}px`,
                           zIndex: 0,
@@ -263,17 +278,18 @@ export default function OrdersPage() {
 
                     {/* Row 2: Item Count & Price */}
                     <p className="text-xs text-muted-foreground font-medium">
-                      {itemCount} {itemCount === 1 ? 'item' : 'items'} • ₱{order.payable.toFixed(2)}
+                      {itemCount} {itemCount === 1 ? "item" : "items"} • ₱
+                      {order.payable.toFixed(2)}
                     </p>
 
                     {/* Row 3: Date */}
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Calendar className="h-3 w-3 shrink-0" />
                       <span>
-                        {new Date(order.createdAt).toLocaleDateString('en-PH', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
+                        {new Date(order.createdAt).toLocaleDateString("en-PH", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
                         })}
                       </span>
                     </div>
@@ -284,7 +300,7 @@ export default function OrdersPage() {
                 </div>
               </CardContent>
             </Card>
-          )
+          );
         })}
       </div>
 
@@ -294,5 +310,5 @@ export default function OrdersPage() {
         onOpenChange={setSheetOpen}
       />
     </div>
-  )
+  );
 }
