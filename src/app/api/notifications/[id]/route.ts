@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
-async function getUserId() {
+async function getAuthUser() {
   try {
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -11,46 +11,49 @@ async function getUserId() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name: string) { return cookieStore.get(name)?.value },
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
           set(name: string, value: string, options: any) {
             cookieStore.set({ name, value, ...options });
           },
           remove(name: string, options: any) {
-            cookieStore.set({ name, value: '', ...options });
+            cookieStore.set({ name, value: "", ...options });
           },
         },
-      }
+      },
     );
-    
-    const { data: { user }, error } = await supabase.auth.getUser();
+
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
     if (error || !user) return null;
-    
+
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email! },
       select: { id: true },
     });
-    
+
     return dbUser?.id || null;
   } catch (error) {
-    console.error('Error in getUserId:', error);
+    console.error("Error in getAuthUser:", error);
     return null;
   }
 }
 
-// DELETE - Delete a notification
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getUserId();
+    const userId = await getAuthUser();
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id: notificationId } = await params; // ✅ Await params
+    const { id: notificationId } = await params;
 
-    // Verify the notification belongs to the user
     const notification = await prisma.notification.findUnique({
       where: { id: notificationId },
       select: { userId: true },
@@ -58,16 +61,14 @@ export async function DELETE(
 
     if (!notification) {
       return NextResponse.json(
-        { error: 'Notification not found' },
-        { status: 404 }
+        { error: "Notification not found" },
+        { status: 404 },
       );
     }
 
+    // Only the owner can delete their notification
     if (notification.userId !== userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     await prisma.notification.delete({
@@ -76,13 +77,13 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: 'Notification deleted',
+      message: "Notification deleted",
     });
   } catch (error) {
-    console.error('DELETE /api/notifications/[id] error:', error);
+    console.error("DELETE /api/notifications/[id] error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

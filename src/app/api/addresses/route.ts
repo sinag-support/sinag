@@ -1,93 +1,97 @@
-import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 async function getUserId() {
   try {
-    const cookieStore = await cookies()
+    const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name: string) { return cookieStore.get(name)?.value },
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
           set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options })
+            cookieStore.set({ name, value, ...options });
           },
           remove(name: string, options: any) {
-            cookieStore.set({ name, value: '', ...options })
+            cookieStore.set({ name, value: "", ...options });
           },
         },
-      }
-    )
-    
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return null
-    
+      },
+    );
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email! },
       select: { id: true },
-    })
-    
-    return dbUser?.id || null
+    });
+
+    return dbUser?.id || null;
   } catch (error) {
-    console.error('Error in getUserId:', error)
-    return null
+    console.error("Error in getUserId:", error);
+    return null;
   }
 }
 
-// GET - Fetch all addresses for the user
+// GET - Fetch all addresses for the user (excluding store location)
 export async function GET() {
   try {
-    const userId = await getUserId()
+    const userId = await getUserId();
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const addresses = await prisma.address.findMany({
-      where: { userId },
-      orderBy: [
-        { isDefault: 'desc' },
-        { createdAt: 'desc' },
-      ],
-    })
+      where: {
+        userId,
+        isStoreLocation: false, // ✅ Exclude store location
+      },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+    });
 
-    return NextResponse.json(addresses)
+    return NextResponse.json(addresses);
   } catch (error) {
-    console.error('GET /api/addresses error:', error)
+    console.error("GET /api/addresses error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
 // POST - Create a new address
 export async function POST(request: Request) {
   try {
-    const userId = await getUserId()
+    const userId = await getUserId();
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { 
-      address, 
-      city, 
-      province, 
-      postalCode, 
-      country, 
-      latitude, 
-      longitude, 
-      landmark, 
-      isDefault 
-    } = await request.json()
+    const {
+      address,
+      city,
+      province,
+      postalCode,
+      country,
+      latitude,
+      longitude,
+      landmark,
+      isDefault,
+    } = await request.json();
 
     if (!address || !city || !province || !postalCode) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
     }
 
     // If setting as default, unset other defaults
@@ -95,7 +99,7 @@ export async function POST(request: Request) {
       await prisma.address.updateMany({
         where: { userId, isDefault: true },
         data: { isDefault: false },
-      })
+      });
     }
 
     const newAddress = await prisma.address.create({
@@ -105,20 +109,21 @@ export async function POST(request: Request) {
         city,
         province,
         postalCode,
-        country: country || 'Philippines',
+        country: country || "Philippines",
         latitude: latitude || null,
         longitude: longitude || null,
         landmark: landmark || null,
         isDefault: isDefault || false,
+        isStoreLocation: false, // ✅ Force false for users
       },
-    })
+    });
 
-    return NextResponse.json(newAddress, { status: 201 })
+    return NextResponse.json(newAddress, { status: 201 });
   } catch (error) {
-    console.error('POST /api/addresses error:', error)
+    console.error("POST /api/addresses error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

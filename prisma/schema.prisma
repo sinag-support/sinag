@@ -192,6 +192,7 @@ model Address {
   landmark   String?
 
   isDefault  Boolean  @default(false)
+  isStoreLocation Boolean @default(false)
 
   orders Order[]
 

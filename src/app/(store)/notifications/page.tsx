@@ -1,27 +1,35 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { Bell, CheckCircle2, Trash2, ShoppingBag, Tag, Gift } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
-import { supabase } from '@/lib/supabase'
-import { toast } from 'sonner'
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import {
+  Bell,
+  CheckCircle2,
+  Trash2,
+  ShoppingBag,
+  Tag,
+  Gift,
+  Truck,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 // Types
-type NotificationType = 'ORDER' | 'PRODUCT' | 'SALE' | 'DEFAULT'
+type NotificationType = "ORDER" | "PRODUCT" | "SALE" | "DEFAULT";
 
 interface Notification {
-  id: string
-  title: string
-  description?: string
-  type: NotificationType
-  read: boolean
-  link?: string
-  metadata?: any
-  createdAt: string
+  id: string;
+  title: string;
+  description?: string;
+  type: NotificationType;
+  read: boolean;
+  link?: string;
+  metadata?: any;
+  createdAt: string;
 }
 
 const typeIcons = {
@@ -29,175 +37,192 @@ const typeIcons = {
   PRODUCT: Gift,
   SALE: Tag,
   DEFAULT: Bell,
-}
+};
 
 const typeColors = {
-  ORDER: 'text-blue-500 bg-blue-50 dark:bg-blue-950',
-  PRODUCT: 'text-purple-500 bg-purple-50 dark:bg-purple-950',
-  SALE: 'text-orange-500 bg-orange-50 dark:bg-orange-950',
-  DEFAULT: 'text-gray-500 bg-gray-50 dark:bg-gray-950',
-}
+  ORDER: "text-blue-500 bg-blue-50 dark:bg-blue-950",
+  PRODUCT: "text-purple-500 bg-purple-50 dark:bg-purple-950",
+  SALE: "text-orange-500 bg-orange-50 dark:bg-orange-950",
+  DEFAULT: "text-gray-500 bg-gray-50 dark:bg-gray-950",
+};
 
 function groupNotifications(notifs: Notification[]) {
-  const groups: { [key: string]: Notification[] } = {}
+  const groups: { [key: string]: Notification[] } = {};
 
   notifs.forEach((n) => {
-    const date = new Date(n.createdAt)
-    const today = new Date()
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
+    const date = new Date(n.createdAt);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
-    let groupKey = 'Earlier'
+    let groupKey = "Earlier";
     if (date.toDateString() === today.toDateString()) {
-      groupKey = 'Today'
+      groupKey = "Today";
     } else if (date.toDateString() === yesterday.toDateString()) {
-      groupKey = 'Yesterday'
+      groupKey = "Yesterday";
     } else {
-      groupKey = 'Earlier'
+      groupKey = "Earlier";
     }
 
     if (!groups[groupKey]) {
-      groups[groupKey] = []
+      groups[groupKey] = [];
     }
-    groups[groupKey].push(n)
-  })
+    groups[groupKey].push(n);
+  });
 
   // Sort groups: Today > Yesterday > Earlier
-  const ordered: { [key: string]: Notification[] } = {}
-  if (groups.Today) ordered.Today = groups.Today
-  if (groups.Yesterday) ordered.Yesterday = groups.Yesterday
-  if (groups.Earlier) ordered.Earlier = groups.Earlier
+  const ordered: { [key: string]: Notification[] } = {};
+  if (groups.Today) ordered.Today = groups.Today;
+  if (groups.Yesterday) ordered.Yesterday = groups.Yesterday;
+  if (groups.Earlier) ordered.Earlier = groups.Earlier;
 
-  return ordered
+  return ordered;
 }
 
 function formatTime(dateString: string) {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`
-  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  
-  return date.toLocaleDateString('en-PH', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60)
+    return `${diffMins} minute${diffMins === 1 ? "" : "s"} ago`;
+  if (diffHours < 24)
+    return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+
+  return date.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+// Helper function to check if notification is delivery-related
+function isDeliveryNotification(notification: Notification): boolean {
+  return (
+    notification.metadata?.status === "OUT_FOR_DELIVERY" ||
+    notification.metadata?.status === "DELIVERED" ||
+    notification.title?.includes("on the way") ||
+    notification.title?.includes("delivered") ||
+    notification.title?.includes("🚚") ||
+    notification.title?.includes("✅")
+  );
 }
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'unread'>('all')
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
-    checkAuthAndFetch()
-  }, [])
+    checkAuthAndFetch();
+  }, []);
 
   const checkAuthAndFetch = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      setIsAuthenticated(!!session)
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session);
+
       if (session) {
-        await fetchNotifications()
+        await fetchNotifications();
       } else {
-        setLoading(false)
+        setLoading(false);
       }
     } catch (error) {
-      console.error('Auth check error:', error)
-      setIsAuthenticated(false)
-      setLoading(false)
+      console.error("Auth check error:", error);
+      setIsAuthenticated(false);
+      setLoading(false);
     }
-  }
+  };
 
   const fetchNotifications = async () => {
     try {
-      const response = await fetch('/api/notifications')
+      const response = await fetch("/api/notifications");
       if (!response.ok) {
-        throw new Error('Failed to fetch notifications')
+        throw new Error("Failed to fetch notifications");
       }
-      const data = await response.json()
-      setNotifications(data)
+      const data = await response.json();
+      setNotifications(data);
     } catch (error) {
-      console.error('Error fetching notifications:', error)
-      toast.error('Failed to load notifications')
+      console.error("Error fetching notifications:", error);
+      toast.error("Failed to load notifications");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const markAsRead = async (id: string) => {
     try {
-      const response = await fetch('/api/notifications', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notificationId: id }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to mark as read')
+        throw new Error("Failed to mark as read");
       }
 
-      setNotifications(prev =>
-        prev.map(n => n.id === id ? { ...n, read: true } : n)
-      )
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+      );
     } catch (error) {
-      console.error('Error marking as read:', error)
-      toast.error('Failed to mark as read')
+      console.error("Error marking as read:", error);
+      toast.error("Failed to mark as read");
     }
-  }
+  };
 
   const markAllAsRead = async () => {
     try {
-      const response = await fetch('/api/notifications', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markAll: true }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to mark all as read')
+        throw new Error("Failed to mark all as read");
       }
 
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-      toast.success('All notifications marked as read')
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      toast.success("All notifications marked as read");
     } catch (error) {
-      console.error('Error marking all as read:', error)
-      toast.error('Failed to mark all as read')
+      console.error("Error marking all as read:", error);
+      toast.error("Failed to mark all as read");
     }
-  }
+  };
 
   const deleteNotification = async (id: string) => {
     try {
       const response = await fetch(`/api/notifications/${id}`, {
-        method: 'DELETE',
-      })
+        method: "DELETE",
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to delete notification')
+        throw new Error("Failed to delete notification");
       }
 
-      setNotifications(prev => prev.filter(n => n.id !== id))
-      toast.success('Notification deleted')
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      toast.success("Notification deleted");
     } catch (error) {
-      console.error('Error deleting notification:', error)
-      toast.error('Failed to delete notification')
+      console.error("Error deleting notification:", error);
+      toast.error("Failed to delete notification");
     }
-  }
+  };
 
-  const filtered = filter === 'all' ? notifications : notifications.filter(n => !n.read)
-  const unreadCount = notifications.filter(n => !n.read).length
-  const grouped = groupNotifications(filtered)
-  const groupKeys = Object.keys(grouped)
+  const filtered =
+    filter === "all" ? notifications : notifications.filter((n) => !n.read);
+  const unreadCount = notifications.filter((n) => !n.read).length;
+  const grouped = groupNotifications(filtered);
+  const groupKeys = Object.keys(grouped);
 
   // Loading state
   if (loading) {
@@ -223,7 +248,7 @@ export default function NotificationsPage() {
           ))}
         </div>
       </div>
-    )
+    );
   }
 
   // Not authenticated state
@@ -234,17 +259,22 @@ export default function NotificationsPage() {
         <Card>
           <CardContent className="p-6 text-center py-12">
             <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium">Sign in to view notifications</h3>
+            <h3 className="text-lg font-medium">
+              Sign in to view notifications
+            </h3>
             <p className="text-sm text-muted-foreground mt-1">
               Please log in to see your notifications.
             </p>
-            <Link href="/login" className="mt-4 inline-block text-sm text-primary hover:underline">
+            <Link
+              href="/login"
+              className="mt-4 inline-block text-sm text-primary hover:underline"
+            >
               Sign in →
             </Link>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -263,30 +293,35 @@ export default function NotificationsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setFilter('all')}
+            onClick={() => setFilter("all")}
             className={cn(
               "px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-colors",
-              filter === 'all'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted hover:bg-muted/80'
+              filter === "all"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted hover:bg-muted/80",
             )}
           >
             All
           </button>
           <button
-            onClick={() => setFilter('unread')}
+            onClick={() => setFilter("unread")}
             className={cn(
               "px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-colors",
-              filter === 'unread'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted hover:bg-muted/80'
+              filter === "unread"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted hover:bg-muted/80",
             )}
           >
             Unread {unreadCount > 0 && `(${unreadCount})`}
           </button>
         </div>
         {notifications.length > 0 && unreadCount > 0 && (
-          <Button variant="ghost" size="sm" onClick={markAllAsRead} className="text-xs sm:text-sm">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={markAllAsRead}
+            className="text-xs sm:text-sm"
+          >
             <CheckCircle2 className="h-4 w-4 mr-1 sm:mr-2" />
             Mark all as read
           </Button>
@@ -298,36 +333,60 @@ export default function NotificationsPage() {
         <div className="text-center py-12">
           <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium">
-            {filter === 'all' ? 'No notifications' : 'No unread notifications'}
+            {filter === "all" ? "No notifications" : "No unread notifications"}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {filter === 'all' ? "You're all caught up!" : 'You have no unread notifications.'}
+            {filter === "all"
+              ? "You're all caught up!"
+              : "You have no unread notifications."}
           </p>
         </div>
       ) : (
         <div className="space-y-6">
           {groupKeys.map((group) => (
             <div key={group}>
-              <h2 className="text-sm font-semibold text-muted-foreground mb-2">{group}</h2>
+              <h2 className="text-sm font-semibold text-muted-foreground mb-2">
+                {group}
+              </h2>
               <div className="space-y-2">
                 {grouped[group].map((notif) => {
-                  const Icon = typeIcons[notif.type] || typeIcons.DEFAULT
-                  const colorClass = typeColors[notif.type] || typeColors.DEFAULT
-                  const isUnread = !notif.read
+                  const Icon = typeIcons[notif.type] || typeIcons.DEFAULT;
+                  const colorClass =
+                    typeColors[notif.type] || typeColors.DEFAULT;
+                  const isUnread = !notif.read;
+                  const isDelivery = isDeliveryNotification(notif);
 
                   return (
                     <Card
                       key={notif.id}
-                      className={`transition-colors ${
-                        isUnread ? 'border-primary/20 bg-primary/5' : ''
-                      }`}
+                      className={cn(
+                        "transition-colors",
+                        isUnread ? "border-primary/20 bg-primary/5" : "",
+                        isDelivery && !isUnread
+                          ? "border-green-200 bg-green-50/30 dark:bg-green-950/10"
+                          : "",
+                      )}
                     >
                       <CardContent className="p-3 sm:p-4 flex items-start gap-3">
-                        <div className={`p-2 rounded-full shrink-0 ${colorClass}`}>
-                          <Icon className="h-4 w-4" />
+                        <div
+                          className={cn(
+                            "p-2 rounded-full shrink-0",
+                            colorClass,
+                          )}
+                        >
+                          {isDelivery ? (
+                            <Truck className="h-4 w-4" />
+                          ) : (
+                            <Icon className="h-4 w-4" />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm ${isUnread ? 'font-medium' : ''}`}>
+                          <p
+                            className={cn(
+                              "text-sm",
+                              isUnread ? "font-medium" : "",
+                            )}
+                          >
                             {notif.title}
                           </p>
                           {notif.description && (
@@ -363,7 +422,7 @@ export default function NotificationsPage() {
                         </div>
                       </CardContent>
                     </Card>
-                  )
+                  );
                 })}
               </div>
             </div>
@@ -371,5 +430,5 @@ export default function NotificationsPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

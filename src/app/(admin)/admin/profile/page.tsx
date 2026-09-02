@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { useRole } from "@/hooks/use-role";
 import { supabase } from "@/lib/supabase";
@@ -20,8 +20,31 @@ import {
   LogOut,
   Edit2,
   X,
-  Check,
+  MapPin,
+  Store,
+  Flag,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AddressMapPicker } from "@/components/admin/address-map-picker";
+
+interface Address {
+  id: string;
+  address: string;
+  city: string;
+  province: string;
+  postalCode: string;
+  country: string;
+  latitude: number | null;
+  longitude: number | null;
+  landmark: string | null;
+  isStoreLocation: boolean;
+}
 
 interface UserProfile {
   id: string;
@@ -30,6 +53,7 @@ interface UserProfile {
   role: string;
   avatar: string | null;
   createdAt: string;
+  storeLocation: Address | null;
 }
 
 export default function AdminProfilePage() {
@@ -40,6 +64,21 @@ export default function AdminProfilePage() {
   const [name, setName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
+  // Store location states
+  const [storeDialogOpen, setStoreDialogOpen] = useState(false);
+  const [storeFormData, setStoreFormData] = useState({
+    address: "",
+    city: "",
+    province: "",
+    postalCode: "",
+    country: "Philippines",
+    latitude: null as number | null,
+    longitude: null as number | null,
+    landmark: "",
+  });
+  const [storeAddressChanged, setStoreAddressChanged] = useState(0);
+  const [savingStore, setSavingStore] = useState(false);
+
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -47,28 +86,26 @@ export default function AdminProfilePage() {
   const fetchProfile = async () => {
     setLoading(true);
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        const res = await fetch(`/api/admin/users?email=${user.email}`);
-        const data = await res.json();
+      const response = await fetch("/api/admin/profile");
+      if (!response.ok) {
+        throw new Error("Failed to fetch profile");
+      }
+      const data = await response.json();
+      setProfile(data);
+      setName(data.name || "");
 
-        const userData = Array.isArray(data)
-          ? data.find((u: any) => u.email === user.email)
-          : data.users?.find((u: any) => u.email === user.email);
-
-        if (userData) {
-          setProfile({
-            id: userData.id,
-            email: userData.email,
-            name: userData.name || user.user_metadata?.name || "",
-            role: userData.role,
-            avatar: user.user_metadata?.avatar_url || null,
-            createdAt: userData.createdAt,
-          });
-          setName(userData.name || user.user_metadata?.name || "");
-        }
+      // Populate store form data if exists
+      if (data.storeLocation) {
+        setStoreFormData({
+          address: data.storeLocation.address,
+          city: data.storeLocation.city,
+          province: data.storeLocation.province,
+          postalCode: data.storeLocation.postalCode,
+          country: data.storeLocation.country,
+          latitude: data.storeLocation.latitude,
+          longitude: data.storeLocation.longitude,
+          landmark: data.storeLocation.landmark || "",
+        });
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -92,21 +129,18 @@ export default function AdminProfilePage() {
       });
       if (authError) throw authError;
 
-      const res = await fetch(`/api/admin/users/${profile.id}`, {
+      const res = await fetch("/api/admin/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email: profile.email,
-          role: profile.role,
-        }),
+        body: JSON.stringify({ name }),
       });
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.error || "Failed to update profile");
       }
 
-      setProfile({ ...profile, name });
+      const data = await res.json();
+      setProfile(data);
       toast.success("Profile updated successfully");
       setIsEditing(false);
     } catch (error: any) {
@@ -116,31 +150,118 @@ export default function AdminProfilePage() {
     }
   };
 
+  const handleUpdateStoreLocation = async () => {
+    const { address, city, province, postalCode, latitude, longitude } =
+      storeFormData;
+
+    if (!address.trim() || !city.trim() || !province.trim()) {
+      toast.error("Please fill in address, city, and province");
+      return;
+    }
+
+    if (latitude === null || longitude === null) {
+      toast.error("Please pin your location on the map");
+      return;
+    }
+
+    setSavingStore(true);
+    try {
+      const res = await fetch("/api/admin/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storeLocation: {
+            address: address.trim(),
+            city: city.trim(),
+            province: province.trim(),
+            postalCode: postalCode.trim() || "0000",
+            country: storeFormData.country || "Philippines",
+            latitude,
+            longitude,
+            landmark: storeFormData.landmark.trim() || null,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to update store location");
+      }
+
+      const data = await res.json();
+      setProfile(data);
+
+      // Update form data with saved values
+      if (data.storeLocation) {
+        setStoreFormData({
+          address: data.storeLocation.address,
+          city: data.storeLocation.city,
+          province: data.storeLocation.province,
+          postalCode: data.storeLocation.postalCode,
+          country: data.storeLocation.country,
+          latitude: data.storeLocation.latitude,
+          longitude: data.storeLocation.longitude,
+          landmark: data.storeLocation.landmark || "",
+        });
+      }
+
+      toast.success("Store location updated successfully");
+      setStoreDialogOpen(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update store location");
+    } finally {
+      setSavingStore(false);
+    }
+  };
+
+  const handleStoreLocationChange = (
+    partialData: Partial<typeof storeFormData>,
+  ) => {
+    setStoreFormData((prev) => ({ ...prev, ...partialData }));
+  };
+
+  const handleStoreTextChange = (
+    field: keyof typeof storeFormData,
+    value: string,
+  ) => {
+    setStoreFormData((prev) => ({ ...prev, [field]: value }));
+    if (field === "address" || field === "city" || field === "province") {
+      setStoreAddressChanged((prev) => prev + 1);
+    }
+  };
+
+  const openStoreDialog = () => {
+    if (profile?.storeLocation) {
+      setStoreFormData({
+        address: profile.storeLocation.address,
+        city: profile.storeLocation.city,
+        province: profile.storeLocation.province,
+        postalCode: profile.storeLocation.postalCode,
+        country: profile.storeLocation.country,
+        latitude: profile.storeLocation.latitude,
+        longitude: profile.storeLocation.longitude,
+        landmark: profile.storeLocation.landmark || "",
+      });
+    }
+    setStoreDialogOpen(true);
+  };
+
   const handleLogout = async () => {
     try {
-      // Call logout API first
       const response = await fetch("/api/auth/logout", { method: "POST" });
-
-      // Sign out from Supabase client
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error("Supabase signout error:", error);
       }
-
-      // Clear any client-side auth data
       localStorage.removeItem("supabase-auth-token");
       localStorage.removeItem("sb-access-token");
       localStorage.removeItem("sb-refresh-token");
       sessionStorage.clear();
-
-      // Clear all cookies manually (client-side)
       document.cookie.split(";").forEach((c) => {
         document.cookie = c
           .replace(/^ +/, "")
           .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
-
-      // Force hard navigation
       window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);
@@ -191,7 +312,7 @@ export default function AdminProfilePage() {
         </p>
       </div>
 
-      {/* Profile Card with py-4 px-2 */}
+      {/* Profile Card */}
       <Card className="py-4 px-2">
         <CardContent className="pt-0">
           <div className="flex flex-col items-center md:flex-row md:items-start gap-6">
@@ -302,6 +423,62 @@ export default function AdminProfilePage() {
         </CardContent>
       </Card>
 
+      {/* Store Location Card - Admin only */}
+      {profile.role === "ADMIN" && (
+        <Card className="py-4 px-2 border-primary/20 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Store className="h-4 w-4 text-primary" />
+              Store Location
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {profile.storeLocation ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">
+                  {profile.storeLocation.address}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {profile.storeLocation.city}, {profile.storeLocation.province}{" "}
+                  {profile.storeLocation.postalCode}
+                </p>
+                {profile.storeLocation.landmark && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Flag className="h-3 w-3" />
+                    Landmark: {profile.storeLocation.landmark}
+                  </p>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openStoreDialog}
+                  className="mt-2 gap-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                  Update Store Location
+                </Button>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground">
+                  No store location set. Please set your store location for
+                  delivery tracking.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openStoreDialog}
+                  className="mt-2 gap-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                  Set Store Location
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Account Info Cards */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="py-4 px-2">
@@ -352,6 +529,163 @@ export default function AdminProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Store Location Dialog */}
+      <Dialog open={storeDialogOpen} onOpenChange={setStoreDialogOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Store className="h-5 w-5 text-primary" />
+              {profile.storeLocation
+                ? "Update Store Location"
+                : "Set Store Location"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
+            <div className="flex flex-col space-y-1.5 h-full">
+              <Label className="text-sm font-medium">
+                Drag Map to Set Store Location
+              </Label>
+              <div className="flex-1 min-h-[280px]">
+                {storeDialogOpen && (
+                  <AddressMapPicker
+                    key="store-location-map"
+                    formData={storeFormData}
+                    onLocationChange={handleStoreLocationChange}
+                    addressChanged={storeAddressChanged}
+                  />
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground text-center pt-1">
+                Move the map under the pin to automatically detect the address.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="store-address" className="text-sm font-medium">
+                  Address / Street
+                </Label>
+                <Input
+                  id="store-address"
+                  value={storeFormData.address}
+                  onChange={(e) =>
+                    handleStoreTextChange("address", e.target.value)
+                  }
+                  placeholder="123 Main St"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="store-city" className="text-sm font-medium">
+                    City
+                  </Label>
+                  <Input
+                    id="store-city"
+                    value={storeFormData.city}
+                    onChange={(e) =>
+                      handleStoreTextChange("city", e.target.value)
+                    }
+                    placeholder="Lipa"
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="store-province"
+                    className="text-sm font-medium"
+                  >
+                    Province
+                  </Label>
+                  <Input
+                    id="store-province"
+                    value={storeFormData.province}
+                    onChange={(e) =>
+                      handleStoreTextChange("province", e.target.value)
+                    }
+                    placeholder="Batangas"
+                    className="h-10"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="store-postal" className="text-sm font-medium">
+                    Postal Code
+                  </Label>
+                  <Input
+                    id="store-postal"
+                    value={storeFormData.postalCode}
+                    onChange={(e) =>
+                      handleStoreTextChange("postalCode", e.target.value)
+                    }
+                    placeholder="4217"
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="store-country"
+                    className="text-sm font-medium"
+                  >
+                    Country
+                  </Label>
+                  <Input
+                    id="store-country"
+                    value={storeFormData.country}
+                    onChange={(e) =>
+                      handleStoreTextChange("country", e.target.value)
+                    }
+                    placeholder="Philippines"
+                    className="h-10"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="store-landmark"
+                  className="text-sm font-medium flex items-center gap-1.5"
+                >
+                  <Flag className="h-4 w-4 text-muted-foreground" />
+                  Landmark (Optional)
+                </Label>
+                <Input
+                  id="store-landmark"
+                  value={storeFormData.landmark}
+                  onChange={(e) =>
+                    handleStoreTextChange("landmark", e.target.value)
+                  }
+                  placeholder="e.g., Near Barangay Hall, Yellow gate"
+                  className="h-10"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Add a landmark to help customers find your store.
+                </p>
+              </div>
+
+              <Button
+                className="w-full h-11 mt-2"
+                onClick={handleUpdateStoreLocation}
+                disabled={savingStore}
+              >
+                {savingStore ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Store Location"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
