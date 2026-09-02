@@ -275,6 +275,9 @@ export function OrderMap({
   }>(DEFAULT_STORE_LOCATION);
   const [storeLoading, setStoreLoading] = useState(true);
 
+  // ✅ Store the original route (store to customer) - NEVER changes
+  const originalRouteRef = useRef<[number, number][] | null>(null);
+
   const canFullscreen = () => {
     if (role === "ADMIN") return true;
     if (role === "RIDER" && order.status === "OUT_FOR_DELIVERY") return true;
@@ -480,21 +483,6 @@ export function OrderMap({
     requestAnimationFrame(step);
   };
 
-  const updateRoute = async (
-    currentRiderLat: number,
-    currentRiderLng: number,
-  ) => {
-    if (!coordinates) return;
-    const newRoute = await getRouteGeometry(
-      { lat: currentRiderLat, lng: currentRiderLng },
-      coordinates,
-    );
-
-    if (polylineRef.current) {
-      polylineRef.current.setLatLngs(newRoute);
-    }
-  };
-
   const cleanupMap = () => {
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
@@ -517,6 +505,7 @@ export function OrderMap({
     }
   };
 
+  // ✅ Initialize map - uses ORIGINAL route (store to customer)
   useEffect(() => {
     if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
       return;
@@ -585,10 +574,15 @@ export function OrderMap({
           }
         }
 
+        // ✅ Get the ORIGINAL route from store to customer (save it in ref)
         const routePoints = await getRouteGeometry(
           { lat: storeLocation.lat, lng: storeLocation.lng },
           coordinates,
         );
+
+        // ✅ Store the original route in ref - NEVER changes
+        originalRouteRef.current = routePoints;
+
         polylineRef.current = window.L.polyline(routePoints, {
           color: "#dc2626",
           weight: 5,
@@ -658,6 +652,7 @@ export function OrderMap({
     };
   }, []);
 
+  // ✅ Real-time subscription - ONLY moves rider marker, DOES NOT update route
   useEffect(() => {
     if (!order?.id) return;
 
@@ -683,9 +678,11 @@ export function OrderMap({
         },
         (payload) => {
           const { riderLat, riderLng } = payload.new;
+
+          // ✅ ONLY move the rider marker - DO NOT update the route
           if (riderLat && riderLng && riderMarkerRef.current) {
             animateMarkerTo(riderLat, riderLng, 1000);
-            updateRoute(riderLat, riderLng);
+            // ❌ DO NOT call updateRoute here - keep original route
           }
         },
       )
