@@ -221,6 +221,9 @@ function OrderDetailContent({
   }>(DEFAULT_STORE_LOCATION);
   const [storeLoading, setStoreLoading] = useState(true);
 
+  // ✅ Store the original route (store to customer) - NEVER changes
+  const originalRouteRef = useRef<[number, number][] | null>(null);
+
   useEffect(() => {
     const loadStoreLocation = async () => {
       const location = await fetchStoreLocation();
@@ -352,8 +355,41 @@ function OrderDetailContent({
     if (polylineRef.current) {
       polylineRef.current = null;
     }
+    originalRouteRef.current = null;
   };
 
+  // ✅ Animate rider marker smoothly
+  const animateMarkerTo = (
+    targetLat: number,
+    targetLng: number,
+    duration: number = 1000,
+  ) => {
+    if (!riderMarkerRef.current) {
+      console.log("⚠️ riderMarkerRef.current is null, cannot animate");
+      return;
+    }
+
+    const startPos = riderMarkerRef.current.getLatLng();
+    const startTime = performance.now();
+
+    const step = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      const currentLat = startPos.lat + (targetLat - startPos.lat) * progress;
+      const currentLng = startPos.lng + (targetLng - startPos.lng) * progress;
+
+      riderMarkerRef.current.setLatLng([currentLat, currentLng]);
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+
+    requestAnimationFrame(step);
+  };
+
+  // ✅ Initialize map - uses ORIGINAL route (store to customer)
   useEffect(() => {
     if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
       return;
@@ -440,10 +476,13 @@ function OrderDetailContent({
           `);
         }
 
+        // ✅ Get the ORIGINAL route from store to customer (save it in ref)
         const routePoints = await getRouteGeometry(
           { lat: storeLocation.lat, lng: storeLocation.lng },
           coordinates,
         );
+        originalRouteRef.current = routePoints;
+
         polylineRef.current = window.L.polyline(routePoints, {
           color: "#dc2626",
           weight: 5,
@@ -479,6 +518,12 @@ function OrderDetailContent({
           // Set initial rider position - use real location if available, otherwise start at store
           const initialRiderLat = order?.riderLat || storeLocation.lat;
           const initialRiderLng = order?.riderLng || storeLocation.lng;
+
+          console.log(
+            "🚚 Creating rider marker at customer view:",
+            initialRiderLat,
+            initialRiderLng,
+          );
 
           const riderMarker = window.L.marker(
             [initialRiderLat, initialRiderLng],
@@ -565,10 +610,22 @@ function OrderDetailContent({
     storeLoading,
   ]);
 
+  // ✅ Real-time subscription - ONLY moves rider marker, DOES NOT update route
   useEffect(() => {
     if (!order?.id) return;
 
-    if (!["OUT_FOR_DELIVERY", "ASSIGNED_RIDER"].includes(order.status)) return;
+    // Only subscribe if status is OUT_FOR_DELIVERY or ASSIGNED_RIDER
+    if (!["OUT_FOR_DELIVERY", "ASSIGNED_RIDER"].includes(order.status)) {
+      console.log(
+        "⚠️ Order status is not OUT_FOR_DELIVERY or ASSIGNED_RIDER, skipping subscription",
+      );
+      return;
+    }
+
+    console.log(
+      "🔍 Setting up Supabase subscription for customer order:",
+      order.id,
+    );
 
     const channel = supabase
       .channel(`order-realtime-${order.id}`)
@@ -583,10 +640,24 @@ function OrderDetailContent({
         (payload) => {
           const { riderLat, riderLng, status } = payload.new;
 
-          // Update rider marker if location exists
+          console.log("📩 Customer - Order update received:", {
+            riderLat,
+            riderLng,
+            status,
+          });
+
+          // ✅ ONLY move the rider marker - DO NOT update the route
           if (riderLat && riderLng && riderMarkerRef.current) {
+            console.log(
+              "🚚 Customer - Moving rider marker to:",
+              riderLat,
+              riderLng,
+            );
             animateMarkerTo(riderLat, riderLng, 1000);
-            updateRoute(riderLat, riderLng);
+          } else {
+            console.log(
+              "⚠️ Customer - No rider location in update or marker not ready",
+            );
           }
         },
       )
@@ -596,50 +667,6 @@ function OrderDetailContent({
       supabase.removeChannel(channel);
     };
   }, [order?.id, coordinates]);
-
-  // Animate rider marker
-  const animateMarkerTo = (
-    targetLat: number,
-    targetLng: number,
-    duration: number = 1000,
-  ) => {
-    if (!riderMarkerRef.current) return;
-
-    const startPos = riderMarkerRef.current.getLatLng();
-    const startTime = performance.now();
-
-    const step = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-
-      const currentLat = startPos.lat + (targetLat - startPos.lat) * progress;
-      const currentLng = startPos.lng + (targetLng - startPos.lng) * progress;
-
-      riderMarkerRef.current.setLatLng([currentLat, currentLng]);
-
-      if (progress < 1) {
-        requestAnimationFrame(step);
-      }
-    };
-
-    requestAnimationFrame(step);
-  };
-
-  // Update route from rider's current position to destination
-  const updateRoute = async (
-    currentRiderLat: number,
-    currentRiderLng: number,
-  ) => {
-    if (!coordinates) return;
-    const newRoute = await getRouteGeometry(
-      { lat: currentRiderLat, lng: currentRiderLng },
-      coordinates,
-    );
-
-    if (polylineRef.current) {
-      polylineRef.current.setLatLngs(newRoute);
-    }
-  };
 
   // When theme changes, update layers
   useEffect(() => {

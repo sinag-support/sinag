@@ -1,7 +1,12 @@
+// app/api/admin/orders/[id]/status/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+
+// ✅ Import the NotificationType enum from Prisma
+import { NotificationType } from "@prisma/client";
 
 async function getAuthUser() {
   try {
@@ -42,41 +47,30 @@ async function getAuthUser() {
   }
 }
 
-// Helper function to send notification via internal API
-async function sendNotification(
+// ✅ FIXED: Direct database insert for notification (no API call)
+async function createNotification(
   userId: string,
   title: string,
   description: string,
-  type: string = "ORDER",
+  type: NotificationType, // ✅ Use the enum type
   link?: string,
   metadata?: any,
 ) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
-    const response = await fetch(`${baseUrl}/api/notifications`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const notification = await prisma.notification.create({
+      data: {
         userId,
         title,
         description,
-        type,
+        type, // ✅ Now correctly typed
         link,
         metadata,
-      }),
+      },
     });
-
-    if (!response.ok) {
-      console.error("Failed to send notification:", await response.text());
-      return null;
-    }
-
-    return await response.json();
+    console.log("✅ Notification created:", notification.id);
+    return notification;
   } catch (error) {
-    console.error("Error sending notification:", error);
+    console.error("❌ Failed to create notification:", error);
     return null;
   }
 }
@@ -137,21 +131,32 @@ export async function PATCH(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Update order status
+    // ✅ Update order status
     const updatedOrder = await prisma.order.update({
       where: { id },
       data: { status },
     });
 
-    // Send notification to the customer when rider starts delivery (OUT_FOR_DELIVERY)
+    console.log("📦 Order updated:", {
+      orderId: order.id,
+      status,
+      userId: order.userId,
+    });
+
+    // ✅ Send notification to customer when OUT_FOR_DELIVERY
     if (status === "OUT_FOR_DELIVERY" && order.userId) {
       const riderName = order.rider?.name || "Your rider";
 
-      await sendNotification(
+      console.log(
+        "📤 Creating OUT_FOR_DELIVERY notification for user:",
+        order.userId,
+      );
+
+      await createNotification(
         order.userId,
         `🚚 Your order #${order.orderNumber} is on the way!`,
         `Rider ${riderName} has started your delivery. Track your order in real-time.`,
-        "ORDER",
+        NotificationType.ORDER, // ✅ Use the enum value
         `/orders/${order.orderNumber}`,
         {
           orderNumber: order.orderNumber,
@@ -162,15 +167,17 @@ export async function PATCH(
       );
     }
 
-    // Send notification to the customer when order is delivered
+    // ✅ Send notification to customer when DELIVERED
     if (status === "DELIVERED" && order.userId) {
       const riderName = order.rider?.name || "Your rider";
 
-      await sendNotification(
+      console.log("📤 Creating DELIVERED notification for user:", order.userId);
+
+      await createNotification(
         order.userId,
-        `Order #${order.orderNumber} delivered!`,
+        `✅ Order #${order.orderNumber} delivered!`,
         `Your order has been successfully delivered by ${riderName}. Thank you for shopping with us!`,
-        "ORDER",
+        NotificationType.ORDER, // ✅ Use the enum value
         `/orders/${order.orderNumber}`,
         {
           orderNumber: order.orderNumber,
@@ -180,13 +187,15 @@ export async function PATCH(
       );
     }
 
-    // Send notification when order is cancelled
+    // ✅ Send notification when order is cancelled
     if (status === "CANCELLED" && order.userId) {
-      await sendNotification(
+      console.log("📤 Creating CANCELLED notification for user:", order.userId);
+
+      await createNotification(
         order.userId,
         `❌ Order #${order.orderNumber} cancelled`,
         `Your order has been cancelled. If you have any questions, please contact support.`,
-        "ORDER",
+        NotificationType.ORDER, // ✅ Use the enum value
         `/orders/${order.orderNumber}`,
         {
           orderNumber: order.orderNumber,
@@ -197,7 +206,7 @@ export async function PATCH(
 
     return NextResponse.json(updatedOrder);
   } catch (error) {
-    console.error("PATCH /api/admin/orders/[id]/status error:", error);
+    console.error("❌ PATCH /api/admin/orders/[id]/status error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

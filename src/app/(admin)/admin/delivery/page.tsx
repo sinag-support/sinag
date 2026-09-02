@@ -219,6 +219,26 @@ export default function DeliveryPage() {
     }
   };
 
+  // ✅ Function to fetch a single order - THIS IS THE FIX!
+  const fetchOrderById = async (
+    orderId: string,
+  ): Promise<DeliveryOrder | null> => {
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      // Add coordinates to the order
+      if (data.address) {
+        data.address.lat = cityCoordinates[data.address?.city]?.lat || 13.9411;
+        data.address.lng = cityCoordinates[data.address?.city]?.lng || 121.1633;
+      }
+      return data;
+    } catch (error) {
+      console.error("Error fetching order:", error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     if (isAdmin) {
       fetchRiders();
@@ -239,6 +259,7 @@ export default function DeliveryPage() {
     }
   };
 
+  // ✅ UPDATED: Refresh selectedOrder after status update
   const updateStatus = async (orderId: string, status: string) => {
     setIsUpdating(true);
     try {
@@ -249,7 +270,15 @@ export default function DeliveryPage() {
       });
       if (res.ok) {
         toast.success("Delivery status updated");
-        fetchDeliveryOrders();
+        await fetchDeliveryOrders(); // Refresh table
+
+        // ✅ KEY FIX: Refresh the selected order so dialog buttons update
+        if (selectedOrder?.id === orderId) {
+          const refreshedOrder = await fetchOrderById(orderId);
+          if (refreshedOrder) {
+            setSelectedOrder(refreshedOrder);
+          }
+        }
       } else {
         const err = await res.json();
         toast.error(err.error || "Failed to update");
@@ -474,7 +503,10 @@ export default function DeliveryPage() {
                     <Button
                       size="sm"
                       className="h-7 px-2 text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium flex-shrink-0"
-                      onClick={() => updateStatus(order.id, "OUT_FOR_DELIVERY")}
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setDetailOpen(true);
+                      }}
                       disabled={isUpdating}
                     >
                       {isUpdating ? (
@@ -519,7 +551,6 @@ export default function DeliveryPage() {
                       </Button>
                     </>
                   )}
-
                   {order.status === "DELIVERED" && (
                     <Button
                       size="sm"
@@ -1012,6 +1043,11 @@ export default function DeliveryPage() {
         onOpenChange={setDetailOpen}
         onStatusUpdate={updateStatus}
         isUpdating={isUpdating}
+        onRefreshOrder={() =>
+          selectedOrder
+            ? fetchOrderById(selectedOrder.id)
+            : Promise.resolve(null)
+        }
       />
     </div>
   );

@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 // Import Leaflet CSS
 import "leaflet/dist/leaflet.css";
 
-// Initialize Supabase Client
+// Initialize Supabase Client (for realtime subscription only)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -174,9 +174,21 @@ export function useRiderLocationTracker(
   isTrackingActive: boolean,
 ) {
   const lastUpdateRef = useRef<number>(0);
+  const isUpdatingRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (!isTrackingActive || !orderId || !("geolocation" in navigator)) return;
+    console.log(
+      "🔍 useRiderLocationTracker - isTrackingActive:",
+      isTrackingActive,
+    );
+    console.log("🔍 useRiderLocationTracker - orderId:", orderId);
+
+    if (!isTrackingActive || !orderId || !("geolocation" in navigator)) {
+      console.log("❌ Tracking not active or no geolocation");
+      return;
+    }
+
+    console.log("✅ Starting GPS tracking for order:", orderId);
 
     let wakeLock: any = null;
 
@@ -194,6 +206,14 @@ export function useRiderLocationTracker(
 
     const watchId = navigator.geolocation.watchPosition(
       async (position) => {
+        if (isUpdatingRef.current) return;
+
+        console.log(
+          "📍 GPS position received:",
+          position.coords.latitude,
+          position.coords.longitude,
+        );
+
         const now = Date.now();
         if (now - lastUpdateRef.current < 3000) return;
         lastUpdateRef.current = now;
@@ -201,23 +221,44 @@ export function useRiderLocationTracker(
         const { latitude, longitude } = position.coords;
 
         try {
-          const { error } = await supabase
-            .from("Order")
-            .update({
-              riderLat: latitude,
-              riderLng: longitude,
-              updatedAt: new Date().toISOString(),
-            })
-            .eq("id", orderId);
+          isUpdatingRef.current = true;
+          console.log(
+            "📤 Updating rider location via API:",
+            latitude,
+            longitude,
+          );
 
-          if (error) {
-            console.error("Failed to update rider location:", error.message);
+          const response = await fetch(
+            `/api/admin/orders/${orderId}/location`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                riderLat: latitude,
+                riderLng: longitude,
+              }),
+            },
+          );
+
+          if (!response.ok) {
+            const error = await response.json();
+            console.error(
+              "❌ Failed to update rider location:",
+              error.error || response.statusText,
+            );
+          } else {
+            console.log("✅ Rider location updated successfully");
           }
         } catch (err) {
-          console.error("Error broadcasting GPS update:", err);
+          console.error("❌ Error updating location:", err);
+        } finally {
+          isUpdatingRef.current = false;
         }
       },
       (error) => {
+        console.error("❌ Geolocation error:", error);
         if (error.code === error.PERMISSION_DENIED) {
           toast.error("Location permissions required for real-time tracking.");
         }
@@ -230,6 +271,7 @@ export function useRiderLocationTracker(
     );
 
     return () => {
+      console.log("🛑 Stopping GPS tracking");
       navigator.geolocation.clearWatch(watchId);
       if (wakeLock) wakeLock.release().catch(() => {});
     };
@@ -275,13 +317,28 @@ export function OrderMap({
   }>(DEFAULT_STORE_LOCATION);
   const [storeLoading, setStoreLoading] = useState(true);
 
-  // ✅ Store the original route (store to customer) - NEVER changes
   const originalRouteRef = useRef<[number, number][] | null>(null);
+  const riderInitializedRef = useRef(false);
 
   const canFullscreen = () => {
     if (role === "ADMIN") return true;
     if (role === "RIDER" && order.status === "OUT_FOR_DELIVERY") return true;
     return false;
+  };
+
+  // ✅ Helper to determine if rider should use real location or store location
+  const shouldUseRealLocation = () => {
+    return order.status === "OUT_FOR_DELIVERY";
+  };
+
+  // ✅ Helper to get the correct rider position
+  const getRiderPosition = () => {
+    if (shouldUseRealLocation() && order?.riderLat && order?.riderLng) {
+      // Use real GPS location
+      return { lat: order.riderLat, lng: order.riderLng };
+    }
+    // Use store location as fallback
+    return { lat: storeLocation.lat, lng: storeLocation.lng };
   };
 
   useEffect(() => {
@@ -461,7 +518,10 @@ export function OrderMap({
     targetLng: number,
     duration: number = 1000,
   ) => {
-    if (!riderMarkerRef.current) return;
+    if (!riderMarkerRef.current) {
+      console.log("⚠️ riderMarkerRef.current is null, cannot animate");
+      return;
+    }
 
     const startPos = riderMarkerRef.current.getLatLng();
     const startTime = performance.now();
@@ -503,9 +563,10 @@ export function OrderMap({
     if (polylineRef.current) {
       polylineRef.current = null;
     }
+    riderInitializedRef.current = false;
   };
 
-  // ✅ Initialize map - uses ORIGINAL route (store to customer)
+  // ✅ Initialize map
   useEffect(() => {
     if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
       return;
@@ -574,13 +635,11 @@ export function OrderMap({
           }
         }
 
-        // ✅ Get the ORIGINAL route from store to customer (save it in ref)
         const routePoints = await getRouteGeometry(
           { lat: storeLocation.lat, lng: storeLocation.lng },
           coordinates,
         );
 
-        // ✅ Store the original route in ref - NEVER changes
         originalRouteRef.current = routePoints;
 
         polylineRef.current = window.L.polyline(routePoints, {
@@ -597,18 +656,25 @@ export function OrderMap({
           const riderIcon = createRiderIcon(currentZoom);
 
           if (riderIcon) {
-            const initialRiderLat = order?.riderLat || storeLocation.lat;
-            const initialRiderLng = order?.riderLng || storeLocation.lng;
+            // ✅ Get the correct rider position based on status
+            const riderPos = getRiderPosition();
 
-            const riderMarker = window.L.marker(
-              [initialRiderLat, initialRiderLng],
-              {
-                icon: riderIcon,
-                zIndexOffset: 1000,
-              },
-            ).addTo(map);
+            console.log(
+              "🚚 Creating rider marker at:",
+              riderPos.lat,
+              riderPos.lng,
+            );
+            console.log("📦 Order status:", order.status);
+            console.log("📦 Using real location:", shouldUseRealLocation());
+
+            const riderMarker = window.L.marker([riderPos.lat, riderPos.lng], {
+              icon: riderIcon,
+              zIndexOffset: 1000,
+            }).addTo(map);
 
             riderMarkerRef.current = riderMarker;
+            riderInitializedRef.current = true;
+
             riderMarker.bindPopup(
               `<b>Delivery Rider</b><br/>Status: ${order.status}`,
             );
@@ -652,9 +718,25 @@ export function OrderMap({
     };
   }, []);
 
-  // ✅ Real-time subscription - ONLY moves rider marker, DOES NOT update route
+  // ✅ Real-time subscription - ONLY for OUT_FOR_DELIVERY status
   useEffect(() => {
     if (!order?.id) return;
+
+    console.log("🔍 Setting up Supabase subscription for order:", order.id);
+
+    // ✅ Only subscribe when status is OUT_FOR_DELIVERY
+    if (order.status !== "OUT_FOR_DELIVERY") {
+      console.log(
+        "⚠️ Order status is not OUT_FOR_DELIVERY, skipping subscription",
+      );
+      // ✅ If not OUT_FOR_DELIVERY, move rider back to store location
+      if (riderMarkerRef.current) {
+        const storePos = { lat: storeLocation.lat, lng: storeLocation.lng };
+        console.log("🏪 Moving rider back to store location");
+        animateMarkerTo(storePos.lat, storePos.lng, 500);
+      }
+      return;
+    }
 
     const channelName = `order-realtime-${order.id}`;
 
@@ -677,21 +759,45 @@ export function OrderMap({
           filter: `id=eq.${order.id}`,
         },
         (payload) => {
-          const { riderLat, riderLng } = payload.new;
+          console.log("📩 Order update received:", payload.new);
+          const { riderLat, riderLng, status } = payload.new;
+          console.log("📍 New rider location:", riderLat, riderLng);
+          console.log("📌 New status:", status);
 
-          // ✅ ONLY move the rider marker - DO NOT update the route
-          if (riderLat && riderLng && riderMarkerRef.current) {
+          // ✅ Only move marker if status is OUT_FOR_DELIVERY and we have location
+          if (
+            status === "OUT_FOR_DELIVERY" &&
+            riderLat &&
+            riderLng &&
+            riderMarkerRef.current
+          ) {
+            console.log(
+              "🚚 Moving rider marker to real location:",
+              riderLat,
+              riderLng,
+            );
             animateMarkerTo(riderLat, riderLng, 1000);
-            // ❌ DO NOT call updateRoute here - keep original route
+          } else if (status !== "OUT_FOR_DELIVERY" && riderMarkerRef.current) {
+            // ✅ If status changed away from OUT_FOR_DELIVERY, move back to store
+            const storePos = { lat: storeLocation.lat, lng: storeLocation.lng };
+            console.log(
+              "🏪 Status changed, moving rider back to store location",
+            );
+            animateMarkerTo(storePos.lat, storePos.lng, 500);
+          } else {
+            console.log("⚠️ No rider location in update or marker not ready");
           }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("📡 Subscription status:", status);
+      });
 
     return () => {
+      console.log("🛑 Removing subscription");
       supabase.removeChannel(channel);
     };
-  }, [order?.id, coordinates]);
+  }, [order?.id, coordinates, storeLocation]);
 
   useEffect(() => {
     if (!mapInstanceRef.current || !tileLayerRef.current || !window.L) return;

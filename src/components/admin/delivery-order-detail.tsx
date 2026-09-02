@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,8 @@ import {
   Ban,
   RotateCcw,
   Maximize2,
+  Minimize2,
+  Truck,
 } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { cn } from "@/lib/utils";
@@ -65,6 +67,7 @@ interface DeliveryOrderDetailProps {
   onOpenChange: (open: boolean) => void;
   onStatusUpdate: (orderId: string, status: string) => Promise<void>;
   isUpdating: boolean;
+  onRefreshOrder?: () => Promise<DeliveryOrder | null>;
 }
 
 function formatStatus(status: string) {
@@ -80,38 +83,81 @@ export function DeliveryOrderDetail({
   onOpenChange,
   onStatusUpdate,
   isUpdating,
+  onRefreshOrder,
 }: DeliveryOrderDetailProps) {
   const { role } = useRole();
   const [isFullscreenMap, setIsFullscreenMap] = useState(false);
   const [showFullscreenDialog, setShowFullscreenDialog] = useState(false);
+  const [showStartDeliveryDialog, setShowStartDeliveryDialog] = useState(false);
+  const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{
+    orderId: string;
+    status: string;
+  } | null>(null);
+  const [currentOrder, setCurrentOrder] = useState<DeliveryOrder | null>(order);
+
+  useEffect(() => {
+    setCurrentOrder(order);
+  }, [order]);
 
   const isRiderTrackingActive =
     (role === "RIDER" || role === "ADMIN") &&
-    order?.status === "OUT_FOR_DELIVERY";
+    currentOrder?.status === "OUT_FOR_DELIVERY";
 
-  useRiderLocationTracker(order?.id, isRiderTrackingActive);
+  useRiderLocationTracker(currentOrder?.id, isRiderTrackingActive);
 
-  if (!order) return null;
+  if (!currentOrder) return null;
+
+  const handleStatusUpdate = async (orderId: string, status: string) => {
+    await onStatusUpdate(orderId, status);
+    if (onRefreshOrder) {
+      const refreshedOrder = await onRefreshOrder();
+      if (refreshedOrder) {
+        setCurrentOrder(refreshedOrder);
+      }
+    }
+  };
+
+  // ✅ Handle Start Delivery click - show confirmation dialog
+  const handleStartDeliveryClick = (orderId: string) => {
+    setPendingStatusUpdate({ orderId, status: "OUT_FOR_DELIVERY" });
+    setShowStartDeliveryDialog(true);
+  };
+
+  // ✅ Confirm start delivery - then ask for fullscreen
+  const confirmStartDelivery = async () => {
+    if (!pendingStatusUpdate) return;
+    setShowStartDeliveryDialog(false);
+
+    // Start the delivery
+    await handleStatusUpdate(
+      pendingStatusUpdate.orderId,
+      pendingStatusUpdate.status,
+    );
+    setPendingStatusUpdate(null);
+
+    // ✅ Ask for fullscreen after delivery starts
+    setShowFullscreenDialog(true);
+  };
 
   const shouldShowActions = () => {
     if (role === "ADMIN") {
-      return order.status === "OUT_FOR_DELIVERY";
+      return currentOrder.status === "OUT_FOR_DELIVERY";
     }
     if (role === "RIDER") {
       return ["ASSIGNED_RIDER", "OUT_FOR_DELIVERY", "DELIVERED"].includes(
-        order.status,
+        currentOrder.status,
       );
     }
     return false;
   };
 
   const getActionButtons = () => {
-    if (role === "ADMIN" && order.status === "OUT_FOR_DELIVERY") {
+    if (role === "ADMIN" && currentOrder.status === "OUT_FOR_DELIVERY") {
       return (
         <Button
           variant="destructive"
           className="w-full font-medium text-sm"
-          onClick={() => onStatusUpdate(order.id, "CANCELLED")}
+          onClick={() => handleStatusUpdate(currentOrder.id, "CANCELLED")}
           disabled={isUpdating}
         >
           {isUpdating ? (
@@ -125,41 +171,43 @@ export function DeliveryOrderDetail({
     }
 
     if (role === "RIDER") {
-      if (order.status === "ASSIGNED_RIDER") {
+      if (currentOrder.status === "ASSIGNED_RIDER") {
         return (
           <Button
             className="w-full font-medium text-sm"
             variant="default"
-            onClick={() => onStatusUpdate(order.id, "OUT_FOR_DELIVERY")}
+            onClick={() => handleStartDeliveryClick(currentOrder.id)}
             disabled={isUpdating}
           >
             {isUpdating ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : null}
-            Start Delivery
+            ) : (
+              "Start Delivery"
+            )}
           </Button>
         );
       }
 
-      if (order.status === "OUT_FOR_DELIVERY") {
+      if (currentOrder.status === "OUT_FOR_DELIVERY") {
         return (
           <div className="flex flex-col gap-2 w-full">
             <Button
               className="w-full font-medium text-sm"
               variant="default"
-              onClick={() => onStatusUpdate(order.id, "DELIVERED")}
+              onClick={() => handleStatusUpdate(currentOrder.id, "DELIVERED")}
               disabled={isUpdating}
             >
               {isUpdating ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Mark Delivered
+              ) : (
+                "Mark Delivered"
+              )}
             </Button>
             <div className="flex gap-2">
               <Button
                 variant="destructive"
                 className="flex-1 font-medium text-sm"
-                onClick={() => onStatusUpdate(order.id, "CANCELLED")}
+                onClick={() => handleStatusUpdate(currentOrder.id, "CANCELLED")}
                 disabled={isUpdating}
               >
                 <Ban className="mr-1 h-4 w-4" />
@@ -168,7 +216,7 @@ export function DeliveryOrderDetail({
               <Button
                 variant="outline"
                 className="flex-1 font-medium text-sm text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
-                onClick={() => onStatusUpdate(order.id, "RETURNED")}
+                onClick={() => handleStatusUpdate(currentOrder.id, "RETURNED")}
                 disabled={isUpdating}
               >
                 <RotateCcw className="mr-1 h-4 w-4" />
@@ -179,12 +227,12 @@ export function DeliveryOrderDetail({
         );
       }
 
-      if (order.status === "DELIVERED") {
+      if (currentOrder.status === "DELIVERED") {
         return (
           <Button
             variant="outline"
             className="w-full font-medium text-sm text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
-            onClick={() => onStatusUpdate(order.id, "RETURNED")}
+            onClick={() => handleStatusUpdate(currentOrder.id, "RETURNED")}
             disabled={isUpdating}
           >
             {isUpdating ? (
@@ -232,7 +280,7 @@ export function DeliveryOrderDetail({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-4">
               <OrderMap
-                order={order}
+                order={currentOrder}
                 onFullscreenToggle={handleFullscreenToggle}
               />
             </div>
@@ -245,11 +293,11 @@ export function DeliveryOrderDetail({
                     Customer
                   </div>
                   <p className="font-medium text-sm truncate">
-                    {order.user?.name || "Guest Customer"}
+                    {currentOrder.user?.name || "Guest Customer"}
                   </p>
-                  {order.user?.phone && (
+                  {currentOrder.user?.phone && (
                     <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-                      {order.user.phone}
+                      {currentOrder.user.phone}
                     </p>
                   )}
                 </div>
@@ -260,17 +308,18 @@ export function DeliveryOrderDetail({
                     Address
                   </div>
                   <p className="font-medium text-sm truncate">
-                    {order.address?.address}
+                    {currentOrder.address?.address}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {order.address?.city}, {order.address?.province}
+                    {currentOrder.address?.city},{" "}
+                    {currentOrder.address?.province}
                   </p>
-                  {order.address?.landmark && (
+                  {currentOrder.address?.landmark && (
                     <div className="flex items-center gap-1.5 mt-2 p-2 rounded-md bg-muted/50">
                       <Flag className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="text-xs text-muted-foreground">
                         <span className="font-medium">Landmark:</span>{" "}
-                        {order.address.landmark}
+                        {currentOrder.address.landmark}
                       </span>
                     </div>
                   )}
@@ -280,11 +329,11 @@ export function DeliveryOrderDetail({
               <div className="border border-border rounded-lg p-4 !bg-background shadow-sm flex-1">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
                   <Package className="h-3.5 w-3.5" />
-                  Order Items ({order.items?.length || 0})
+                  Order Items ({currentOrder.items?.length || 0})
                 </div>
 
                 <div className="space-y-2">
-                  {order.items?.map((item) => {
+                  {currentOrder.items?.map((item) => {
                     const imageUrl = item.product?.images?.[0] || null;
                     return (
                       <div
@@ -328,7 +377,7 @@ export function DeliveryOrderDetail({
                       </div>
                     );
                   })}
-                  {(!order.items || order.items.length === 0) && (
+                  {(!currentOrder.items || currentOrder.items.length === 0) && (
                     <p className="text-sm text-muted-foreground text-center py-4">
                       No items found
                     </p>
@@ -340,7 +389,7 @@ export function DeliveryOrderDetail({
                     Total
                   </span>
                   <span className="text-lg font-bold text-primary">
-                    ₱{order.payable.toFixed(2)}
+                    ₱{currentOrder.payable.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -353,11 +402,12 @@ export function DeliveryOrderDetail({
         </DialogContent>
       </Dialog>
 
+      {/* Fullscreen Map Dialog */}
       <Dialog open={isFullscreenMap} onOpenChange={setIsFullscreenMap}>
         <DialogContent className="max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] p-0 !bg-background border-0 rounded-none [&>button]:hidden">
           <div className="relative w-full h-full">
             <OrderMap
-              order={order}
+              order={currentOrder}
               isFullscreen={true}
               onFullscreenToggle={handleFullscreenToggle}
             />
@@ -365,21 +415,23 @@ export function DeliveryOrderDetail({
         </DialogContent>
       </Dialog>
 
+      {/* Fullscreen Confirmation Dialog (after start delivery) */}
       <Dialog
         open={showFullscreenDialog}
         onOpenChange={setShowFullscreenDialog}
       >
         <DialogContent className="max-w-md !bg-background">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Maximize2 className="h-5 w-5 text-primary" />
               Fullscreen Map
             </DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
               {role === "RIDER"
-                ? "Going fullscreen will hide the delivery details and show only the map. This is useful for navigation while driving."
-                : "Going fullscreen will hide the delivery details and show only the map for a better view."}
+                ? "Would you like to go fullscreen for better navigation while driving?"
+                : "Would you like to view the map in fullscreen for a better view?"}
             </p>
             <div className="mt-4 flex gap-2">
               <Button
@@ -387,11 +439,59 @@ export function DeliveryOrderDetail({
                 className="flex-1 !bg-background hover:!bg-accent"
                 onClick={() => setShowFullscreenDialog(false)}
               >
-                Cancel
+                No, keep current view
               </Button>
               <Button className="flex-1" onClick={confirmFullscreen}>
                 <Maximize2 className="h-4 w-4 mr-2" />
                 Fullscreen
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Start Delivery Confirmation Dialog */}
+      <Dialog
+        open={showStartDeliveryDialog}
+        onOpenChange={setShowStartDeliveryDialog}
+      >
+        <DialogContent className="max-w-md !bg-background">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Truck className="h-5 w-5 text-primary" />
+              Start Delivery
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to start delivery for Order #
+              {currentOrder.orderNumber}?
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Your location will be tracked in real-time and shared with the
+              customer.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 !bg-background hover:!bg-accent"
+                onClick={() => setShowStartDeliveryDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={confirmStartDelivery}
+                disabled={isUpdating}
+              >
+                {isUpdating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Starting...
+                  </>
+                ) : (
+                  "Start Delivery"
+                )}
               </Button>
             </div>
           </div>
