@@ -103,7 +103,12 @@ export function DeliveryOrderDetail({
   const [currentOrder, setCurrentOrder] = useState<DeliveryOrder | null>(order);
   const [isPaying, setIsPaying] = useState(false);
 
+  // ✅ Update currentOrder when prop changes
   useEffect(() => {
+    console.log("🔄 DeliveryOrderDetail: order prop changed", {
+      id: order?.id,
+      isPaid: order?.isPaid,
+    });
     setCurrentOrder(order);
   }, [order]);
 
@@ -119,6 +124,10 @@ export function DeliveryOrderDetail({
     await onStatusUpdate(orderId, status);
     if (onRefreshOrder) {
       const refreshedOrder = await onRefreshOrder();
+      console.log("🔄 Status updated, refreshed order:", {
+        id: refreshedOrder?.id,
+        isPaid: refreshedOrder?.isPaid,
+      });
       if (refreshedOrder) {
         setCurrentOrder(refreshedOrder);
       }
@@ -147,12 +156,18 @@ export function DeliveryOrderDetail({
       toast.error("Payment function not available");
       return;
     }
+    console.log("💰 handleMarkAsPaid called for order:", currentOrder.id);
     setIsPaying(true);
     try {
       await onMarkAsPaid(currentOrder.id);
       setShowMarkPaidDialog(false);
+      // ✅ Refresh the order after marking as paid
       if (onRefreshOrder) {
         const refreshedOrder = await onRefreshOrder();
+        console.log("🔄 Refreshed order after mark as paid:", {
+          id: refreshedOrder?.id,
+          isPaid: refreshedOrder?.isPaid,
+        });
         if (refreshedOrder) {
           setCurrentOrder(refreshedOrder);
         }

@@ -50,17 +50,19 @@ export async function GET(
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  return NextResponse.json(order);
+  // ✅ Return order with isPaid
+  return NextResponse.json({
+    ...order,
+    isPaid: order.isPaid,
+  });
 }
 
-// ✅ ADD DELETE endpoint
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const role = await getCurrentUserRole();
-    // Only ADMIN can delete orders
     if (role !== "ADMIN") {
       return NextResponse.json(
         { error: "Forbidden - Admin only" },
@@ -70,7 +72,6 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Check if order exists
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
@@ -83,17 +84,14 @@ export async function DELETE(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Delete all order items first (cascade should handle this, but explicit is safer)
     await prisma.orderItem.deleteMany({
       where: { orderId: id },
     });
 
-    // Delete all payments
     await prisma.payment.deleteMany({
       where: { orderId: id },
     });
 
-    // Delete the order
     await prisma.order.delete({
       where: { id },
     });

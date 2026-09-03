@@ -162,7 +162,10 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-      order: updatedOrder,
+      order: {
+        ...updatedOrder,
+        isPaid: updatedOrder.isPaid,
+      },
       message: isPaid ? "Order marked as paid" : "Order marked as unpaid",
     });
   } catch (error) {

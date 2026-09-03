@@ -178,7 +178,7 @@ export default function DeliveryPage() {
       if (isRider) {
         params.append(
           "status",
-          "ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP",
+          "ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP,DELIVERED",
         );
       }
 
@@ -186,7 +186,7 @@ export default function DeliveryPage() {
         params.append("riderId", selectedRiderId);
         params.append(
           "status",
-          "ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP",
+          "ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP,DELIVERED",
         );
       }
 
@@ -221,7 +221,6 @@ export default function DeliveryPage() {
     }
   };
 
-  // ✅ Function to fetch a single order - includes isPaid field
   const fetchOrderById = async (
     orderId: string,
   ): Promise<DeliveryOrder | null> => {
@@ -229,7 +228,11 @@ export default function DeliveryPage() {
       const res = await fetch(`/api/admin/orders/${orderId}`);
       if (!res.ok) return null;
       const data = await res.json();
-      // Add coordinates to the order
+      console.log("📥 Fetched order by ID:", {
+        id: data.id,
+        isPaid: data.isPaid,
+        status: data.status,
+      });
       if (data.address) {
         data.address.lat = cityCoordinates[data.address?.city]?.lat || 13.9411;
         data.address.lng = cityCoordinates[data.address?.city]?.lng || 121.1633;
@@ -261,7 +264,6 @@ export default function DeliveryPage() {
     }
   };
 
-  // ✅ UPDATED: Refresh selectedOrder after status update
   const updateStatus = async (orderId: string, status: string) => {
     setIsUpdating(true);
     try {
@@ -294,30 +296,41 @@ export default function DeliveryPage() {
 
   // ✅ NEW: Mark as Paid function - separate from status update
   const markAsPaid = async (orderId: string) => {
+    console.log("🚀 markAsPaid called for order:", orderId);
     setIsUpdating(true);
     try {
+      console.log(
+        "📤 Sending PATCH request to /api/admin/orders/${orderId}/payment",
+      );
       const res = await fetch(`/api/admin/orders/${orderId}/payment`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isPaid: true }),
       });
 
+      const data = await res.json();
+      console.log("📥 Response:", { status: res.status, data });
+
       if (res.ok) {
         toast.success("Order marked as paid");
+        console.log("🔄 Refreshing delivery orders...");
         await fetchDeliveryOrders(); // Refresh table
 
         // ✅ Refresh the selected order
         if (selectedOrder?.id === orderId) {
+          console.log("🔄 Refreshing selected order...");
           const refreshedOrder = await fetchOrderById(orderId);
+          console.log("🔄 Refreshed order:", refreshedOrder);
           if (refreshedOrder) {
             setSelectedOrder(refreshedOrder);
           }
         }
       } else {
-        const err = await res.json();
-        toast.error(err.error || "Failed to mark as paid");
+        console.error("❌ Error response:", data);
+        toast.error(data.error || "Failed to mark as paid");
       }
-    } catch {
+    } catch (error) {
+      console.error("❌ Catch error:", error);
       toast.error("Network error");
     } finally {
       setIsUpdating(false);
@@ -451,6 +464,7 @@ export default function DeliveryPage() {
     );
   };
 
+  // ✅ DeliveryCard with key to force re-render
   const DeliveryCard = ({ order }: { order: DeliveryOrder }) => {
     const statusColor =
       statusColors[order.status] || "bg-gray-100 text-gray-800";
@@ -832,7 +846,7 @@ export default function DeliveryPage() {
         )}
       </div>
 
-      {/* Mobile: Cards View */}
+      {/* ✅ Mobile: Cards View - Add key to force re-render */}
       <div className="md:hidden space-y-2 -mx-4 px-4">
         {loading ? (
           renderSkeletonCards()
@@ -844,12 +858,12 @@ export default function DeliveryPage() {
           </div>
         ) : (
           filteredOrders.map((order) => (
-            <DeliveryCard key={order.id} order={order} />
+            <DeliveryCard key={`${order.id}-${order.isPaid}`} order={order} />
           ))
         )}
       </div>
 
-      {/* Desktop: Table View */}
+      {/* ✅ Desktop: Table View - Add key to force re-render */}
       <div className="hidden md:block border rounded-lg overflow-hidden w-full">
         <div className="overflow-x-auto">
           <Table>
@@ -884,7 +898,7 @@ export default function DeliveryPage() {
                 </TableRow>
               ) : (
                 filteredOrders.map((order) => (
-                  <TableRow key={order.id}>
+                  <TableRow key={`${order.id}-${order.isPaid}`}>
                     <TableCell className="font-medium">
                       #{order.orderNumber}
                     </TableCell>

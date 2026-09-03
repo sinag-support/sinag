@@ -73,6 +73,26 @@ async function fetchStoreLocation() {
   }
 }
 
+// Helper: Calculate bearing/heading between two points in degrees
+function calculateBearing(
+  startLat: number,
+  startLng: number,
+  destLat: number,
+  destLng: number,
+) {
+  const startLatRad = (startLat * Math.PI) / 180;
+  const destLatRad = (destLat * Math.PI) / 180;
+  const dLngRad = ((destLng - startLng) * Math.PI) / 180;
+
+  const y = Math.sin(dLngRad) * Math.cos(destLatRad);
+  const x =
+    Math.cos(startLatRad) * Math.sin(destLatRad) -
+    Math.sin(startLatRad) * Math.cos(destLatRad) * Math.cos(dLngRad);
+
+  let brng = (Math.atan2(y, x) * 180) / Math.PI;
+  return (brng + 360) % 360;
+}
+
 const TILE_LAYERS = {
   street: {
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -221,8 +241,11 @@ function OrderDetailContent({
   }>(DEFAULT_STORE_LOCATION);
   const [storeLoading, setStoreLoading] = useState(true);
 
-  // ✅ Store the original route (store to customer) - NEVER changes
+  // Store the original route (store to customer) - NEVER changes
   const originalRouteRef = useRef<[number, number][] | null>(null);
+
+  // Track rider's current rotation bearing
+  const riderHeadingRef = useRef<number>(0);
 
   useEffect(() => {
     const loadStoreLocation = async () => {
@@ -358,7 +381,7 @@ function OrderDetailContent({
     originalRouteRef.current = null;
   };
 
-  // ✅ Animate rider marker smoothly
+  // Animate rider marker smoothly with rotation
   const animateMarkerTo = (
     targetLat: number,
     targetLng: number,
@@ -372,6 +395,22 @@ function OrderDetailContent({
     const startPos = riderMarkerRef.current.getLatLng();
     const startTime = performance.now();
 
+    // Calculate heading/bearing if location updated significantly
+    const distanceMoved = Math.hypot(
+      targetLat - startPos.lat,
+      targetLng - startPos.lng,
+    );
+
+    if (distanceMoved > 0.00001) {
+      const bearing = calculateBearing(
+        startPos.lat,
+        startPos.lng,
+        targetLat,
+        targetLng,
+      );
+      riderHeadingRef.current = bearing;
+    }
+
     const step = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
@@ -381,6 +420,16 @@ function OrderDetailContent({
 
       riderMarkerRef.current.setLatLng([currentLat, currentLng]);
 
+      // Apply rotation to the rider animation container
+      const markerElement = riderMarkerRef.current.getElement();
+      if (markerElement) {
+        const wrapper = markerElement.querySelector(".rider-rotation-wrapper");
+        if (wrapper) {
+          (wrapper as HTMLElement).style.transform =
+            `rotate(${riderHeadingRef.current}deg)`;
+        }
+      }
+
       if (progress < 1) {
         requestAnimationFrame(step);
       }
@@ -389,7 +438,7 @@ function OrderDetailContent({
     requestAnimationFrame(step);
   };
 
-  // ✅ Initialize map - uses ORIGINAL route (store to customer)
+  // Initialize map - uses ORIGINAL route (store to customer)
   useEffect(() => {
     if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
       return;
@@ -476,7 +525,7 @@ function OrderDetailContent({
           `);
         }
 
-        // ✅ Get the ORIGINAL route from store to customer (save it in ref)
+        // Get the ORIGINAL route from store to customer (save it in ref)
         const routePoints = await getRouteGeometry(
           { lat: storeLocation.lat, lng: storeLocation.lng },
           coordinates,
@@ -495,29 +544,46 @@ function OrderDetailContent({
         setTimeout(() => {
           const currentZoom = map.getZoom();
 
-          // Create rider marker
+          // Set initial rider position - use real location if available, otherwise start at store
+          const initialRiderLat = order?.riderLat || storeLocation.lat;
+          const initialRiderLng = order?.riderLng || storeLocation.lng;
+
+          // Calculate initial heading if rider has moved away from store
+          if (
+            order?.riderLat &&
+            order?.riderLng &&
+            (order.riderLat !== storeLocation.lat ||
+              order.riderLng !== storeLocation.lng)
+          ) {
+            riderHeadingRef.current = calculateBearing(
+              storeLocation.lat,
+              storeLocation.lng,
+              order.riderLat,
+              order.riderLng,
+            );
+          }
+
+          const size = Math.min(Math.max((currentZoom / 15) * 80, 40), 120);
+
+          // Create rider marker with smooth rotation wrapper
           const riderIcon = window.L.divIcon({
             className: "custom-leaflet-animated-icon",
             html: `
-              <div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;">
+              <div class="rider-rotation-wrapper" style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: transform 0.4s ease-out;transform: rotate(${riderHeadingRef.current}deg);transform-origin: center center;">
                 <dotlottie-player
                   src="/animations/truck.json"
                   background="transparent"
                   speed="1"
-                  style="width:80px;height:80px;"
+                  style="width:${size}px;height:${size}px;"
                   loop
                   autoplay
                 ></dotlottie-player>
               </div>
             `,
-            iconSize: [80, 80],
-            iconAnchor: [40, 40],
-            popupAnchor: [0, -40],
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2],
+            popupAnchor: [0, -(size / 2)],
           });
-
-          // Set initial rider position - use real location if available, otherwise start at store
-          const initialRiderLat = order?.riderLat || storeLocation.lat;
-          const initialRiderLng = order?.riderLng || storeLocation.lng;
 
           console.log(
             "🚚 Creating rider marker at customer view:",
@@ -545,13 +611,13 @@ function OrderDetailContent({
 
         map.on("zoomend", () => {
           const currentZoom = map.getZoom();
-          // Update marker sizes on zoom
+          // Update marker sizes on zoom while preserving heading rotation
           if (riderMarkerRef.current) {
             const size = Math.min(Math.max((currentZoom / 15) * 80, 40), 120);
             const riderIcon = window.L.divIcon({
               className: "custom-leaflet-animated-icon",
               html: `
-                <div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: all 0.2s ease;">
+                <div class="rider-rotation-wrapper" style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: transform 0.4s ease-out, width 0.2s ease, height 0.2s ease;transform: rotate(${riderHeadingRef.current}deg);transform-origin: center center;">
                   <dotlottie-player
                     src="/animations/truck.json"
                     background="transparent"
@@ -610,7 +676,7 @@ function OrderDetailContent({
     storeLoading,
   ]);
 
-  // ✅ Real-time subscription - ONLY moves rider marker, DOES NOT update route
+  // Real-time subscription - ONLY moves rider marker, DOES NOT update route
   useEffect(() => {
     if (!order?.id) return;
 
@@ -646,7 +712,7 @@ function OrderDetailContent({
             status,
           });
 
-          // ✅ ONLY move the rider marker - DO NOT update the route
+          // ONLY move the rider marker - DO NOT update the route
           if (riderLat && riderLng && riderMarkerRef.current) {
             console.log(
               "🚚 Customer - Moving rider marker to:",

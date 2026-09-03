@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
 
   const where: any = {};
 
-  // Status filter
   if (status) {
     const statuses = status.split(",").filter(Boolean);
     if (statuses.length > 0) {
@@ -27,11 +26,9 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Rider filter - for riders only showing their assigned orders
   if (role === "RIDER") {
     const userId = await getCurrentUserId();
     where.riderId = userId;
-    // Only show these statuses for riders
     if (!status) {
       where.status = {
         in: ["ASSIGNED_RIDER", "OUT_FOR_DELIVERY", "READY_FOR_PICKUP"],
@@ -39,12 +36,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Admin filtering by specific rider
   if (role === "ADMIN" && riderId) {
     where.riderId = riderId;
   }
 
-  // Search filter
   if (search) {
     const num = parseInt(search);
     const conditions = [];
@@ -59,10 +54,8 @@ export async function GET(request: NextRequest) {
     where.OR = conditions;
   }
 
-  // Get total count for pagination
   const total = await prisma.order.count({ where });
 
-  // Get orders with pagination
   const orders = await prisma.order.findMany({
     where,
     include: {
@@ -95,13 +88,19 @@ export async function GET(request: NextRequest) {
         },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { updatedAt: "desc" },
     skip,
     take: limit,
   });
 
+  // ✅ Add isPaid to each order
+  const ordersWithPaid = orders.map((order) => ({
+    ...order,
+    isPaid: order.isPaid,
+  }));
+
   return NextResponse.json({
-    orders,
+    orders: ordersWithPaid,
     total,
     page,
     limit,
@@ -109,7 +108,6 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// Helper function to get current user ID
 async function getCurrentUserId() {
   try {
     const cookieStore = await cookies();

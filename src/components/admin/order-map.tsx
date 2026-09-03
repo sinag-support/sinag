@@ -59,6 +59,29 @@ export const TILE_LAYERS = {
   },
 };
 
+// Calculate compass heading angle (0 to 360 deg) between two coordinates
+function calculateBearing(
+  startLat: number,
+  startLng: number,
+  endLat: number,
+  endLng: number,
+): number {
+  const toRad = (degree: number) => (degree * Math.PI) / 180;
+  const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+  const lat1 = toRad(startLat);
+  const lat2 = toRad(endLat);
+  const dLng = toRad(endLng - startLng);
+
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+
+  const bearing = (toDeg(Math.atan2(y, x)) + 360) % 360;
+  return bearing;
+}
+
 export async function getCoordinates(
   address: string,
   city: string,
@@ -73,7 +96,9 @@ export async function getCoordinates(
     const primaryQuery = `${address}, ${city}, ${province}, Philippines`;
 
     let response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(primaryQuery)}&limit=1`,
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        primaryQuery,
+      )}&limit=1`,
       { headers },
     );
 
@@ -89,7 +114,9 @@ export async function getCoordinates(
     const fallbackQuery = `${city}, ${province}, Philippines`;
 
     response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fallbackQuery)}&limit=1`,
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        fallbackQuery,
+      )}&limit=1`,
       { headers },
     );
 
@@ -177,18 +204,9 @@ export function useRiderLocationTracker(
   const isUpdatingRef = useRef<boolean>(false);
 
   useEffect(() => {
-    console.log(
-      "🔍 useRiderLocationTracker - isTrackingActive:",
-      isTrackingActive,
-    );
-    console.log("🔍 useRiderLocationTracker - orderId:", orderId);
-
     if (!isTrackingActive || !orderId || !("geolocation" in navigator)) {
-      console.log("❌ Tracking not active or no geolocation");
       return;
     }
-
-    console.log("✅ Starting GPS tracking for order:", orderId);
 
     let wakeLock: any = null;
 
@@ -208,12 +226,6 @@ export function useRiderLocationTracker(
       async (position) => {
         if (isUpdatingRef.current) return;
 
-        console.log(
-          "📍 GPS position received:",
-          position.coords.latitude,
-          position.coords.longitude,
-        );
-
         const now = Date.now();
         if (now - lastUpdateRef.current < 3000) return;
         lastUpdateRef.current = now;
@@ -222,12 +234,6 @@ export function useRiderLocationTracker(
 
         try {
           isUpdatingRef.current = true;
-          console.log(
-            "📤 Updating rider location via API:",
-            latitude,
-            longitude,
-          );
-
           const response = await fetch(
             `/api/admin/orders/${orderId}/location`,
             {
@@ -245,20 +251,18 @@ export function useRiderLocationTracker(
           if (!response.ok) {
             const error = await response.json();
             console.error(
-              "❌ Failed to update rider location:",
+              "Failed to update rider location:",
               error.error || response.statusText,
             );
-          } else {
-            console.log("✅ Rider location updated successfully");
           }
         } catch (err) {
-          console.error("❌ Error updating location:", err);
+          console.error("Error updating location:", err);
         } finally {
           isUpdatingRef.current = false;
         }
       },
       (error) => {
-        console.error("❌ Geolocation error:", error);
+        console.error("Geolocation error:", error);
         if (error.code === error.PERMISSION_DENIED) {
           toast.error("Location permissions required for real-time tracking.");
         }
@@ -271,7 +275,6 @@ export function useRiderLocationTracker(
     );
 
     return () => {
-      console.log("🛑 Stopping GPS tracking");
       navigator.geolocation.clearWatch(watchId);
       if (wakeLock) wakeLock.release().catch(() => {});
     };
@@ -297,6 +300,7 @@ export function OrderMap({
   const customerMarkerRef = useRef<any>(null);
   const polylineRef = useRef<any>(null);
   const leafletLoadedRef = useRef(false);
+  const lastBearingRef = useRef<number>(0);
   const { role } = useRole();
 
   const { theme, resolvedTheme } = useTheme();
@@ -326,18 +330,14 @@ export function OrderMap({
     return false;
   };
 
-  // ✅ Helper to determine if rider should use real location or store location
   const shouldUseRealLocation = () => {
     return order.status === "OUT_FOR_DELIVERY";
   };
 
-  // ✅ Helper to get the correct rider position
   const getRiderPosition = () => {
     if (shouldUseRealLocation() && order?.riderLat && order?.riderLng) {
-      // Use real GPS location
       return { lat: order.riderLat, lng: order.riderLng };
     }
-    // Use store location as fallback
     return { lat: storeLocation.lat, lng: storeLocation.lng };
   };
 
@@ -419,32 +419,51 @@ export function OrderMap({
     }
   }, []);
 
-  const createRiderIcon = (zoom: number) => {
+  const createRiderIcon = (zoom: number, rotation: number = 0) => {
     if (!window.L) return null;
 
-    const baseSize = 80;
+    const baseSize = 60;
     const minSize = 40;
     const maxSize = 120;
     const scale = Math.min(Math.max(zoom / 15, 0.6), 1.5);
     const size = Math.min(Math.max(baseSize * scale, minSize), maxSize);
 
+    const isHeadingEast = rotation > 0 && rotation < 180;
+    const scaleX = isHeadingEast ? -1 : 1;
+
+    let rawPitch = isHeadingEast ? rotation - 90 : 270 - rotation;
+    const correctedPitch = isHeadingEast ? -rawPitch : rawPitch;
+    const clampedPitch = Math.min(Math.max(correctedPitch, -30), 30);
+
+    const offsetX = 0;
+    const offsetY = -17;
+
     return window.L.divIcon({
       className: "custom-leaflet-animated-icon",
       html: `
-        <div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: all 0.2s ease;">
-          <dotlottie-player
-            src="/animations/truck.json"
-            background="transparent"
-            speed="1"
-            style="width:${size}px;height:${size}px;"
-            loop
-            autoplay
-          ></dotlottie-player>
-        </div>
-      `,
+      <div style="
+        width:${size}px;
+        height:${size}px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        transform: scaleX(${scaleX}) rotate(${clampedPitch}deg);
+        transform-origin: center bottom;
+        transition: transform 0.3s ease-out;
+      ">
+        <dotlottie-player
+          src="/animations/truck.json"
+          background="transparent"
+          speed="1"
+          style="width:${size}px;height:${size}px;"
+          loop
+          autoplay
+        ></dotlottie-player>
+      </div>
+    `,
       iconSize: [size, size],
-      iconAnchor: [size / 2, size / 2],
-      popupAnchor: [0, -(size / 2)],
+      iconAnchor: [size / 2 + offsetX, size + offsetY],
+      popupAnchor: [0, -size],
     });
   };
 
@@ -481,7 +500,7 @@ export function OrderMap({
     if (!window.L) return;
 
     if (riderMarkerRef.current) {
-      const newIcon = createRiderIcon(zoom);
+      const newIcon = createRiderIcon(zoom, lastBearingRef.current);
       if (newIcon) riderMarkerRef.current.setIcon(newIcon);
     }
     if (customerMarkerRef.current) {
@@ -518,14 +537,29 @@ export function OrderMap({
     targetLng: number,
     duration: number = 1000,
   ) => {
-    if (!riderMarkerRef.current) {
-      console.log("⚠️ riderMarkerRef.current is null, cannot animate");
-      return;
-    }
+    if (!riderMarkerRef.current || !mapInstanceRef.current) return;
 
     const startPos = riderMarkerRef.current.getLatLng();
-    const startTime = performance.now();
 
+    // 1. Calculate rotation bearing if movement occurs
+    if (startPos.lat !== targetLat || startPos.lng !== targetLng) {
+      const bearing = calculateBearing(
+        startPos.lat,
+        startPos.lng,
+        targetLat,
+        targetLng,
+      );
+      lastBearingRef.current = bearing;
+
+      const currentZoom = mapInstanceRef.current.getZoom();
+      const rotatedIcon = createRiderIcon(currentZoom, bearing);
+      if (rotatedIcon) {
+        riderMarkerRef.current.setIcon(rotatedIcon);
+      }
+    }
+
+    // 2. Animate position smoothly
+    const startTime = performance.now();
     const step = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
@@ -566,7 +600,7 @@ export function OrderMap({
     riderInitializedRef.current = false;
   };
 
-  // ✅ Initialize map
+  // Initialize map
   useEffect(() => {
     if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
       return;
@@ -648,24 +682,28 @@ export function OrderMap({
           opacity: 0.85,
         }).addTo(map);
 
+        // Initial bearing calculated along the first leg of the route
+        if (routePoints.length > 1) {
+          lastBearingRef.current = calculateBearing(
+            routePoints[0][0],
+            routePoints[0][1],
+            routePoints[1][0],
+            routePoints[1][1],
+          );
+        }
+
         const bounds = window.L.latLngBounds([storePos, customerPos]);
         map.fitBounds(bounds, { padding: [50, 50] });
 
         setTimeout(() => {
           const currentZoom = map.getZoom();
-          const riderIcon = createRiderIcon(currentZoom);
+          const riderIcon = createRiderIcon(
+            currentZoom,
+            lastBearingRef.current,
+          );
 
           if (riderIcon) {
-            // ✅ Get the correct rider position based on status
             const riderPos = getRiderPosition();
-
-            console.log(
-              "🚚 Creating rider marker at:",
-              riderPos.lat,
-              riderPos.lng,
-            );
-            console.log("📦 Order status:", order.status);
-            console.log("📦 Using real location:", shouldUseRealLocation());
 
             const riderMarker = window.L.marker([riderPos.lat, riderPos.lng], {
               icon: riderIcon,
@@ -718,21 +756,13 @@ export function OrderMap({
     };
   }, []);
 
-  // ✅ Real-time subscription - ONLY for OUT_FOR_DELIVERY status
+  // Supabase Realtime Subscription
   useEffect(() => {
     if (!order?.id) return;
 
-    console.log("🔍 Setting up Supabase subscription for order:", order.id);
-
-    // ✅ Only subscribe when status is OUT_FOR_DELIVERY
     if (order.status !== "OUT_FOR_DELIVERY") {
-      console.log(
-        "⚠️ Order status is not OUT_FOR_DELIVERY, skipping subscription",
-      );
-      // ✅ If not OUT_FOR_DELIVERY, move rider back to store location
       if (riderMarkerRef.current) {
         const storePos = { lat: storeLocation.lat, lng: storeLocation.lng };
-        console.log("🏪 Moving rider back to store location");
         animateMarkerTo(storePos.lat, storePos.lng, 500);
       }
       return;
@@ -759,42 +789,27 @@ export function OrderMap({
           filter: `id=eq.${order.id}`,
         },
         (payload) => {
-          console.log("📩 Order update received:", payload.new);
           const { riderLat, riderLng, status } = payload.new;
-          console.log("📍 New rider location:", riderLat, riderLng);
-          console.log("📌 New status:", status);
 
-          // ✅ Only move marker if status is OUT_FOR_DELIVERY and we have location
           if (
             status === "OUT_FOR_DELIVERY" &&
             riderLat &&
             riderLng &&
             riderMarkerRef.current
           ) {
-            console.log(
-              "🚚 Moving rider marker to real location:",
-              riderLat,
-              riderLng,
-            );
             animateMarkerTo(riderLat, riderLng, 1000);
           } else if (status !== "OUT_FOR_DELIVERY" && riderMarkerRef.current) {
-            // ✅ If status changed away from OUT_FOR_DELIVERY, move back to store
-            const storePos = { lat: storeLocation.lat, lng: storeLocation.lng };
-            console.log(
-              "🏪 Status changed, moving rider back to store location",
-            );
+            const storePos = {
+              lat: storeLocation.lat,
+              lng: storeLocation.lng,
+            };
             animateMarkerTo(storePos.lat, storePos.lng, 500);
-          } else {
-            console.log("⚠️ No rider location in update or marker not ready");
           }
         },
       )
-      .subscribe((status) => {
-        console.log("📡 Subscription status:", status);
-      });
+      .subscribe();
 
     return () => {
-      console.log("🛑 Removing subscription");
       supabase.removeChannel(channel);
     };
   }, [order?.id, coordinates, storeLocation]);
