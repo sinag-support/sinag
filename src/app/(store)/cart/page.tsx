@@ -1,142 +1,158 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, Loader2 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
-import { toast } from 'sonner'
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Trash2,
+  Plus,
+  Minus,
+  ShoppingBag,
+  ArrowLeft,
+  Loader2,
+} from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 // Extended CartItem type with option
 interface CartItem {
-  id: string
-  productId: string
-  quantity: number
-  optionId: string | null
+  id: string;
+  productId: string;
+  quantity: number;
+  optionId: string | null;
   product: {
-    id: string
-    title: string
-    price: number
-    discount: number
-    images: string[]
-  }
+    id: string;
+    title: string;
+    price: number;
+    discount: number;
+    images: string[];
+  };
   option?: {
-    id: string
-    name: string
-    price: number
-    image?: string
-    stock: number
-  } | null
+    id: string;
+    name: string;
+    price: number;
+    image?: string;
+    stock: number;
+  } | null;
 }
 
 export default function CartPage() {
-  const router = useRouter()
-  const [cartItems, setCartItems] = useState<CartItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [updating, setUpdating] = useState<string | null>(null)
+  const router = useRouter();
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCart()
-  }, [])
+    fetchCart();
+  }, []);
 
   const fetchCart = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
-        router.push('/login')
-        return
+        router.push("/login");
+        return;
       }
 
-      const response = await fetch('/api/cart')
+      const response = await fetch("/api/cart");
       if (!response.ok) {
-        throw new Error('Failed to fetch cart')
+        throw new Error("Failed to fetch cart");
       }
-      const data = await response.json()
-      setCartItems(data.items || [])
+      const data = await response.json();
+      setCartItems(data.items || []);
     } catch (error) {
-      console.error('Error fetching cart:', error)
-      toast.error('Failed to load cart')
+      console.error("Error fetching cart:", error);
+      toast.error("Failed to load cart");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const updateQuantity = async (itemId: string, newQuantity: number) => {
-    if (newQuantity < 1) return
-    
-    setCartItems(prev =>
-      prev.map(item =>
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      )
-    )
-    
-    setUpdating(itemId)
+    if (newQuantity < 1) return;
+
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, quantity: newQuantity } : item,
+      ),
+    );
+
+    setUpdating(itemId);
     try {
       const response = await fetch(`/api/cart/items/${itemId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ quantity: newQuantity }),
-      })
-      
-      const data = await response.json()
-      
+      });
+
+      const data = await response.json();
+
       if (!response.ok) {
-        await fetchCart()
-        throw new Error(data.error || 'Failed to update quantity')
+        await fetchCart();
+        throw new Error(data.error || "Failed to update quantity");
       }
-      
+
       if (data.cartItem) {
-        setCartItems(prev =>
-          prev.map(item =>
-            item.id === itemId ? { ...item, quantity: data.cartItem.quantity } : item
-          )
-        )
+        setCartItems((prev) =>
+          prev.map((item) =>
+            item.id === itemId
+              ? { ...item, quantity: data.cartItem.quantity }
+              : item,
+          ),
+        );
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to update quantity')
-      await fetchCart()
+      toast.error(error.message || "Failed to update quantity");
+      await fetchCart();
     } finally {
-      setUpdating(null)
+      setUpdating(null);
     }
-  }
+  };
 
   const removeItem = async (itemId: string) => {
-    setCartItems(prev => prev.filter(item => item.id !== itemId))
-    
-    setUpdating(itemId)
+    setCartItems((prev) => prev.filter((item) => item.id !== itemId));
+
+    setUpdating(itemId);
     try {
       const response = await fetch(`/api/cart/items/${itemId}`, {
-        method: 'DELETE',
-      })
-      
+        method: "DELETE",
+      });
+
       if (!response.ok) {
-        const data = await response.json()
-        await fetchCart()
-        throw new Error(data.error || 'Failed to remove item')
+        const data = await response.json();
+        await fetchCart();
+        throw new Error(data.error || "Failed to remove item");
       }
-      
-      toast.success('Item removed')
+
+      toast.success("Item removed");
     } catch (error: any) {
-      toast.error(error.message || 'Failed to remove item')
-      await fetchCart()
+      toast.error(error.message || "Failed to remove item");
+      await fetchCart();
     } finally {
-      setUpdating(null)
+      setUpdating(null);
     }
-  }
+  };
 
   // Calculate subtotal – use option price if available, then apply product discount
   const subtotal = cartItems.reduce((sum, item) => {
-    const basePrice = item.option ? item.option.price : item.product.price
-    const price = item.product.discount > 0
-      ? basePrice * (1 - item.product.discount / 100)
-      : basePrice
-    return sum + price * item.quantity
-  }, 0)
+    const basePrice = item.option ? item.option.price : item.product.price;
+    const price =
+      item.product.discount > 0
+        ? basePrice * (1 - item.product.discount / 100)
+        : basePrice;
+    return sum + price * item.quantity;
+  }, 0);
+
+  const goBack = () => {
+    router.back();
+  };
 
   // --- Skeleton Loading State ---
   if (loading) {
@@ -231,7 +247,10 @@ export default function CartPage() {
               <Skeleton className="col-span-2 h-4 w-16 text-right" />
             </div>
             {[1, 2, 3].map((i) => (
-              <div key={i} className="grid grid-cols-12 gap-4 items-center py-3 border-b last:border-0">
+              <div
+                key={i}
+                className="grid grid-cols-12 gap-4 items-center py-3 border-b last:border-0"
+              >
                 <div className="col-span-6 flex items-center gap-3">
                   <Skeleton className="h-14 w-14 rounded-md" />
                   <div>
@@ -282,28 +301,44 @@ export default function CartPage() {
           <Skeleton className="h-3 w-48 mx-auto mt-1" />
         </div>
       </div>
-    )
+    );
   }
 
   if (cartItems.length === 0) {
     return (
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 max-w-7xl min-h-screen flex flex-col items-center justify-center text-center">
-        <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-          <ShoppingBag className="h-8 w-8 text-muted-foreground" />
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl min-h-screen flex flex-col">
+        {/* Back button - same as when items exist */}
+        <div className="flex items-center gap-3 mb-8">
+          <button
+            onClick={goBack}
+            className="inline-flex text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+            Cart
+          </h1>
+          <span className="text-sm text-muted-foreground ml-auto">0 items</span>
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight">Your cart is empty</h1>
-        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-          Looks like you haven't added any items yet.
-        </p>
-        <Link href="/products">
-          <Button className="mt-6">Start shopping</Button>
-        </Link>
-      </div>
-    )
-  }
 
-  const goBack = () => {
-    router.back()
+        {/* Empty state content */}
+        <div className="flex-1 flex flex-col items-center justify-center text-center">
+          <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
+            <ShoppingBag className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-semibold tracking-tight">
+            Your cart is empty
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+            Looks like you haven't added any items yet.
+          </p>
+          <Link href="/products">
+            <Button className="mt-6">Start shopping</Button>
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -317,9 +352,11 @@ export default function CartPage() {
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Cart</h1>
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+          Cart
+        </h1>
         <span className="text-sm text-muted-foreground ml-auto">
-          {cartItems.length} {cartItems.length === 1 ? 'item' : 'items'}
+          {cartItems.length} {cartItems.length === 1 ? "item" : "items"}
         </span>
       </div>
 
@@ -438,21 +475,21 @@ export default function CartPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
 
 // --- Shared helper to compute price ---
 function getEffectivePrice(item: CartItem): number {
-  const basePrice = item.option ? item.option.price : item.product.price
+  const basePrice = item.option ? item.option.price : item.product.price;
   return item.product.discount > 0
     ? basePrice * (1 - item.product.discount / 100)
-    : basePrice
+    : basePrice;
 }
 
 // --- Mobile Cart Item ---
 function CartItemMobile({ item, onUpdateQuantity, onRemove, updating }: any) {
-  const price = getEffectivePrice(item)
-  const imageUrl = item.option?.image || item.product.images?.[0] || ''
+  const price = getEffectivePrice(item);
+  const imageUrl = item.option?.image || item.product.images?.[0] || "";
 
   return (
     <Card>
@@ -465,7 +502,7 @@ function CartItemMobile({ item, onUpdateQuantity, onRemove, updating }: any) {
               className="w-full h-full object-cover"
               loading="lazy"
               onError={(e) => {
-                e.currentTarget.style.display = 'none'
+                e.currentTarget.style.display = "none";
               }}
             />
           ) : (
@@ -477,9 +514,13 @@ function CartItemMobile({ item, onUpdateQuantity, onRemove, updating }: any) {
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start gap-1">
             <div>
-              <h3 className="font-medium text-sm truncate">{item.product.title}</h3>
+              <h3 className="font-medium text-sm truncate">
+                {item.product.title}
+              </h3>
               {item.option && (
-                <p className="text-xs text-muted-foreground truncate">{item.option.name}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {item.option.name}
+                </p>
               )}
             </div>
             <button
@@ -499,7 +540,9 @@ function CartItemMobile({ item, onUpdateQuantity, onRemove, updating }: any) {
             >
               <Minus className="h-3 w-3" />
             </button>
-            <span className="text-sm font-medium w-5 text-center">{item.quantity}</span>
+            <span className="text-sm font-medium w-5 text-center">
+              {item.quantity}
+            </span>
             <button
               onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
               className="h-7 w-7 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
@@ -514,13 +557,13 @@ function CartItemMobile({ item, onUpdateQuantity, onRemove, updating }: any) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 // --- Desktop Cart Item ---
 function CartItemDesktop({ item, onUpdateQuantity, onRemove, updating }: any) {
-  const price = getEffectivePrice(item)
-  const imageUrl = item.option?.image || item.product.images?.[0] || ''
+  const price = getEffectivePrice(item);
+  const imageUrl = item.option?.image || item.product.images?.[0] || "";
 
   return (
     <div className="grid grid-cols-12 gap-4 items-center py-3 border-b last:border-0">
@@ -533,7 +576,7 @@ function CartItemDesktop({ item, onUpdateQuantity, onRemove, updating }: any) {
               className="w-full h-full object-cover"
               loading="lazy"
               onError={(e) => {
-                e.currentTarget.style.display = 'none'
+                e.currentTarget.style.display = "none";
               }}
             />
           ) : (
@@ -567,7 +610,9 @@ function CartItemDesktop({ item, onUpdateQuantity, onRemove, updating }: any) {
         >
           <Minus className="h-3 w-3" />
         </button>
-        <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+        <span className="text-sm font-medium w-6 text-center">
+          {item.quantity}
+        </span>
         <button
           onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
           className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
@@ -580,13 +625,13 @@ function CartItemDesktop({ item, onUpdateQuantity, onRemove, updating }: any) {
         ₱{(price * item.quantity).toFixed(2)}
       </div>
     </div>
-  )
+  );
 }
 
 // --- Tablet Cart Item ---
 function CartItemTablet({ item, onUpdateQuantity, onRemove, updating }: any) {
-  const price = getEffectivePrice(item)
-  const imageUrl = item.option?.image || item.product.images?.[0] || ''
+  const price = getEffectivePrice(item);
+  const imageUrl = item.option?.image || item.product.images?.[0] || "";
 
   return (
     <Card>
@@ -599,7 +644,7 @@ function CartItemTablet({ item, onUpdateQuantity, onRemove, updating }: any) {
               className="w-full h-full object-cover"
               loading="lazy"
               onError={(e) => {
-                e.currentTarget.style.display = 'none'
+                e.currentTarget.style.display = "none";
               }}
             />
           ) : (
@@ -613,7 +658,9 @@ function CartItemTablet({ item, onUpdateQuantity, onRemove, updating }: any) {
             <div>
               <h3 className="font-medium">{item.product.title}</h3>
               {item.option && (
-                <p className="text-xs text-muted-foreground">{item.option.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {item.option.name}
+                </p>
               )}
             </div>
             <button
@@ -634,7 +681,9 @@ function CartItemTablet({ item, onUpdateQuantity, onRemove, updating }: any) {
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+              <span className="text-sm font-medium w-6 text-center">
+                {item.quantity}
+              </span>
               <button
                 onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
                 className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
@@ -650,5 +699,5 @@ function CartItemTablet({ item, onUpdateQuantity, onRemove, updating }: any) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
