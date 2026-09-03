@@ -20,10 +20,13 @@ import {
   Maximize2,
   Minimize2,
   Truck,
+  DollarSign,
+  CheckCircle,
 } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { cn } from "@/lib/utils";
 import { OrderMap, useRiderLocationTracker } from "./order-map";
+import { toast } from "sonner";
 
 interface DeliveryOrder {
   id: string;
@@ -44,6 +47,7 @@ interface DeliveryOrder {
   payable: number;
   status: string;
   createdAt: string;
+  isPaid?: boolean;
   items: {
     id: string;
     product: {
@@ -89,11 +93,13 @@ export function DeliveryOrderDetail({
   const [isFullscreenMap, setIsFullscreenMap] = useState(false);
   const [showFullscreenDialog, setShowFullscreenDialog] = useState(false);
   const [showStartDeliveryDialog, setShowStartDeliveryDialog] = useState(false);
+  const [showMarkPaidDialog, setShowMarkPaidDialog] = useState(false);
   const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{
     orderId: string;
     status: string;
   } | null>(null);
   const [currentOrder, setCurrentOrder] = useState<DeliveryOrder | null>(order);
+  const [isPaying, setIsPaying] = useState(false);
 
   useEffect(() => {
     setCurrentOrder(order);
@@ -117,26 +123,52 @@ export function DeliveryOrderDetail({
     }
   };
 
-  // ✅ Handle Start Delivery click - show confirmation dialog
   const handleStartDeliveryClick = (orderId: string) => {
     setPendingStatusUpdate({ orderId, status: "OUT_FOR_DELIVERY" });
     setShowStartDeliveryDialog(true);
   };
 
-  // ✅ Confirm start delivery - then ask for fullscreen
   const confirmStartDelivery = async () => {
     if (!pendingStatusUpdate) return;
     setShowStartDeliveryDialog(false);
-
-    // Start the delivery
     await handleStatusUpdate(
       pendingStatusUpdate.orderId,
       pendingStatusUpdate.status,
     );
     setPendingStatusUpdate(null);
-
-    // ✅ Ask for fullscreen after delivery starts
     setShowFullscreenDialog(true);
+  };
+
+  // ✅ Handle Mark as Paid
+  const handleMarkAsPaid = async () => {
+    if (!currentOrder) return;
+    setIsPaying(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${currentOrder.id}/payment`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPaid: true }),
+      });
+
+      if (res.ok) {
+        toast.success("Order marked as paid successfully");
+        setShowMarkPaidDialog(false);
+        if (onRefreshOrder) {
+          const refreshedOrder = await onRefreshOrder();
+          if (refreshedOrder) {
+            setCurrentOrder(refreshedOrder);
+          }
+        }
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Failed to mark as paid");
+      }
+    } catch (error) {
+      console.error("Error marking as paid:", error);
+      toast.error("Network error");
+    } finally {
+      setIsPaying(false);
+    }
   };
 
   const shouldShowActions = () => {
@@ -203,6 +235,17 @@ export function DeliveryOrderDetail({
                 "Mark Delivered"
               )}
             </Button>
+            {!currentOrder.isPaid && (
+              <Button
+                className="w-full font-medium text-sm"
+                variant="outline"
+                onClick={() => setShowMarkPaidDialog(true)}
+                disabled={isUpdating}
+              >
+                <DollarSign className="mr-2 h-4 w-4" />
+                Mark as Paid
+              </Button>
+            )}
             <div className="flex gap-2">
               <Button
                 variant="destructive"
@@ -229,19 +272,30 @@ export function DeliveryOrderDetail({
 
       if (currentOrder.status === "DELIVERED") {
         return (
-          <Button
-            variant="outline"
-            className="w-full font-medium text-sm text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
-            onClick={() => handleStatusUpdate(currentOrder.id, "RETURNED")}
-            disabled={isUpdating}
-          >
-            {isUpdating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RotateCcw className="mr-2 h-4 w-4" />
+          <div className="flex flex-col gap-2 w-full">
+            {!currentOrder.isPaid && (
+              <Button
+                className="w-full font-medium text-sm"
+                variant="default"
+                onClick={() => setShowMarkPaidDialog(true)}
+                disabled={isUpdating}
+              >
+                <DollarSign className="mr-2 h-4 w-4" />
+                Mark as Paid
+              </Button>
             )}
-            Return
-          </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 font-medium text-sm text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
+                onClick={() => handleStatusUpdate(currentOrder.id, "RETURNED")}
+                disabled={isUpdating}
+              >
+                <RotateCcw className="mr-1 h-4 w-4" />
+                Return
+              </Button>
+            </div>
+          </div>
         );
       }
     }
@@ -323,6 +377,28 @@ export function DeliveryOrderDetail({
                       </span>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* ✅ Payment Status Badge */}
+              <div className="border border-border rounded-lg p-3 !bg-background shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">
+                    Payment Status
+                  </span>
+                  <Badge
+                    variant={currentOrder.isPaid ? "default" : "secondary"}
+                    className="text-xs"
+                  >
+                    {currentOrder.isPaid ? (
+                      <>
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Paid
+                      </>
+                    ) : (
+                      "Unpaid"
+                    )}
+                  </Badge>
                 </div>
               </div>
 
@@ -415,7 +491,7 @@ export function DeliveryOrderDetail({
         </DialogContent>
       </Dialog>
 
-      {/* Fullscreen Confirmation Dialog (after start delivery) */}
+      {/* Fullscreen Confirmation Dialog */}
       <Dialog
         open={showFullscreenDialog}
         onOpenChange={setShowFullscreenDialog}
@@ -491,6 +567,59 @@ export function DeliveryOrderDetail({
                   </>
                 ) : (
                   "Start Delivery"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ✅ Mark as Paid Confirmation Dialog */}
+      <Dialog open={showMarkPaidDialog} onOpenChange={setShowMarkPaidDialog}>
+        <DialogContent className="max-w-md !bg-background">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-green-600" />
+              Mark as Paid
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to mark Order #{currentOrder.orderNumber} as
+              paid?
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Total amount:{" "}
+              <span className="font-bold">
+                ₱{currentOrder.payable.toFixed(2)}
+              </span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              This will confirm that the customer has paid for this order.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 !bg-background hover:!bg-accent"
+                onClick={() => setShowMarkPaidDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                onClick={handleMarkAsPaid}
+                disabled={isPaying}
+              >
+                {isPaying ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Confirm Paid
+                  </>
                 )}
               </Button>
             </div>

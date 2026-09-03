@@ -29,6 +29,7 @@ import {
   ChevronRight,
   Ban,
   RotateCcw,
+  DollarSign,
 } from "lucide-react";
 import {
   Select,
@@ -56,6 +57,7 @@ interface DeliveryOrder {
   payable: number;
   status: string;
   createdAt: string;
+  isPaid?: boolean;
   items: {
     id: string;
     product: {
@@ -219,7 +221,7 @@ export default function DeliveryPage() {
     }
   };
 
-  // ✅ Function to fetch a single order - THIS IS THE FIX!
+  // ✅ Function to fetch a single order
   const fetchOrderById = async (
     orderId: string,
   ): Promise<DeliveryOrder | null> => {
@@ -531,6 +533,21 @@ export default function DeliveryPage() {
                           "Deliver"
                         )}
                       </Button>
+                      {/* ✅ Mark as Paid Button - Rider can mark as paid */}
+                      {!order.isPaid && (
+                        <Button
+                          size="sm"
+                          className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex-shrink-0"
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setDetailOpen(true);
+                          }}
+                          disabled={isUpdating}
+                        >
+                          <DollarSign className="h-3 w-3 mr-1" />
+                          Mark Paid
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
@@ -552,15 +569,32 @@ export default function DeliveryPage() {
                     </>
                   )}
                   {order.status === "DELIVERED" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 w-7 p-0 text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background flex-shrink-0"
-                      onClick={() => updateStatus(order.id, "RETURNED")}
-                      disabled={isUpdating}
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                    </Button>
+                    <>
+                      {/* ✅ Mark as Paid Button - Rider can mark as paid */}
+                      {!order.isPaid && (
+                        <Button
+                          size="sm"
+                          className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex-shrink-0"
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setDetailOpen(true);
+                          }}
+                          disabled={isUpdating}
+                        >
+                          <DollarSign className="h-3 w-3 mr-1" />
+                          Mark Paid
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 w-7 p-0 text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background flex-shrink-0"
+                        onClick={() => updateStatus(order.id, "RETURNED")}
+                        disabled={isUpdating}
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
                   )}
                 </>
               )}
@@ -926,6 +960,21 @@ export default function DeliveryPage() {
                                   "Mark Delivered"
                                 )}
                               </Button>
+                              {/* ✅ Mark as Paid Button - Desktop Table */}
+                              {!order.isPaid && (
+                                <Button
+                                  size="sm"
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                                  onClick={() => {
+                                    setSelectedOrder(order);
+                                    setDetailOpen(true);
+                                  }}
+                                  disabled={isUpdating}
+                                >
+                                  <DollarSign className="h-3.5 w-3.5 mr-1" />
+                                  Mark Paid
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -955,16 +1004,35 @@ export default function DeliveryPage() {
 
                           {/* Return - Only for DELIVERED status */}
                           {order.status === "DELIVERED" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
-                              onClick={() => updateStatus(order.id, "RETURNED")}
-                              disabled={isUpdating}
-                            >
-                              <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                              Return
-                            </Button>
+                            <>
+                              {/* ✅ Mark as Paid Button - Desktop Table for Delivered */}
+                              {!order.isPaid && (
+                                <Button
+                                  size="sm"
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                                  onClick={() => {
+                                    setSelectedOrder(order);
+                                    setDetailOpen(true);
+                                  }}
+                                  disabled={isUpdating}
+                                >
+                                  <DollarSign className="h-3.5 w-3.5 mr-1" />
+                                  Mark Paid
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
+                                onClick={() =>
+                                  updateStatus(order.id, "RETURNED")
+                                }
+                                disabled={isUpdating}
+                              >
+                                <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                                Return
+                              </Button>
+                            </>
                           )}
                         </>
                       )}
