@@ -73,26 +73,6 @@ async function fetchStoreLocation() {
   }
 }
 
-// Helper: Calculate bearing/heading between two points in degrees
-function calculateBearing(
-  startLat: number,
-  startLng: number,
-  destLat: number,
-  destLng: number,
-) {
-  const startLatRad = (startLat * Math.PI) / 180;
-  const destLatRad = (destLat * Math.PI) / 180;
-  const dLngRad = ((destLng - startLng) * Math.PI) / 180;
-
-  const y = Math.sin(dLngRad) * Math.cos(destLatRad);
-  const x =
-    Math.cos(startLatRad) * Math.sin(destLatRad) -
-    Math.sin(startLatRad) * Math.cos(destLatRad) * Math.cos(dLngRad);
-
-  let brng = (Math.atan2(y, x) * 180) / Math.PI;
-  return (brng + 360) % 360;
-}
-
 const TILE_LAYERS = {
   street: {
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -125,6 +105,29 @@ const TILE_LAYERS = {
     },
   },
 };
+
+// ✅ Calculate compass heading angle (0 to 360 deg) between two coordinates
+function calculateBearing(
+  startLat: number,
+  startLng: number,
+  endLat: number,
+  endLng: number,
+): number {
+  const toRad = (degree: number) => (degree * Math.PI) / 180;
+  const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+  const lat1 = toRad(startLat);
+  const lat2 = toRad(endLat);
+  const dLng = toRad(endLng - startLng);
+
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+
+  const bearing = (toDeg(Math.atan2(y, x)) + 360) % 360;
+  return bearing;
+}
 
 async function getCoordinates(address: string, city: string, province: string) {
   try {
@@ -221,6 +224,7 @@ function OrderDetailContent({
   const polylineRef = useRef<any>(null);
   const animationFrameRef = useRef<number | null>(null);
   const leafletLoadedRef = useRef(false);
+  const lastBearingRef = useRef<number>(0);
 
   const { theme, resolvedTheme } = useTheme();
   const [mapTheme, setMapTheme] = useState<"street" | "dark" | "satellite">(
@@ -244,8 +248,157 @@ function OrderDetailContent({
   // Store the original route (store to customer) - NEVER changes
   const originalRouteRef = useRef<[number, number][] | null>(null);
 
-  // Track rider's current rotation bearing
-  const riderHeadingRef = useRef<number>(0);
+  // ✅ Helper to determine if rider should use real location or store location
+  const shouldUseRealLocation = () => {
+    return order.status === "OUT_FOR_DELIVERY";
+  };
+
+  // ✅ Helper to get the correct rider position
+  const getRiderPosition = () => {
+    if (shouldUseRealLocation() && order?.riderLat && order?.riderLng) {
+      // Use real GPS location
+      return { lat: order.riderLat, lng: order.riderLng };
+    }
+    // Use store location as fallback
+    return { lat: storeLocation.lat, lng: storeLocation.lng };
+  };
+
+  // ✅ Create rider icon with rotation and tilt
+  const createRiderIcon = (zoom: number, rotation: number = 0) => {
+    if (!window.L) return null;
+
+    const baseSize = 60;
+    const minSize = 40;
+    const maxSize = 120;
+    const scale = Math.min(Math.max(zoom / 15, 0.6), 1.5);
+    const size = Math.min(Math.max(baseSize * scale, minSize), maxSize);
+
+    const isHeadingEast = rotation > 0 && rotation < 180;
+    const scaleX = isHeadingEast ? -1 : 1;
+
+    let rawPitch = isHeadingEast ? rotation - 90 : 270 - rotation;
+    const correctedPitch = isHeadingEast ? -rawPitch : rawPitch;
+    const clampedPitch = Math.min(Math.max(correctedPitch, -30), 30);
+
+    const offsetX = 0;
+    const offsetY = -17;
+
+    return window.L.divIcon({
+      className: "custom-leaflet-animated-icon",
+      html: `
+        <div style="
+          width:${size}px;
+          height:${size}px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          transform: scaleX(${scaleX}) rotate(${clampedPitch}deg);
+          transform-origin: center bottom;
+          transition: transform 0.3s ease-out;
+        ">
+          <dotlottie-player
+            src="/animations/truck.json"
+            background="transparent"
+            speed="1"
+            style="width:${size}px;height:${size}px;"
+            loop
+            autoplay
+          ></dotlottie-player>
+        </div>
+      `,
+      iconSize: [size, size],
+      iconAnchor: [size / 2 + offsetX, size + offsetY],
+      popupAnchor: [0, -size],
+    });
+  };
+
+  const createCustomerIcon = (zoom: number) => {
+    if (!window.L) return null;
+
+    const baseSize = 64;
+    const minSize = 32;
+    const maxSize = 96;
+    const scale = Math.min(Math.max(zoom / 15, 0.6), 1.5);
+    const size = Math.min(Math.max(baseSize * scale, minSize), maxSize);
+
+    return window.L.divIcon({
+      className: "custom-leaflet-animated-icon",
+      html: `
+        <div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: all 0.2s ease;">
+          <dotlottie-player
+            src="/animations/location.json"
+            background="transparent"
+            speed="1"
+            style="width:${size}px;height:${size}px;"
+            loop
+            autoplay
+          ></dotlottie-player>
+        </div>
+      `,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size],
+      popupAnchor: [0, -size],
+    });
+  };
+
+  const updateMarkerIcons = (zoom: number) => {
+    if (!window.L) return;
+
+    if (riderMarkerRef.current) {
+      const newIcon = createRiderIcon(zoom, lastBearingRef.current);
+      if (newIcon) riderMarkerRef.current.setIcon(newIcon);
+    }
+    if (customerMarkerRef.current) {
+      const newIcon = createCustomerIcon(zoom);
+      if (newIcon) customerMarkerRef.current.setIcon(newIcon);
+    }
+  };
+
+  // ✅ Animate rider marker with rotation
+  const animateMarkerTo = (
+    targetLat: number,
+    targetLng: number,
+    duration: number = 1000,
+  ) => {
+    if (!riderMarkerRef.current || !mapInstanceRef.current) return;
+
+    const startPos = riderMarkerRef.current.getLatLng();
+
+    // 1. Calculate rotation bearing if movement occurs
+    if (startPos.lat !== targetLat || startPos.lng !== targetLng) {
+      const bearing = calculateBearing(
+        startPos.lat,
+        startPos.lng,
+        targetLat,
+        targetLng,
+      );
+      lastBearingRef.current = bearing;
+
+      const currentZoom = mapInstanceRef.current.getZoom();
+      const rotatedIcon = createRiderIcon(currentZoom, bearing);
+      if (rotatedIcon) {
+        riderMarkerRef.current.setIcon(rotatedIcon);
+      }
+    }
+
+    // 2. Animate position smoothly
+    const startTime = performance.now();
+    const step = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      const currentLat = startPos.lat + (targetLat - startPos.lat) * progress;
+      const currentLng = startPos.lng + (targetLng - startPos.lng) * progress;
+
+      riderMarkerRef.current.setLatLng([currentLat, currentLng]);
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+
+    requestAnimationFrame(step);
+  };
 
   useEffect(() => {
     const loadStoreLocation = async () => {
@@ -379,66 +532,10 @@ function OrderDetailContent({
       polylineRef.current = null;
     }
     originalRouteRef.current = null;
+    lastBearingRef.current = 0;
   };
 
-  // Animate rider marker smoothly with rotation
-  const animateMarkerTo = (
-    targetLat: number,
-    targetLng: number,
-    duration: number = 1000,
-  ) => {
-    if (!riderMarkerRef.current) {
-      console.log("⚠️ riderMarkerRef.current is null, cannot animate");
-      return;
-    }
-
-    const startPos = riderMarkerRef.current.getLatLng();
-    const startTime = performance.now();
-
-    // Calculate heading/bearing if location updated significantly
-    const distanceMoved = Math.hypot(
-      targetLat - startPos.lat,
-      targetLng - startPos.lng,
-    );
-
-    if (distanceMoved > 0.00001) {
-      const bearing = calculateBearing(
-        startPos.lat,
-        startPos.lng,
-        targetLat,
-        targetLng,
-      );
-      riderHeadingRef.current = bearing;
-    }
-
-    const step = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-
-      const currentLat = startPos.lat + (targetLat - startPos.lat) * progress;
-      const currentLng = startPos.lng + (targetLng - startPos.lng) * progress;
-
-      riderMarkerRef.current.setLatLng([currentLat, currentLng]);
-
-      // Apply rotation to the rider animation container
-      const markerElement = riderMarkerRef.current.getElement();
-      if (markerElement) {
-        const wrapper = markerElement.querySelector(".rider-rotation-wrapper");
-        if (wrapper) {
-          (wrapper as HTMLElement).style.transform =
-            `rotate(${riderHeadingRef.current}deg)`;
-        }
-      }
-
-      if (progress < 1) {
-        requestAnimationFrame(step);
-      }
-    };
-
-    requestAnimationFrame(step);
-  };
-
-  // Initialize map - uses ORIGINAL route (store to customer)
+  // ✅ Initialize map - uses ORIGINAL route (store to customer)
   useEffect(() => {
     if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
       return;
@@ -491,41 +588,25 @@ function OrderDetailContent({
         const initialZoom = map.getZoom();
 
         // Create customer marker
-        const customerIcon = window.L.divIcon({
-          className: "custom-leaflet-animated-icon",
-          html: `
-            <div style="width:64px;height:64px;display:flex;align-items:center;justify-content:center;">
-              <dotlottie-player
-                src="/animations/location.json"
-                background="transparent"
-                speed="1"
-                style="width:64px;height:64px;"
-                loop
-                autoplay
-              ></dotlottie-player>
-            </div>
-          `,
-          iconSize: [64, 64],
-          iconAnchor: [32, 64],
-          popupAnchor: [0, -64],
-        });
+        const customerIcon = createCustomerIcon(initialZoom);
+        if (customerIcon) {
+          const customerMarker = window.L.marker(customerPos, {
+            icon: customerIcon,
+          }).addTo(map);
+          customerMarkerRef.current = customerMarker;
 
-        const customerMarker = window.L.marker(customerPos, {
-          icon: customerIcon,
-        }).addTo(map);
-        customerMarkerRef.current = customerMarker;
-
-        if (order?.address) {
-          customerMarker.bindPopup(`
-            <div style="font-size:13px;">
-              <strong>Delivery Destination</strong><br/>
-              ${order.address.address}<br/>
-              ${order.address.city}, ${order.address.province}
-            </div>
-          `);
+          if (order?.address) {
+            customerMarker.bindPopup(`
+              <div style="font-size:13px;">
+                <strong>Delivery Destination</strong><br/>
+                ${order.address.address}<br/>
+                ${order.address.city}, ${order.address.province}
+              </div>
+            `);
+          }
         }
 
-        // Get the ORIGINAL route from store to customer (save it in ref)
+        // ✅ Get the ORIGINAL route from store to customer (save it in ref)
         const routePoints = await getRouteGeometry(
           { lat: storeLocation.lat, lng: storeLocation.lng },
           coordinates,
@@ -538,66 +619,45 @@ function OrderDetailContent({
           opacity: 0.85,
         }).addTo(map);
 
+        // Initial bearing calculated along the first leg of the route
+        if (routePoints.length > 1) {
+          lastBearingRef.current = calculateBearing(
+            routePoints[0][0],
+            routePoints[0][1],
+            routePoints[1][0],
+            routePoints[1][1],
+          );
+        }
+
         const bounds = window.L.latLngBounds([storePos, customerPos]);
         map.fitBounds(bounds, { padding: [50, 50] });
 
         setTimeout(() => {
           const currentZoom = map.getZoom();
 
-          // Set initial rider position - use real location if available, otherwise start at store
-          const initialRiderLat = order?.riderLat || storeLocation.lat;
-          const initialRiderLng = order?.riderLng || storeLocation.lng;
+          // ✅ Get the correct rider position based on status
+          const riderPos = getRiderPosition();
 
-          // Calculate initial heading if rider has moved away from store
-          if (
-            order?.riderLat &&
-            order?.riderLng &&
-            (order.riderLat !== storeLocation.lat ||
-              order.riderLng !== storeLocation.lng)
-          ) {
-            riderHeadingRef.current = calculateBearing(
-              storeLocation.lat,
-              storeLocation.lng,
-              order.riderLat,
-              order.riderLng,
-            );
-          }
-
-          const size = Math.min(Math.max((currentZoom / 15) * 80, 40), 120);
-
-          // Create rider marker with smooth rotation wrapper
-          const riderIcon = window.L.divIcon({
-            className: "custom-leaflet-animated-icon",
-            html: `
-              <div class="rider-rotation-wrapper" style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: transform 0.4s ease-out;transform: rotate(${riderHeadingRef.current}deg);transform-origin: center center;">
-                <dotlottie-player
-                  src="/animations/truck.json"
-                  background="transparent"
-                  speed="1"
-                  style="width:${size}px;height:${size}px;"
-                  loop
-                  autoplay
-                ></dotlottie-player>
-              </div>
-            `,
-            iconSize: [size, size],
-            iconAnchor: [size / 2, size / 2],
-            popupAnchor: [0, -(size / 2)],
-          });
+          // Create rider marker with rotation
+          const riderIcon = createRiderIcon(
+            currentZoom,
+            lastBearingRef.current,
+          );
 
           console.log(
             "🚚 Creating rider marker at customer view:",
-            initialRiderLat,
-            initialRiderLng,
+            riderPos.lat,
+            riderPos.lng,
+            "Status:",
+            order.status,
+            "Using real location:",
+            shouldUseRealLocation(),
           );
 
-          const riderMarker = window.L.marker(
-            [initialRiderLat, initialRiderLng],
-            {
-              icon: riderIcon,
-              zIndexOffset: 1000,
-            },
-          ).addTo(map);
+          const riderMarker = window.L.marker([riderPos.lat, riderPos.lng], {
+            icon: riderIcon,
+            zIndexOffset: 1000,
+          }).addTo(map);
 
           riderMarkerRef.current = riderMarker;
           riderMarker.bindPopup(
@@ -611,51 +671,7 @@ function OrderDetailContent({
 
         map.on("zoomend", () => {
           const currentZoom = map.getZoom();
-          // Update marker sizes on zoom while preserving heading rotation
-          if (riderMarkerRef.current) {
-            const size = Math.min(Math.max((currentZoom / 15) * 80, 40), 120);
-            const riderIcon = window.L.divIcon({
-              className: "custom-leaflet-animated-icon",
-              html: `
-                <div class="rider-rotation-wrapper" style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: transform 0.4s ease-out, width 0.2s ease, height 0.2s ease;transform: rotate(${riderHeadingRef.current}deg);transform-origin: center center;">
-                  <dotlottie-player
-                    src="/animations/truck.json"
-                    background="transparent"
-                    speed="1"
-                    style="width:${size}px;height:${size}px;"
-                    loop
-                    autoplay
-                  ></dotlottie-player>
-                </div>
-              `,
-              iconSize: [size, size],
-              iconAnchor: [size / 2, size / 2],
-              popupAnchor: [0, -(size / 2)],
-            });
-            riderMarkerRef.current.setIcon(riderIcon);
-          }
-          if (customerMarkerRef.current) {
-            const size = Math.min(Math.max((currentZoom / 15) * 64, 32), 96);
-            const customerIcon = window.L.divIcon({
-              className: "custom-leaflet-animated-icon",
-              html: `
-                <div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: all 0.2s ease;">
-                  <dotlottie-player
-                    src="/animations/location.json"
-                    background="transparent"
-                    speed="1"
-                    style="width:${size}px;height:${size}px;"
-                    loop
-                    autoplay
-                  ></dotlottie-player>
-                </div>
-              `,
-              iconSize: [size, size],
-              iconAnchor: [size / 2, size],
-              popupAnchor: [0, -size],
-            });
-            customerMarkerRef.current.setIcon(customerIcon);
-          }
+          updateMarkerIcons(currentZoom);
         });
       } catch (error) {
         console.error("Map initialization error:", error);
@@ -676,7 +692,7 @@ function OrderDetailContent({
     storeLoading,
   ]);
 
-  // Real-time subscription - ONLY moves rider marker, DOES NOT update route
+  // ✅ Real-time subscription - ONLY moves rider marker, DOES NOT update route
   useEffect(() => {
     if (!order?.id) return;
 
@@ -685,6 +701,12 @@ function OrderDetailContent({
       console.log(
         "⚠️ Order status is not OUT_FOR_DELIVERY or ASSIGNED_RIDER, skipping subscription",
       );
+      // ✅ Move rider back to store if marker exists
+      if (riderMarkerRef.current) {
+        const storePos = { lat: storeLocation.lat, lng: storeLocation.lng };
+        console.log("🏪 Moving rider back to store location");
+        animateMarkerTo(storePos.lat, storePos.lng, 500);
+      }
       return;
     }
 
@@ -712,14 +734,26 @@ function OrderDetailContent({
             status,
           });
 
-          // ONLY move the rider marker - DO NOT update the route
-          if (riderLat && riderLng && riderMarkerRef.current) {
+          // ✅ ONLY move the rider marker if status is OUT_FOR_DELIVERY
+          if (
+            status === "OUT_FOR_DELIVERY" &&
+            riderLat &&
+            riderLng &&
+            riderMarkerRef.current
+          ) {
             console.log(
-              "🚚 Customer - Moving rider marker to:",
+              "🚚 Customer - Moving rider marker to real location:",
               riderLat,
               riderLng,
             );
             animateMarkerTo(riderLat, riderLng, 1000);
+          } else if (status !== "OUT_FOR_DELIVERY" && riderMarkerRef.current) {
+            // ✅ If status changed away from OUT_FOR_DELIVERY, move back to store
+            const storePos = { lat: storeLocation.lat, lng: storeLocation.lng };
+            console.log(
+              "🏪 Status changed, moving rider back to store location",
+            );
+            animateMarkerTo(storePos.lat, storePos.lng, 500);
           } else {
             console.log(
               "⚠️ Customer - No rider location in update or marker not ready",
@@ -732,7 +766,7 @@ function OrderDetailContent({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [order?.id, coordinates]);
+  }, [order?.id, coordinates, storeLocation]);
 
   // When theme changes, update layers
   useEffect(() => {
