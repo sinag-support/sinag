@@ -54,6 +54,7 @@ export default function Header() {
   const [showResults, setShowResults] = useState(false);
   const desktopSearchRef = useRef<HTMLDivElement>(null);
   const mobileSearchRef = useRef<HTMLDivElement>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Detect mobile viewport
   useEffect(() => {
@@ -62,6 +63,38 @@ export default function Header() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Fetch unread count
+  const fetchUnreadCount = async () => {
+    if (!user) return;
+    try {
+      const response = await fetch("/api/notifications?unreadOnly=true");
+      if (response.ok) {
+        const data = await response.json();
+        const count =
+          data.notifications?.filter((n: any) => !n.read).length || 0;
+        setUnreadCount(count);
+      }
+    } catch (error) {
+      console.error("Error fetching notification count:", error);
+    }
+  };
+
+  // Fetch count when user changes
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+    } else {
+      setUnreadCount(0);
+    }
+  }, [user]);
+
+  // Refetch when pathname changes (after reading notifications)
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+    }
+  }, [pathname]);
 
   // Outside click handler
   useEffect(() => {
@@ -172,22 +205,18 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      // Call logout API first
       const response = await fetch("/api/auth/logout", { method: "POST" });
 
-      // Sign out from Supabase client
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error("Supabase signout error:", error);
       }
 
-      // Clear any client-side auth data
       localStorage.removeItem("supabase-auth-token");
       localStorage.removeItem("sb-access-token");
       localStorage.removeItem("sb-refresh-token");
       sessionStorage.clear();
 
-      // Clear all cookies manually (client-side)
       document.cookie.split(";").forEach((c) => {
         document.cookie = c
           .replace(/^ +/, "")
@@ -197,7 +226,6 @@ export default function Header() {
       setUser(null);
       setLoading(false);
 
-      // Force hard navigation
       window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);
@@ -231,7 +259,6 @@ export default function Header() {
   const isProfileSubpage = pathname?.startsWith("/profile/");
   const isNotificationsPage = pathname === "/notifications";
 
-  // Pages that hide BOTH top header and bottom nav
   const hideBothOnMobile =
     isMobile &&
     (pathname === "/help" ||
@@ -248,23 +275,15 @@ export default function Header() {
       pathname === "/terms" ||
       pathname === "/checkout");
 
-  // Pages that hide ONLY top header (bottom nav visible)
   const hideTopOnly = isMobile && (isNotificationsPage || isProfileRoot);
-
-  // Hide header on mobile cart (keep both hidden? they had this)
   const hideCartHeader = isMobile && pathname === "/cart";
-
-  // Top header hidden if either hideBoth or hideTopOnly or cart
   const hideTopHeader = hideBothOnMobile || hideTopOnly || hideCartHeader;
-
-  // Bottom nav hidden only if hideBoth or cart
   const hideBottomNav = hideBothOnMobile || hideCartHeader;
 
-  // Loading skeleton – conditionally render to avoid flashing
+  // Loading skeleton
   if (loading) {
     return (
       <>
-        {/* Top Header Skeleton - only if not hidden */}
         {!hideTopHeader && (
           <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
             <div className="hidden md:flex px-4 sm:px-6 lg:px-8 h-16 items-center justify-between gap-4">
@@ -295,7 +314,6 @@ export default function Header() {
             </div>
           </header>
         )}
-        {/* Bottom Nav Skeleton - only if not hidden */}
         {!hideBottomNav && (
           <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background">
             <nav className="flex items-center justify-evenly h-16">
@@ -315,7 +333,6 @@ export default function Header() {
     );
   }
 
-  // Full render
   return (
     <>
       {/* Top Header */}
@@ -660,9 +677,11 @@ export default function Header() {
             >
               <div className="relative">
                 <Bell className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
-                  0
-                </span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </div>
               <span>Notifications</span>
             </Link>

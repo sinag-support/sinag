@@ -225,7 +225,14 @@ export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { role, loading } = useRole();
-  const normalizedRole = role?.toUpperCase() || "";
+
+  const getStoredRole = () => {
+    if (typeof window === "undefined") return "";
+    return sessionStorage.getItem("userRole") || "";
+  };
+
+  const storedRole = getStoredRole();
+  const normalizedRole = role?.toUpperCase() || storedRole.toUpperCase() || "";
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
