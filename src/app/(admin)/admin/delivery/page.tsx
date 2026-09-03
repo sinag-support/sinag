@@ -221,7 +221,7 @@ export default function DeliveryPage() {
     }
   };
 
-  // ✅ Function to fetch a single order
+  // ✅ Function to fetch a single order - includes isPaid field
   const fetchOrderById = async (
     orderId: string,
   ): Promise<DeliveryOrder | null> => {
@@ -284,6 +284,38 @@ export default function DeliveryPage() {
       } else {
         const err = await res.json();
         toast.error(err.error || "Failed to update");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // ✅ NEW: Mark as Paid function - separate from status update
+  const markAsPaid = async (orderId: string) => {
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/payment`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPaid: true }),
+      });
+
+      if (res.ok) {
+        toast.success("Order marked as paid");
+        await fetchDeliveryOrders(); // Refresh table
+
+        // ✅ Refresh the selected order
+        if (selectedOrder?.id === orderId) {
+          const refreshedOrder = await fetchOrderById(orderId);
+          if (refreshedOrder) {
+            setSelectedOrder(refreshedOrder);
+          }
+        }
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Failed to mark as paid");
       }
     } catch {
       toast.error("Network error");
@@ -533,15 +565,12 @@ export default function DeliveryPage() {
                           "Deliver"
                         )}
                       </Button>
-                      {/* ✅ Mark as Paid Button - Rider can mark as paid */}
+                      {/* ✅ Mark as Paid Button - uses markAsPaid function */}
                       {!order.isPaid && (
                         <Button
                           size="sm"
                           className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex-shrink-0"
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setDetailOpen(true);
-                          }}
+                          onClick={() => markAsPaid(order.id)}
                           disabled={isUpdating}
                         >
                           <DollarSign className="h-3 w-3 mr-1" />
@@ -570,15 +599,12 @@ export default function DeliveryPage() {
                   )}
                   {order.status === "DELIVERED" && (
                     <>
-                      {/* ✅ Mark as Paid Button - Rider can mark as paid */}
+                      {/* ✅ Mark as Paid Button - uses markAsPaid function */}
                       {!order.isPaid && (
                         <Button
                           size="sm"
                           className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex-shrink-0"
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setDetailOpen(true);
-                          }}
+                          onClick={() => markAsPaid(order.id)}
                           disabled={isUpdating}
                         >
                           <DollarSign className="h-3 w-3 mr-1" />
@@ -965,10 +991,7 @@ export default function DeliveryPage() {
                                 <Button
                                   size="sm"
                                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                                  onClick={() => {
-                                    setSelectedOrder(order);
-                                    setDetailOpen(true);
-                                  }}
+                                  onClick={() => markAsPaid(order.id)}
                                   disabled={isUpdating}
                                 >
                                   <DollarSign className="h-3.5 w-3.5 mr-1" />
@@ -1010,10 +1033,7 @@ export default function DeliveryPage() {
                                 <Button
                                   size="sm"
                                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                                  onClick={() => {
-                                    setSelectedOrder(order);
-                                    setDetailOpen(true);
-                                  }}
+                                  onClick={() => markAsPaid(order.id)}
                                   disabled={isUpdating}
                                 >
                                   <DollarSign className="h-3.5 w-3.5 mr-1" />
@@ -1116,6 +1136,7 @@ export default function DeliveryPage() {
             ? fetchOrderById(selectedOrder.id)
             : Promise.resolve(null)
         }
+        onMarkAsPaid={markAsPaid}
       />
     </div>
   );

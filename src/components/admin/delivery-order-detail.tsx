@@ -72,6 +72,7 @@ interface DeliveryOrderDetailProps {
   onStatusUpdate: (orderId: string, status: string) => Promise<void>;
   isUpdating: boolean;
   onRefreshOrder?: () => Promise<DeliveryOrder | null>;
+  onMarkAsPaid?: (orderId: string) => Promise<void>;
 }
 
 function formatStatus(status: string) {
@@ -88,6 +89,7 @@ export function DeliveryOrderDetail({
   onStatusUpdate,
   isUpdating,
   onRefreshOrder,
+  onMarkAsPaid,
 }: DeliveryOrderDetailProps) {
   const { role } = useRole();
   const [isFullscreenMap, setIsFullscreenMap] = useState(false);
@@ -139,33 +141,25 @@ export function DeliveryOrderDetail({
     setShowFullscreenDialog(true);
   };
 
-  // ✅ Handle Mark as Paid
+  // ✅ Handle Mark as Paid - using the prop
   const handleMarkAsPaid = async () => {
-    if (!currentOrder) return;
+    if (!currentOrder || !onMarkAsPaid) {
+      toast.error("Payment function not available");
+      return;
+    }
     setIsPaying(true);
     try {
-      const res = await fetch(`/api/admin/orders/${currentOrder.id}/payment`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPaid: true }),
-      });
-
-      if (res.ok) {
-        toast.success("Order marked as paid successfully");
-        setShowMarkPaidDialog(false);
-        if (onRefreshOrder) {
-          const refreshedOrder = await onRefreshOrder();
-          if (refreshedOrder) {
-            setCurrentOrder(refreshedOrder);
-          }
+      await onMarkAsPaid(currentOrder.id);
+      setShowMarkPaidDialog(false);
+      if (onRefreshOrder) {
+        const refreshedOrder = await onRefreshOrder();
+        if (refreshedOrder) {
+          setCurrentOrder(refreshedOrder);
         }
-      } else {
-        const err = await res.json();
-        toast.error(err.error || "Failed to mark as paid");
       }
     } catch (error) {
       console.error("Error marking as paid:", error);
-      toast.error("Network error");
+      toast.error("Failed to mark as paid");
     } finally {
       setIsPaying(false);
     }
@@ -181,6 +175,13 @@ export function DeliveryOrderDetail({
       );
     }
     return false;
+  };
+
+  // ✅ Check if Mark as Paid should be shown
+  const shouldShowMarkAsPaid = () => {
+    if (role !== "RIDER") return false;
+    if (currentOrder.isPaid) return false;
+    return ["DELIVERED", "OUT_FOR_DELIVERY"].includes(currentOrder.status);
   };
 
   const getActionButtons = () => {
@@ -235,7 +236,7 @@ export function DeliveryOrderDetail({
                 "Mark Delivered"
               )}
             </Button>
-            {!currentOrder.isPaid && (
+            {shouldShowMarkAsPaid() && (
               <Button
                 className="w-full font-medium text-sm"
                 variant="outline"
@@ -273,7 +274,7 @@ export function DeliveryOrderDetail({
       if (currentOrder.status === "DELIVERED") {
         return (
           <div className="flex flex-col gap-2 w-full">
-            {!currentOrder.isPaid && (
+            {shouldShowMarkAsPaid() && (
               <Button
                 className="w-full font-medium text-sm"
                 variant="default"
