@@ -70,9 +70,8 @@ export default function Header() {
     try {
       const response = await fetch("/api/notifications?unreadOnly=true");
       if (response.ok) {
-        const data = await response.json();
-        const count =
-          data.notifications?.filter((n: any) => !n.read).length || 0;
+        // API returns just the count as a number
+        const count = await response.json();
         setUnreadCount(count);
       }
     } catch (error) {
