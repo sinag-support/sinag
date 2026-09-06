@@ -7,19 +7,7 @@ import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
 import { useTheme } from "next-themes";
 import { useRole } from "@/hooks/use-role";
-import {
-  Loader2,
-  Moon,
-  Globe,
-  Map,
-  Maximize2,
-  Minimize2,
-  Truck,
-  Play,
-  Square,
-  FastForward,
-  Rewind,
-} from "lucide-react";
+import { Loader2, Moon, Globe, Map, Maximize2, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Import Leaflet CSS
@@ -94,121 +82,11 @@ function calculateBearing(
   return bearing;
 }
 
-// Get route angle at a specific position
-function getRouteAngleAtPosition(
-  lat: number,
-  lng: number,
-  routePoints: [number, number][],
-): number {
-  if (!routePoints || routePoints.length < 2) {
-    return 0;
-  }
-
-  let closestIndex = 0;
-  let closestDist = Infinity;
-
-  for (let i = 0; i < routePoints.length; i++) {
-    const [routeLat, routeLng] = routePoints[i];
-    const dist = Math.sqrt(
-      Math.pow(routeLat - lat, 2) + Math.pow(routeLng - lng, 2),
-    );
-    if (dist < closestDist) {
-      closestDist = dist;
-      closestIndex = i;
-    }
-  }
-
-  const idx = Math.min(closestIndex, routePoints.length - 2);
-  const [lat1, lng1] = routePoints[idx];
-  const [lat2, lng2] = routePoints[idx + 1];
-
-  const angle = calculateBearing(lat1, lng1, lat2, lng2);
-  return angle;
-}
-
-// Determine if the truck should flip based on angle
+// ✅ Determine if the truck should flip based on angle
 function shouldFlipTruck(angle: number): boolean {
   const normalizedAngle = ((angle % 360) + 360) % 360;
+  // Flip if facing East (0° to 90° or 270° to 360°)
   return normalizedAngle < 90 || normalizedAngle > 270;
-}
-
-// Convert bearing angle to pitch (tilt) for 3D effect
-function getPitchFromBearing(angle: number, isFlipped: boolean): number {
-  const normalizedAngle = ((angle % 360) + 360) % 360;
-  let pitch = -Math.sin((normalizedAngle * Math.PI) / 180) * 35;
-
-  if (isFlipped) {
-    pitch = -pitch;
-  }
-
-  return Math.min(Math.max(pitch, -35), 35);
-}
-
-// Calculate distance in meters using Haversine formula
-function calculateDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-// Get position on route at a specific progress (0 to 1)
-function getPositionOnRoute(
-  routePoints: [number, number][],
-  progress: number,
-): { lat: number; lng: number; angle: number } {
-  if (!routePoints || routePoints.length < 2) {
-    return { lat: 0, lng: 0, angle: 0 };
-  }
-
-  const clampedProgress = Math.max(0, Math.min(1, progress));
-
-  let totalLength = 0;
-  for (let i = 0; i < routePoints.length - 1; i++) {
-    const [lat1, lng1] = routePoints[i];
-    const [lat2, lng2] = routePoints[i + 1];
-    totalLength += calculateDistance(lat1, lng1, lat2, lng2);
-  }
-
-  let targetDistance = totalLength * clampedProgress;
-  let accumulatedDistance = 0;
-
-  for (let i = 0; i < routePoints.length - 1; i++) {
-    const [lat1, lng1] = routePoints[i];
-    const [lat2, lng2] = routePoints[i + 1];
-    const segmentLength = calculateDistance(lat1, lng1, lat2, lng2);
-
-    if (accumulatedDistance + segmentLength >= targetDistance) {
-      const segmentProgress =
-        (targetDistance - accumulatedDistance) / segmentLength;
-      const lat = lat1 + (lat2 - lat1) * segmentProgress;
-      const lng = lng1 + (lng2 - lng1) * segmentProgress;
-      const angle = calculateBearing(lat1, lng1, lat2, lng2);
-      return { lat, lng, angle };
-    }
-
-    accumulatedDistance += segmentLength;
-  }
-
-  const last = routePoints[routePoints.length - 1];
-  const secondLast = routePoints[routePoints.length - 2];
-  return {
-    lat: last[0],
-    lng: last[1],
-    angle: calculateBearing(secondLast[0], secondLast[1], last[0], last[1]),
-  };
 }
 
 export async function getCoordinates(
@@ -325,6 +203,27 @@ async function fetchStoreLocation() {
   }
 }
 
+// Calculate distance in meters using Haversine formula
+function calculateDistance(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 6371000; // Earth radius in meters
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// useRiderLocationTracker with WebSocket broadcasting
 export function useRiderLocationTracker(
   orderId: string | undefined,
   isTrackingActive: boolean,
@@ -494,6 +393,10 @@ export function OrderMap({
   const routePointsRef = useRef<[number, number][] | null>(null);
   const { role } = useRole();
 
+  // ✅ Track initialization state to prevent double loading
+  const mapInitializedRef = useRef(false);
+  const isMountedRef = useRef(true);
+
   const { theme, resolvedTheme } = useTheme();
   const [mapTheme, setMapTheme] = useState<"street" | "dark" | "satellite">(
     "street",
@@ -515,18 +418,15 @@ export function OrderMap({
   const originalRouteRef = useRef<[number, number][] | null>(null);
   const riderInitializedRef = useRef(false);
 
-  // Test Drive State
-  const [isTestDriving, setIsTestDriving] = useState(false);
-  const [testDriveProgress, setTestDriveProgress] = useState(0);
-  const [testDriveDirection, setTestDriveDirection] = useState<
-    "forward" | "backward"
-  >("forward");
-  const testDriveAnimationRef = useRef<number | null>(null);
-  const testDriveStartTimeRef = useRef<number>(0);
-  const testDriveDurationRef = useRef<number>(5000);
-  const testDriveStartProgressRef = useRef<number>(0);
-
   const isRider = role === "RIDER";
+
+  // ✅ Track mounted state
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const canFullscreen = () => {
     if (role === "ADMIN") return true;
@@ -545,10 +445,6 @@ export function OrderMap({
   };
 
   const getRiderPosition = () => {
-    if (isTestDriving && routePointsRef.current) {
-      const pos = getPositionOnRoute(routePointsRef.current, testDriveProgress);
-      return { lat: pos.lat, lng: pos.lng };
-    }
     if (shouldUseRealLocation()) {
       return { lat: order.riderLat, lng: order.riderLng };
     }
@@ -587,11 +483,6 @@ export function OrderMap({
         .leaflet-satellite-tiles {
           filter: none;
         }
-        .custom-leaflet-animated-icon {
-          background: transparent !important;
-          border: none !important;
-          overflow: visible !important;
-        }
       `;
       document.head.appendChild(style);
     }
@@ -628,133 +519,18 @@ export function OrderMap({
       document.body.appendChild(script);
     }
 
-    if (!document.getElementById("dotlottie-player-js")) {
+    if (!document.getElementById("lottie-player-js")) {
       const lottieScript = document.createElement("script");
-      lottieScript.id = "dotlottie-player-js";
-      lottieScript.type = "module";
+      lottieScript.id = "lottie-player-js";
       lottieScript.src =
         "https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs";
-      document.head.appendChild(lottieScript);
+      lottieScript.type = "module";
+      document.body.appendChild(lottieScript);
     }
   }, []);
 
-  // Test Drive Animation Loop
-  useEffect(() => {
-    if (!isTestDriving) {
-      if (testDriveAnimationRef.current) {
-        cancelAnimationFrame(testDriveAnimationRef.current);
-        testDriveAnimationRef.current = null;
-      }
-      return;
-    }
-
-    testDriveStartTimeRef.current = performance.now();
-    testDriveStartProgressRef.current = testDriveProgress;
-    const targetProgress = testDriveDirection === "forward" ? 1 : 0;
-    const startProgress = testDriveStartProgressRef.current;
-
-    const animateTestDrive = (currentTime: number) => {
-      const elapsed = currentTime - testDriveStartTimeRef.current;
-      const duration = testDriveDurationRef.current;
-      const progress = Math.min(elapsed / duration, 1);
-
-      const easeInOutCubic = (t: number) => {
-        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      };
-
-      const easedProgress = easeInOutCubic(progress);
-      const newProgress =
-        startProgress + (targetProgress - startProgress) * easedProgress;
-
-      setTestDriveProgress(Math.max(0, Math.min(1, newProgress)));
-
-      if (riderMarkerRef.current && routePointsRef.current) {
-        const pos = getPositionOnRoute(
-          routePointsRef.current,
-          Math.max(0, Math.min(1, newProgress)),
-        );
-        const currentZoom = mapInstanceRef.current?.getZoom() || 15;
-        const angle = pos.angle;
-
-        riderMarkerRef.current.setLatLng([pos.lat, pos.lng]);
-
-        const newIcon = createRiderIcon(currentZoom, angle, pos.lat, pos.lng);
-        if (newIcon) {
-          riderMarkerRef.current.setIcon(newIcon);
-        }
-
-        lastBearingRef.current = angle;
-      }
-
-      if (progress < 1) {
-        testDriveAnimationRef.current = requestAnimationFrame(animateTestDrive);
-      } else {
-        if (testDriveDirection === "forward") {
-          setTestDriveDirection("backward");
-          testDriveStartTimeRef.current = performance.now();
-          testDriveStartProgressRef.current = 1;
-          testDriveAnimationRef.current =
-            requestAnimationFrame(animateTestDrive);
-        } else {
-          setIsTestDriving(false);
-          setTestDriveProgress(0);
-          setTestDriveDirection("forward");
-          if (riderMarkerRef.current && routePointsRef.current) {
-            const storePos = routePointsRef.current[0];
-            riderMarkerRef.current.setLatLng([storePos[0], storePos[1]]);
-          }
-        }
-      }
-    };
-
-    testDriveAnimationRef.current = requestAnimationFrame(animateTestDrive);
-
-    return () => {
-      if (testDriveAnimationRef.current) {
-        cancelAnimationFrame(testDriveAnimationRef.current);
-        testDriveAnimationRef.current = null;
-      }
-    };
-  }, [isTestDriving]);
-
-  const toggleTestDrive = () => {
-    if (isTestDriving) {
-      setIsTestDriving(false);
-      setTestDriveProgress(0);
-      setTestDriveDirection("forward");
-      if (riderMarkerRef.current && routePointsRef.current) {
-        const storePos = routePointsRef.current[0];
-        riderMarkerRef.current.setLatLng([storePos[0], storePos[1]]);
-        const currentZoom = mapInstanceRef.current?.getZoom() || 15;
-        const angle = lastBearingRef.current;
-        const newIcon = createRiderIcon(
-          currentZoom,
-          angle,
-          storePos[0],
-          storePos[1],
-        );
-        if (newIcon) {
-          riderMarkerRef.current.setIcon(newIcon);
-        }
-      }
-    } else {
-      setIsTestDriving(true);
-      setTestDriveDirection("forward");
-      setTestDriveProgress(0);
-      toast.info("🚚 Starting test drive animation...");
-    }
-  };
-
-  const setTestDriveSpeed = (speed: number) => {
-    testDriveDurationRef.current = 5000 / speed;
-  };
-
-  const createRiderIcon = (
-    zoom: number,
-    angle: number = 0,
-    lat?: number,
-    lng?: number,
-  ) => {
+  // ✅ RIDER MARKER - Flip only (no rotation)
+  const createRiderIcon = (zoom: number, angle: number = 0) => {
     if (!window.L) return null;
 
     const baseSize = 60;
@@ -763,45 +539,43 @@ export function OrderMap({
     const scale = Math.min(Math.max(zoom / 15, 0.6), 1.5);
     const size = Math.min(Math.max(baseSize * scale, minSize), maxSize);
 
-    let routeAngle = angle;
-    if (lat !== undefined && lng !== undefined && routePointsRef.current) {
-      routeAngle = getRouteAngleAtPosition(lat, lng, routePointsRef.current);
-    }
-
-    const shouldFlip = shouldFlipTruck(routeAngle);
+    // Determine if truck should flip based on angle
+    const shouldFlip = shouldFlipTruck(angle);
     const scaleX = shouldFlip ? -1 : 1;
-    const pitch = getPitchFromBearing(routeAngle, shouldFlip);
+
+    const offsetX = 0;
+    const offsetY = -17;
 
     return window.L.divIcon({
       className: "custom-leaflet-animated-icon",
       html: `
-      <div style="
-        width:${size}px;
-        height:${size}px;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        transform: scaleX(${scaleX}) rotate(${pitch}deg);
-        transform-origin: center center;
-        overflow: visible;
-        pointer-events: auto;
-      ">
-        <dotlottie-player
-          src="https://lottie.host/67112f1d-6871-491d-b899-f3d4cda896ed/M1KYIBo387.json"
-          background="transparent"
-          speed="1"
-          style="width:${size}px;height:${size}px;"
-          loop
-          autoplay
-        ></dotlottie-player>
-      </div>
-    `,
+        <div style="
+          width:${size}px;
+          height:${size}px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          transform: scaleX(${scaleX});
+          transform-origin: center;
+          transition: transform 0.3s ease-out;
+        ">
+          <dotlottie-player
+            src="/animations/truck.json"
+            background="transparent"
+            speed="1"
+            style="width:${size}px;height:${size}px;"
+            loop
+            autoplay
+          ></dotlottie-player>
+        </div>
+      `,
       iconSize: [size, size],
-      iconAnchor: [size / 2, size / 2],
-      popupAnchor: [0, -size / 2],
+      iconAnchor: [size / 2 + offsetX, size + offsetY],
+      popupAnchor: [0, -size],
     });
   };
 
+  // ✅ CUSTOMER MARKER - uses /animations/location.json
   const createCustomerIcon = (zoom: number) => {
     if (!window.L) return null;
 
@@ -815,10 +589,14 @@ export function OrderMap({
       className: "custom-leaflet-animated-icon",
       html: `
         <div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: all 0.2s ease;">
-          <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="#dc2626" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-            <circle cx="12" cy="10" r="3" fill="#ffffff"/>
-          </svg>
+          <dotlottie-player
+            src="/animations/location.json"
+            background="transparent"
+            speed="1"
+            style="width:${size}px;height:${size}px;"
+            loop
+            autoplay
+          ></dotlottie-player>
         </div>
       `,
       iconSize: [size, size],
@@ -830,13 +608,8 @@ export function OrderMap({
   const updateMarkerIcons = (zoom: number) => {
     if (!window.L || !riderMarkerRef.current) return;
 
-    const currentPos = riderMarkerRef.current.getLatLng();
-    const riderIcon = createRiderIcon(
-      zoom,
-      lastBearingRef.current,
-      currentPos.lat,
-      currentPos.lng,
-    );
+    const angle = lastBearingRef.current;
+    const riderIcon = createRiderIcon(zoom, angle);
     if (riderIcon) riderMarkerRef.current.setIcon(riderIcon);
 
     if (customerMarkerRef.current) {
@@ -868,47 +641,86 @@ export function OrderMap({
     };
   }, [order]);
 
+  // ✅ animateMarkerTo with smooth animation (flip only, no rotation)
   const animateMarkerTo = (
     targetLat: number,
     targetLng: number,
     duration: number = 500,
   ) => {
-    if (!riderMarkerRef.current || !mapInstanceRef.current) return;
+    if (!mapInstanceRef.current) return;
+
+    if (!riderMarkerRef.current) {
+      const currentZoom = mapInstanceRef.current.getZoom() || 15;
+      const riderIcon = createRiderIcon(currentZoom, lastBearingRef.current);
+      if (riderIcon) {
+        const marker = window.L.marker([targetLat, targetLng], {
+          icon: riderIcon,
+          zIndexOffset: 1000,
+        }).addTo(mapInstanceRef.current);
+        riderMarkerRef.current = marker;
+        riderInitializedRef.current = true;
+      }
+      return;
+    }
 
     const startPos = riderMarkerRef.current.getLatLng();
 
-    let routeAngle = lastBearingRef.current;
-    if (routePointsRef.current) {
-      routeAngle = getRouteAngleAtPosition(
-        targetLat,
-        targetLng,
-        routePointsRef.current,
-      );
-    }
-
-    lastBearingRef.current = routeAngle;
-
-    const currentZoom = mapInstanceRef.current.getZoom();
-
-    const newIcon = createRiderIcon(
-      currentZoom,
-      routeAngle,
+    // If distance is huge (> 1km), teleport instantly
+    const distance = calculateDistance(
+      startPos.lat,
+      startPos.lng,
       targetLat,
       targetLng,
     );
+    if (distance > 1000) {
+      riderMarkerRef.current.setLatLng([targetLat, targetLng]);
+      const currentZoom = mapInstanceRef.current.getZoom();
+      const newIcon = createRiderIcon(currentZoom, lastBearingRef.current);
+      if (newIcon) {
+        riderMarkerRef.current.setIcon(newIcon);
+      }
+      return;
+    }
+
+    // ✅ Calculate bearing for flip direction only
+    const angle = calculateBearing(
+      startPos.lat,
+      startPos.lng,
+      targetLat,
+      targetLng,
+    );
+    lastBearingRef.current = angle;
+
+    const currentZoom = mapInstanceRef.current.getZoom();
+
+    // Update icon with new flip direction
+    const newIcon = createRiderIcon(currentZoom, angle);
     if (newIcon) {
       riderMarkerRef.current.setIcon(newIcon);
     }
 
+    // Smooth animation with easing
     const startTime = performance.now();
     const step = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
-      const currentLat = startPos.lat + (targetLat - startPos.lat) * progress;
-      const currentLng = startPos.lng + (targetLng - startPos.lng) * progress;
+      // Ease-in-out for smoother movement
+      const eased =
+        progress < 0.5
+          ? 2 * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
-      riderMarkerRef.current.setLatLng([currentLat, currentLng]);
+      const currentLat = startPos.lat + (targetLat - startPos.lat) * eased;
+      const currentLng = startPos.lng + (targetLng - startPos.lng) * eased;
+
+      if (riderMarkerRef.current) {
+        try {
+          riderMarkerRef.current.setLatLng([currentLat, currentLng]);
+        } catch (e) {
+          // Skip this frame if error
+        }
+      }
 
       if (progress < 1) {
         requestAnimationFrame(step);
@@ -918,8 +730,10 @@ export function OrderMap({
     requestAnimationFrame(step);
   };
 
+  // ✅ Cleanup map with proper reset
   const cleanupMap = () => {
     if (mapInstanceRef.current) {
+      mapInstanceRef.current.off();
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
     }
@@ -939,20 +753,30 @@ export function OrderMap({
       polylineRef.current = null;
     }
     riderInitializedRef.current = false;
+    // ✅ Reset initialized flag on cleanup
+    mapInitializedRef.current = false;
   };
 
-  // Initialize map
+  // ✅ Initialize map with double-load prevention
   useEffect(() => {
+    // ✅ Skip if already initialized or missing dependencies
+    if (mapInitializedRef.current) return;
     if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
       return;
     if (!window.L) return;
 
+    // ✅ Mark as initialized immediately
+    mapInitializedRef.current = true;
+
+    console.log("🗺️ Initializing map...");
+
     cleanupMap();
 
     const timer = setTimeout(async () => {
-      try {
-        if (!mapRef.current || !window.L) return;
+      if (!isMountedRef.current) return;
+      if (!mapRef.current || !window.L) return;
 
+      try {
         const customerPos: [number, number] = [
           coordinates.lat,
           coordinates.lng,
@@ -992,6 +816,7 @@ export function OrderMap({
 
         const initialZoom = map.getZoom();
 
+        // Customer marker - uses /animations/location.json
         const customerIcon = createCustomerIcon(initialZoom);
         if (customerIcon) {
           const customerMarker = window.L.marker(customerPos, {
@@ -1037,24 +862,16 @@ export function OrderMap({
         map.fitBounds(bounds, { padding: [50, 50] });
 
         setTimeout(() => {
+          if (!isMountedRef.current) return;
+
           const currentZoom = map.getZoom();
 
           const riderPos = getRiderPosition();
 
-          let initialAngle = lastBearingRef.current;
-          if (routePointsRef.current) {
-            initialAngle = getRouteAngleAtPosition(
-              riderPos.lat,
-              riderPos.lng,
-              routePointsRef.current,
-            );
-          }
-
+          // Rider marker - uses /animations/truck.json (flip only)
           const riderIcon = createRiderIcon(
             currentZoom,
-            initialAngle,
-            riderPos.lat,
-            riderPos.lng,
+            lastBearingRef.current,
           );
 
           if (riderIcon) {
@@ -1078,6 +895,8 @@ export function OrderMap({
 
           mapInstanceRef.current = map;
           map.invalidateSize();
+
+          console.log("🗺️ Map initialized successfully");
         }, 100);
 
         map.on("zoomend", () => {
@@ -1087,12 +906,17 @@ export function OrderMap({
       } catch (error) {
         console.error("Map initialization error:", error);
         setMapError(true);
+        // Reset initialized flag on error so it can retry
+        mapInitializedRef.current = false;
       }
     }, 100);
 
     return () => {
       clearTimeout(timer);
-      cleanupMap();
+      // Only cleanup if component is unmounting
+      if (!isMountedRef.current) {
+        cleanupMap();
+      }
     };
   }, [
     coordinates,
@@ -1103,6 +927,16 @@ export function OrderMap({
     storeLoading,
   ]);
 
+  // ✅ Reset map when order ID changes
+  useEffect(() => {
+    if (order?.id) {
+      mapInitializedRef.current = false;
+      // Clean up old map
+      cleanupMap();
+    }
+  }, [order?.id]);
+
+  // ✅ Cleanup on unmount
   useEffect(() => {
     return () => {
       cleanupMap();
@@ -1125,7 +959,7 @@ export function OrderMap({
 
     channel
       .on("broadcast", { event: "location_update" }, (payload) => {
-        const { riderLat, riderLng } = payload.payload;
+        const { riderLat, riderLng, timestamp } = payload.payload;
 
         if (riderMarkerRef.current && riderLat && riderLng) {
           const now = Date.now();
@@ -1254,69 +1088,6 @@ export function OrderMap({
           : "h-full min-h-[400px] md:min-h-[500px]",
       )}
     >
-      {/* Test Drive Controls - Left Side */}
-      {routePointsRef.current && routePointsRef.current.length > 1 && (
-        <div className="absolute bottom-20 left-4 z-[1000] flex flex-col gap-2">
-          <div className="bg-background/90 backdrop-blur-md p-2 rounded-lg border border-border shadow-sm flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={isTestDriving ? "destructive" : "default"}
-              onClick={toggleTestDrive}
-              className="h-8 w-8 p-0 flex-shrink-0"
-              title={isTestDriving ? "Stop Test Drive" : "Start Test Drive"}
-            >
-              {isTestDriving ? (
-                <Square className="h-4 w-4" />
-              ) : (
-                <Truck className="h-4 w-4" />
-              )}
-            </Button>
-
-            {isTestDriving && (
-              <>
-                <div className="w-px h-6 bg-border" />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setTestDriveSpeed(0.5)}
-                  className="h-6 w-6 p-0 flex-shrink-0 text-[10px]"
-                  title="Slow Speed (0.5x)"
-                >
-                  <Rewind className="h-3 w-3" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setTestDriveSpeed(1)}
-                  className="h-6 w-6 p-0 flex-shrink-0 text-[10px]"
-                  title="Normal Speed (1x)"
-                >
-                  <Play className="h-3 w-3" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setTestDriveSpeed(2)}
-                  className="h-6 w-6 p-0 flex-shrink-0 text-[10px]"
-                  title="Fast Speed (2x)"
-                >
-                  <FastForward className="h-3 w-3" />
-                </Button>
-              </>
-            )}
-          </div>
-
-          {isTestDriving && (
-            <div className="bg-background/90 backdrop-blur-md px-2 py-1 rounded-lg border border-border shadow-sm text-center">
-              <span className="text-[10px] text-muted-foreground">
-                {Math.round(testDriveProgress * 100)}%
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Map Theme Controls - Top Right */}
       <div className="absolute top-3 right-3 z-[1000] bg-background/90 backdrop-blur-md p-1 rounded-md border border-border shadow-sm flex gap-1">
         <Button
           size="sm"
@@ -1362,7 +1133,6 @@ export function OrderMap({
         </Button>
       </div>
 
-      {/* Fullscreen Button - Bottom Right */}
       {canFullscreen() && onFullscreenToggle && (
         <div
           className={cn(
@@ -1393,7 +1163,6 @@ export function OrderMap({
         </div>
       )}
 
-      {/* Loading / Error States */}
       {!isLeafletReady && !mapError ? (
         <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
