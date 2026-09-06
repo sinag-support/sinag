@@ -82,7 +82,7 @@ function calculateBearing(
   return bearing;
 }
 
-// ✅ Determine if the truck should flip based on angle
+// Determine if the truck should flip based on angle
 function shouldFlipTruck(angle: number): boolean {
   const normalizedAngle = ((angle % 360) + 360) % 360;
   // Flip if facing East (0° to 90° or 270° to 360°)
@@ -393,7 +393,7 @@ export function OrderMap({
   const routePointsRef = useRef<[number, number][] | null>(null);
   const { role } = useRole();
 
-  // ✅ Track initialization state to prevent double loading
+  // Track initialization state to prevent double loading
   const mapInitializedRef = useRef(false);
   const isMountedRef = useRef(true);
 
@@ -420,7 +420,7 @@ export function OrderMap({
 
   const isRider = role === "RIDER";
 
-  // ✅ Track mounted state
+  // Track mounted state
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -531,7 +531,10 @@ export function OrderMap({
 
   // ✅ RIDER MARKER - Flip only (no rotation)
   const createRiderIcon = (zoom: number, angle: number = 0) => {
-    if (!window.L) return null;
+    if (!window.L) {
+      console.warn("⚠️ Leaflet not available");
+      return null;
+    }
 
     const baseSize = 60;
     const minSize = 40;
@@ -650,6 +653,7 @@ export function OrderMap({
     if (!mapInstanceRef.current) return;
 
     if (!riderMarkerRef.current) {
+      console.log("📍 Creating new rider marker at:", { targetLat, targetLng });
       const currentZoom = mapInstanceRef.current.getZoom() || 15;
       const riderIcon = createRiderIcon(currentZoom, lastBearingRef.current);
       if (riderIcon) {
@@ -673,6 +677,10 @@ export function OrderMap({
       targetLng,
     );
     if (distance > 1000) {
+      console.log("📍 Teleporting marker (large distance):", {
+        targetLat,
+        targetLng,
+      });
       riderMarkerRef.current.setLatLng([targetLat, targetLng]);
       const currentZoom = mapInstanceRef.current.getZoom();
       const newIcon = createRiderIcon(currentZoom, lastBearingRef.current);
@@ -682,7 +690,7 @@ export function OrderMap({
       return;
     }
 
-    // ✅ Calculate bearing for flip direction only
+    // Calculate bearing for flip direction only
     const angle = calculateBearing(
       startPos.lat,
       startPos.lng,
@@ -753,19 +761,16 @@ export function OrderMap({
       polylineRef.current = null;
     }
     riderInitializedRef.current = false;
-    // ✅ Reset initialized flag on cleanup
     mapInitializedRef.current = false;
   };
 
   // ✅ Initialize map with double-load prevention
   useEffect(() => {
-    // ✅ Skip if already initialized or missing dependencies
     if (mapInitializedRef.current) return;
     if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
       return;
     if (!window.L) return;
 
-    // ✅ Mark as initialized immediately
     mapInitializedRef.current = true;
 
     console.log("🗺️ Initializing map...");
@@ -868,6 +873,8 @@ export function OrderMap({
 
           const riderPos = getRiderPosition();
 
+          console.log("📍 Creating rider marker at:", riderPos);
+
           // Rider marker - uses /animations/truck.json (flip only)
           const riderIcon = createRiderIcon(
             currentZoom,
@@ -886,6 +893,10 @@ export function OrderMap({
             riderMarker.bindPopup(
               `<b>Delivery Rider</b><br/>Status: ${order.status}`,
             );
+
+            console.log("✅ Rider marker created successfully");
+          } else {
+            console.error("❌ Failed to create rider icon");
           }
 
           const updatedCustomerIcon = createCustomerIcon(currentZoom);
@@ -906,14 +917,12 @@ export function OrderMap({
       } catch (error) {
         console.error("Map initialization error:", error);
         setMapError(true);
-        // Reset initialized flag on error so it can retry
         mapInitializedRef.current = false;
       }
     }, 100);
 
     return () => {
       clearTimeout(timer);
-      // Only cleanup if component is unmounting
       if (!isMountedRef.current) {
         cleanupMap();
       }
@@ -931,7 +940,6 @@ export function OrderMap({
   useEffect(() => {
     if (order?.id) {
       mapInitializedRef.current = false;
-      // Clean up old map
       cleanupMap();
     }
   }, [order?.id]);
@@ -940,6 +948,63 @@ export function OrderMap({
   useEffect(() => {
     return () => {
       cleanupMap();
+    };
+  }, []);
+
+  // ✅ Listen for force-move events from parent
+  useEffect(() => {
+    const handleForceMove = (event: CustomEvent) => {
+      console.log("⚡ Force move triggered:", event.detail);
+      if (!riderMarkerRef.current) {
+        console.warn("⚠️ No rider marker to move");
+        return;
+      }
+
+      // Move in a circle pattern
+      let count = 0;
+      const interval = setInterval(() => {
+        count++;
+        const lat = 14.5995 + Math.sin(count * 0.15) * 0.02;
+        const lng = 120.9842 + Math.cos(count * 0.15) * 0.02;
+
+        console.log(`⚡ Force move ${count}:`, { lat, lng });
+
+        try {
+          riderMarkerRef.current.setLatLng([lat, lng]);
+          // Also update the bearing for flip
+          const angle = calculateBearing(
+            riderMarkerRef.current.getLatLng().lat,
+            riderMarkerRef.current.getLatLng().lng,
+            lat,
+            lng,
+          );
+          lastBearingRef.current = angle;
+
+          // Update icon with new flip direction
+          const currentZoom = mapInstanceRef.current?.getZoom() || 15;
+          const newIcon = createRiderIcon(currentZoom, angle);
+          if (newIcon) {
+            riderMarkerRef.current.setIcon(newIcon);
+          }
+        } catch (e) {
+          console.error("❌ Force move error:", e);
+        }
+
+        if (count > 30) clearInterval(interval);
+      }, 500);
+    };
+
+    // Listen for the custom event
+    window.addEventListener(
+      "force-marker-move",
+      handleForceMove as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "force-marker-move",
+        handleForceMove as EventListener,
+      );
     };
   }, []);
 
@@ -960,6 +1025,7 @@ export function OrderMap({
     channel
       .on("broadcast", { event: "location_update" }, (payload) => {
         const { riderLat, riderLng, timestamp } = payload.payload;
+        console.log("📥 Received broadcast:", { riderLat, riderLng });
 
         if (riderMarkerRef.current && riderLat && riderLng) {
           const now = Date.now();
@@ -1017,6 +1083,11 @@ export function OrderMap({
         },
         (payload) => {
           const { riderLat, riderLng, status } = payload.new;
+          console.log("📥 Database update received:", {
+            riderLat,
+            riderLng,
+            status,
+          });
 
           if (
             status === "OUT_FOR_DELIVERY" &&
