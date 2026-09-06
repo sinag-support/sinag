@@ -103,7 +103,7 @@ export function DeliveryOrderDetail({
   const [currentOrder, setCurrentOrder] = useState<DeliveryOrder | null>(order);
   const [isPaying, setIsPaying] = useState(false);
 
-  // ✅ Update currentOrder when prop changes
+  // Update currentOrder when prop changes
   useEffect(() => {
     console.log("🔄 DeliveryOrderDetail: order prop changed", {
       id: order?.id,
@@ -112,9 +112,9 @@ export function DeliveryOrderDetail({
     setCurrentOrder(order);
   }, [order]);
 
+  // ✅ FIX: Only RIDER users track location, and only when OUT_FOR_DELIVERY
   const isRiderTrackingActive =
-    (role === "RIDER" || role === "ADMIN") &&
-    currentOrder?.status === "OUT_FOR_DELIVERY";
+    role === "RIDER" && currentOrder?.status === "OUT_FOR_DELIVERY";
 
   useRiderLocationTracker(currentOrder?.id, isRiderTrackingActive);
 
@@ -150,7 +150,7 @@ export function DeliveryOrderDetail({
     setShowFullscreenDialog(true);
   };
 
-  // ✅ Handle Mark as Paid - using the prop
+  // Handle Mark as Paid - using the prop
   const handleMarkAsPaid = async () => {
     if (!currentOrder || !onMarkAsPaid) {
       toast.error("Payment function not available");
@@ -161,7 +161,7 @@ export function DeliveryOrderDetail({
     try {
       await onMarkAsPaid(currentOrder.id);
       setShowMarkPaidDialog(false);
-      // ✅ Refresh the order after marking as paid
+      // Refresh the order after marking as paid
       if (onRefreshOrder) {
         const refreshedOrder = await onRefreshOrder();
         console.log("🔄 Refreshed order after mark as paid:", {
@@ -192,7 +192,7 @@ export function DeliveryOrderDetail({
     return false;
   };
 
-  // ✅ Check if Mark as Paid should be shown
+  // Check if Mark as Paid should be shown
   const shouldShowMarkAsPaid = () => {
     if (role !== "RIDER") return false;
     if (currentOrder.isPaid) return false;
@@ -396,7 +396,7 @@ export function DeliveryOrderDetail({
                 </div>
               </div>
 
-              {/* ✅ Payment Status Badge */}
+              {/* Payment Status Badge */}
               <div className="border border-border rounded-lg p-3 !bg-background shadow-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">
@@ -590,7 +590,7 @@ export function DeliveryOrderDetail({
         </DialogContent>
       </Dialog>
 
-      {/* ✅ Mark as Paid Confirmation Dialog */}
+      {/* Mark as Paid Confirmation Dialog */}
       <Dialog open={showMarkPaidDialog} onOpenChange={setShowMarkPaidDialog}>
         <DialogContent className="max-w-md !bg-background">
           <DialogHeader>

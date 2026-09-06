@@ -52,7 +52,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Only RIDER can update their location
+    // ✅ Only RIDER can update their location
     if (user.role !== "RIDER") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

@@ -126,6 +126,7 @@ export default function AdminDashboard() {
       let allRiderOrdersData: RiderStats | undefined = undefined;
       let staffOrdersData: StaffStats | undefined = undefined;
 
+      // --- Individual rider stats (for RIDER users) ---
       if (isRider) {
         try {
           const url =
@@ -134,7 +135,6 @@ export default function AdminDashboard() {
           if (riderOrdersRes.ok) {
             const riderOrders = await riderOrdersRes.json();
             const orders = riderOrders.orders || [];
-
             riderOrdersData = {
               total: orders.length,
               assigned: orders.filter(
@@ -157,12 +157,19 @@ export default function AdminDashboard() {
                 user: o.user,
               })),
             };
+          } else {
+            console.error(
+              "Failed to fetch rider orders (individual):",
+              riderOrdersRes.status,
+              await riderOrdersRes.text(),
+            );
           }
         } catch (err) {
-          console.error("Error fetching rider orders:", err);
+          console.error("Error fetching rider orders (individual):", err);
         }
       }
 
+      // --- Aggregated rider stats (for ADMIN viewing Rider tab) ---
       if (isAdmin && activeRole === "RIDER") {
         try {
           const url =
@@ -171,7 +178,6 @@ export default function AdminDashboard() {
           if (riderOrdersRes.ok) {
             const riderOrders = await riderOrdersRes.json();
             const orders = riderOrders.orders || [];
-
             allRiderOrdersData = {
               total: orders.length,
               assigned: orders.filter(
@@ -195,12 +201,19 @@ export default function AdminDashboard() {
                 rider: o.rider,
               })),
             };
+          } else {
+            console.error(
+              "Failed to fetch aggregated rider orders for admin:",
+              riderOrdersRes.status,
+              await riderOrdersRes.text(),
+            );
           }
         } catch (err) {
-          console.error("Error fetching all rider orders:", err);
+          console.error("Error fetching aggregated rider orders:", err);
         }
       }
 
+      // --- Staff stats (for STAFF users or ADMIN viewing Staff tab) ---
       if (isStaff || (isAdmin && activeRole === "STAFF")) {
         staffOrdersData = {
           total: data.orders ?? 0,
@@ -226,7 +239,14 @@ export default function AdminDashboard() {
         monthlyRevenueData: data.monthlyRevenueData ?? [],
         yearlyRevenueData: data.yearlyRevenueData ?? [],
         riderOrders: riderOrdersData,
-        allRiderStats: allRiderOrdersData,
+        // Provide a fallback empty object so dashboard always has valid numbers
+        allRiderStats: allRiderOrdersData || {
+          total: 0,
+          assigned: 0,
+          outForDelivery: 0,
+          delivered: 0,
+          recentOrders: [],
+        },
         staffOrders: staffOrdersData,
       });
     } catch (error) {

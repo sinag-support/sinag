@@ -46,6 +46,8 @@ interface DeliveryOrder {
   orderNumber: number;
   user: { name: string | null; email: string; phone?: string };
   rider?: { id: string; name: string | null; email: string } | null;
+  riderLat?: number | null;
+  riderLng?: number | null;
   address: {
     address: string;
     city: string;
@@ -232,6 +234,8 @@ export default function DeliveryPage() {
         id: data.id,
         isPaid: data.isPaid,
         status: data.status,
+        riderLat: data.riderLat,
+        riderLng: data.riderLng,
       });
       if (data.address) {
         data.address.lat = cityCoordinates[data.address?.city]?.lat || 13.9411;
@@ -274,9 +278,8 @@ export default function DeliveryPage() {
       });
       if (res.ok) {
         toast.success("Delivery status updated");
-        await fetchDeliveryOrders(); // Refresh table
+        await fetchDeliveryOrders();
 
-        // ✅ KEY FIX: Refresh the selected order so dialog buttons update
         if (selectedOrder?.id === orderId) {
           const refreshedOrder = await fetchOrderById(orderId);
           if (refreshedOrder) {
@@ -294,13 +297,12 @@ export default function DeliveryPage() {
     }
   };
 
-  // ✅ NEW: Mark as Paid function - separate from status update
   const markAsPaid = async (orderId: string) => {
     console.log("🚀 markAsPaid called for order:", orderId);
     setIsUpdating(true);
     try {
       console.log(
-        "📤 Sending PATCH request to /api/admin/orders/${orderId}/payment",
+        `📤 Sending PATCH request to /api/admin/orders/${orderId}/payment`,
       );
       const res = await fetch(`/api/admin/orders/${orderId}/payment`, {
         method: "PATCH",
@@ -314,9 +316,8 @@ export default function DeliveryPage() {
       if (res.ok) {
         toast.success("Order marked as paid");
         console.log("🔄 Refreshing delivery orders...");
-        await fetchDeliveryOrders(); // Refresh table
+        await fetchDeliveryOrders();
 
-        // ✅ Refresh the selected order
         if (selectedOrder?.id === orderId) {
           console.log("🔄 Refreshing selected order...");
           const refreshedOrder = await fetchOrderById(orderId);
@@ -464,7 +465,6 @@ export default function DeliveryPage() {
     );
   };
 
-  // ✅ DeliveryCard with key to force re-render
   const DeliveryCard = ({ order }: { order: DeliveryOrder }) => {
     const statusColor =
       statusColors[order.status] || "bg-gray-100 text-gray-800";
@@ -510,7 +510,6 @@ export default function DeliveryPage() {
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-muted-foreground">
@@ -518,7 +517,6 @@ export default function DeliveryPage() {
               </span>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
-              {/* View Button */}
               <Button
                 size="sm"
                 variant="outline"
@@ -531,7 +529,6 @@ export default function DeliveryPage() {
                 <MapPin className="h-3.5 w-3.5" />
               </Button>
 
-              {/* Admin Actions */}
               {isAdmin && order.status === "OUT_FOR_DELIVERY" && (
                 <Button
                   size="sm"
@@ -544,7 +541,6 @@ export default function DeliveryPage() {
                 </Button>
               )}
 
-              {/* Rider Actions */}
               {isRider && (
                 <>
                   {order.status === "ASSIGNED_RIDER" && (
@@ -579,7 +575,6 @@ export default function DeliveryPage() {
                           "Deliver"
                         )}
                       </Button>
-                      {/* ✅ Mark as Paid Button - uses markAsPaid function */}
                       {!order.isPaid && (
                         <Button
                           size="sm"
@@ -613,7 +608,6 @@ export default function DeliveryPage() {
                   )}
                   {order.status === "DELIVERED" && (
                     <>
-                      {/* ✅ Mark as Paid Button - uses markAsPaid function */}
                       {!order.isPaid && (
                         <Button
                           size="sm"
@@ -690,7 +684,6 @@ export default function DeliveryPage() {
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-        {/* Mobile: Search + Refresh inline */}
         <div className="flex items-center gap-2 sm:hidden flex-1">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -710,7 +703,6 @@ export default function DeliveryPage() {
           </Button>
         </div>
 
-        {/* Desktop: Original layout */}
         <div className="relative flex-1 sm:max-w-sm hidden sm:block">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -721,7 +713,6 @@ export default function DeliveryPage() {
           />
         </div>
 
-        {/* Desktop Refresh Button */}
         <Button
           variant="outline"
           onClick={fetchDeliveryOrders}
@@ -730,9 +721,7 @@ export default function DeliveryPage() {
           <RefreshCw className="h-4 w-4 mr-2" /> Refresh
         </Button>
 
-        {/* Mobile: Status + Rider Filter (Admin only) - inline with equal width */}
         <div className="flex sm:hidden gap-2 w-full">
-          {/* Status Filter - Mobile */}
           <Select
             value={statusFilter}
             onValueChange={(value) => setStatusFilter(value)}
@@ -749,7 +738,6 @@ export default function DeliveryPage() {
             </SelectContent>
           </Select>
 
-          {/* Rider Filter - Admin only on mobile */}
           {isAdmin && (
             <Select
               value={selectedRiderId}
@@ -770,7 +758,6 @@ export default function DeliveryPage() {
           )}
         </div>
 
-        {/* Desktop: Rider Filter + Status Filter - Admin only */}
         {isAdmin && (
           <div className="hidden sm:flex items-center gap-2">
             <Select
@@ -808,7 +795,6 @@ export default function DeliveryPage() {
           </div>
         )}
 
-        {/* Desktop: Status Filter only for Rider */}
         {isRider && (
           <div className="hidden sm:block">
             <Select
@@ -830,7 +816,6 @@ export default function DeliveryPage() {
         )}
       </div>
 
-      {/* Results count */}
       <div className="text-sm text-muted-foreground">
         {loading ? (
           <Skeleton className="h-4 w-48 inline-block" />
@@ -846,7 +831,7 @@ export default function DeliveryPage() {
         )}
       </div>
 
-      {/* ✅ Mobile: Cards View - Add key to force re-render */}
+      {/* Mobile: Cards View */}
       <div className="md:hidden space-y-2 -mx-4 px-4">
         {loading ? (
           renderSkeletonCards()
@@ -863,7 +848,7 @@ export default function DeliveryPage() {
         )}
       </div>
 
-      {/* ✅ Desktop: Table View - Add key to force re-render */}
+      {/* Desktop: Table View */}
       <div className="hidden md:block border rounded-lg overflow-hidden w-full">
         <div className="overflow-x-auto">
           <Table>
@@ -906,7 +891,6 @@ export default function DeliveryPage() {
                       {order.user?.name || order.user?.email}
                     </TableCell>
 
-                    {/* Rider column - Admin only */}
                     {isAdmin && (
                       <TableCell>
                         <Badge variant="outline" className="text-xs">
@@ -928,7 +912,6 @@ export default function DeliveryPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-2 whitespace-nowrap">
-                      {/* View Button - Both Admin and Rider */}
                       <Button
                         size="sm"
                         variant="outline"
@@ -941,10 +924,8 @@ export default function DeliveryPage() {
                         <MapPin className="h-4 w-4" />
                       </Button>
 
-                      {/* ADMIN ACTIONS - Only view and cancel */}
                       {isAdmin && (
                         <>
-                          {/* Cancel Delivery - Only for OUT_FOR_DELIVERY status */}
                           {order.status === "OUT_FOR_DELIVERY" && (
                             <Button
                               size="sm"
@@ -962,10 +943,8 @@ export default function DeliveryPage() {
                         </>
                       )}
 
-                      {/* RIDER ACTIONS */}
                       {isRider && (
                         <>
-                          {/* Start Delivery - Only for ASSIGNED_RIDER status */}
                           {order.status === "ASSIGNED_RIDER" && (
                             <Button
                               size="sm"
@@ -983,7 +962,6 @@ export default function DeliveryPage() {
                             </Button>
                           )}
 
-                          {/* Deliver - Only for OUT_FOR_DELIVERY status */}
                           {order.status === "OUT_FOR_DELIVERY" && (
                             <>
                               <Button
@@ -1000,7 +978,6 @@ export default function DeliveryPage() {
                                   "Mark Delivered"
                                 )}
                               </Button>
-                              {/* ✅ Mark as Paid Button - Desktop Table */}
                               {!order.isPaid && (
                                 <Button
                                   size="sm"
@@ -1039,10 +1016,8 @@ export default function DeliveryPage() {
                             </>
                           )}
 
-                          {/* Return - Only for DELIVERED status */}
                           {order.status === "DELIVERED" && (
                             <>
-                              {/* ✅ Mark as Paid Button - Desktop Table for Delivered */}
                               {!order.isPaid && (
                                 <Button
                                   size="sm"

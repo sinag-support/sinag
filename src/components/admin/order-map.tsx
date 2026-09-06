@@ -7,7 +7,19 @@ import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
 import { useTheme } from "next-themes";
 import { useRole } from "@/hooks/use-role";
-import { Loader2, Moon, Globe, Map, Maximize2, Minimize2 } from "lucide-react";
+import {
+  Loader2,
+  Moon,
+  Globe,
+  Map,
+  Maximize2,
+  Minimize2,
+  Truck,
+  Play,
+  Square,
+  FastForward,
+  Rewind,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Import Leaflet CSS
@@ -80,6 +92,123 @@ function calculateBearing(
 
   const bearing = (toDeg(Math.atan2(y, x)) + 360) % 360;
   return bearing;
+}
+
+// Get route angle at a specific position
+function getRouteAngleAtPosition(
+  lat: number,
+  lng: number,
+  routePoints: [number, number][],
+): number {
+  if (!routePoints || routePoints.length < 2) {
+    return 0;
+  }
+
+  let closestIndex = 0;
+  let closestDist = Infinity;
+
+  for (let i = 0; i < routePoints.length; i++) {
+    const [routeLat, routeLng] = routePoints[i];
+    const dist = Math.sqrt(
+      Math.pow(routeLat - lat, 2) + Math.pow(routeLng - lng, 2),
+    );
+    if (dist < closestDist) {
+      closestDist = dist;
+      closestIndex = i;
+    }
+  }
+
+  const idx = Math.min(closestIndex, routePoints.length - 2);
+  const [lat1, lng1] = routePoints[idx];
+  const [lat2, lng2] = routePoints[idx + 1];
+
+  const angle = calculateBearing(lat1, lng1, lat2, lng2);
+  return angle;
+}
+
+// Determine if the truck should flip based on angle
+function shouldFlipTruck(angle: number): boolean {
+  const normalizedAngle = ((angle % 360) + 360) % 360;
+  return normalizedAngle < 90 || normalizedAngle > 270;
+}
+
+// Convert bearing angle to pitch (tilt) for 3D effect
+function getPitchFromBearing(angle: number, isFlipped: boolean): number {
+  const normalizedAngle = ((angle % 360) + 360) % 360;
+  let pitch = -Math.sin((normalizedAngle * Math.PI) / 180) * 35;
+
+  if (isFlipped) {
+    pitch = -pitch;
+  }
+
+  return Math.min(Math.max(pitch, -35), 35);
+}
+
+// Calculate distance in meters using Haversine formula
+function calculateDistance(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Get position on route at a specific progress (0 to 1)
+function getPositionOnRoute(
+  routePoints: [number, number][],
+  progress: number,
+): { lat: number; lng: number; angle: number } {
+  if (!routePoints || routePoints.length < 2) {
+    return { lat: 0, lng: 0, angle: 0 };
+  }
+
+  const clampedProgress = Math.max(0, Math.min(1, progress));
+
+  let totalLength = 0;
+  for (let i = 0; i < routePoints.length - 1; i++) {
+    const [lat1, lng1] = routePoints[i];
+    const [lat2, lng2] = routePoints[i + 1];
+    totalLength += calculateDistance(lat1, lng1, lat2, lng2);
+  }
+
+  let targetDistance = totalLength * clampedProgress;
+  let accumulatedDistance = 0;
+
+  for (let i = 0; i < routePoints.length - 1; i++) {
+    const [lat1, lng1] = routePoints[i];
+    const [lat2, lng2] = routePoints[i + 1];
+    const segmentLength = calculateDistance(lat1, lng1, lat2, lng2);
+
+    if (accumulatedDistance + segmentLength >= targetDistance) {
+      const segmentProgress =
+        (targetDistance - accumulatedDistance) / segmentLength;
+      const lat = lat1 + (lat2 - lat1) * segmentProgress;
+      const lng = lng1 + (lng2 - lng1) * segmentProgress;
+      const angle = calculateBearing(lat1, lng1, lat2, lng2);
+      return { lat, lng, angle };
+    }
+
+    accumulatedDistance += segmentLength;
+  }
+
+  const last = routePoints[routePoints.length - 1];
+  const secondLast = routePoints[routePoints.length - 2];
+  return {
+    lat: last[0],
+    lng: last[1],
+    angle: calculateBearing(secondLast[0], secondLast[1], last[0], last[1]),
+  };
 }
 
 export async function getCoordinates(
@@ -202,12 +331,32 @@ export function useRiderLocationTracker(
 ) {
   const lastUpdateRef = useRef<number>(0);
   const isUpdatingRef = useRef<boolean>(false);
+  const lastPositionRef = useRef<{ lat: number; lng: number } | null>(null);
+  const channelRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!isTrackingActive || !orderId || !("geolocation" in navigator)) {
+    if (!isTrackingActive || !orderId) {
       return;
     }
 
+    const channel = supabase.channel(`rider-location:${orderId}`, {
+      config: {
+        broadcast: { ack: true },
+      },
+    });
+
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        console.log(
+          "📍 Rider location broadcast channel connected for order:",
+          orderId,
+        );
+      }
+    });
+
+    channelRef.current = channel;
+
+    let watchId: number;
     let wakeLock: any = null;
 
     const requestWakeLock = async () => {
@@ -222,61 +371,101 @@ export function useRiderLocationTracker(
 
     requestWakeLock();
 
-    const watchId = navigator.geolocation.watchPosition(
-      async (position) => {
-        if (isUpdatingRef.current) return;
+    if ("geolocation" in navigator) {
+      watchId = navigator.geolocation.watchPosition(
+        async (position) => {
+          if (isUpdatingRef.current) return;
 
-        const now = Date.now();
-        if (now - lastUpdateRef.current < 3000) return;
-        lastUpdateRef.current = now;
+          const now = Date.now();
+          if (now - lastUpdateRef.current < 1000) return;
 
-        const { latitude, longitude } = position.coords;
+          const { latitude, longitude, accuracy } = position.coords;
 
-        try {
-          isUpdatingRef.current = true;
-          const response = await fetch(
-            `/api/admin/orders/${orderId}/location`,
-            {
-              method: "PATCH",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
+          if (accuracy > 50) return;
+
+          if (lastPositionRef.current) {
+            const distance = calculateDistance(
+              lastPositionRef.current.lat,
+              lastPositionRef.current.lng,
+              latitude,
+              longitude,
+            );
+            if (distance < 5) {
+              return;
+            }
+          }
+
+          lastUpdateRef.current = now;
+          lastPositionRef.current = { lat: latitude, lng: longitude };
+
+          try {
+            channel.send({
+              type: "broadcast",
+              event: "location_update",
+              payload: {
+                orderId,
                 riderLat: latitude,
                 riderLng: longitude,
-              }),
-            },
-          );
+                timestamp: now,
+                accuracy: accuracy,
+              },
+            });
+          } catch (err) {
+            console.error("WebSocket broadcast error:", err);
+          }
 
-          if (!response.ok) {
-            const error = await response.json();
-            console.error(
-              "Failed to update rider location:",
-              error.error || response.statusText,
+          try {
+            isUpdatingRef.current = true;
+            const response = await fetch(
+              `/api/admin/orders/${orderId}/location`,
+              {
+                method: "PATCH",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  riderLat: latitude,
+                  riderLng: longitude,
+                }),
+              },
+            );
+
+            if (!response.ok) {
+              const error = await response.json();
+              console.error(
+                "Failed to update rider location:",
+                error.error || response.statusText,
+              );
+            }
+          } catch (err) {
+            console.error("Error saving location:", err);
+          } finally {
+            isUpdatingRef.current = false;
+          }
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          if (error.code === error.PERMISSION_DENIED) {
+            toast.error(
+              "Location permissions required for real-time tracking.",
             );
           }
-        } catch (err) {
-          console.error("Error updating location:", err);
-        } finally {
-          isUpdatingRef.current = false;
-        }
-      },
-      (error) => {
-        console.error("Geolocation error:", error);
-        if (error.code === error.PERMISSION_DENIED) {
-          toast.error("Location permissions required for real-time tracking.");
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000,
-      },
-    );
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 10000,
+        },
+      );
+    }
 
     return () => {
-      navigator.geolocation.clearWatch(watchId);
+      if (watchId) navigator.geolocation.clearWatch(watchId);
       if (wakeLock) wakeLock.release().catch(() => {});
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [orderId, isTrackingActive]);
 }
@@ -301,6 +490,8 @@ export function OrderMap({
   const polylineRef = useRef<any>(null);
   const leafletLoadedRef = useRef(false);
   const lastBearingRef = useRef<number>(0);
+  const lastLocationUpdateRef = useRef<number>(0);
+  const routePointsRef = useRef<[number, number][] | null>(null);
   const { role } = useRole();
 
   const { theme, resolvedTheme } = useTheme();
@@ -324,6 +515,19 @@ export function OrderMap({
   const originalRouteRef = useRef<[number, number][] | null>(null);
   const riderInitializedRef = useRef(false);
 
+  // Test Drive State
+  const [isTestDriving, setIsTestDriving] = useState(false);
+  const [testDriveProgress, setTestDriveProgress] = useState(0);
+  const [testDriveDirection, setTestDriveDirection] = useState<
+    "forward" | "backward"
+  >("forward");
+  const testDriveAnimationRef = useRef<number | null>(null);
+  const testDriveStartTimeRef = useRef<number>(0);
+  const testDriveDurationRef = useRef<number>(5000);
+  const testDriveStartProgressRef = useRef<number>(0);
+
+  const isRider = role === "RIDER";
+
   const canFullscreen = () => {
     if (role === "ADMIN") return true;
     if (role === "RIDER" && order.status === "OUT_FOR_DELIVERY") return true;
@@ -331,11 +535,21 @@ export function OrderMap({
   };
 
   const shouldUseRealLocation = () => {
-    return order.status === "OUT_FOR_DELIVERY";
+    return (
+      order.status === "OUT_FOR_DELIVERY" &&
+      order?.riderLat !== null &&
+      order?.riderLat !== undefined &&
+      order?.riderLng !== null &&
+      order?.riderLng !== undefined
+    );
   };
 
   const getRiderPosition = () => {
-    if (shouldUseRealLocation() && order?.riderLat && order?.riderLng) {
+    if (isTestDriving && routePointsRef.current) {
+      const pos = getPositionOnRoute(routePointsRef.current, testDriveProgress);
+      return { lat: pos.lat, lng: pos.lng };
+    }
+    if (shouldUseRealLocation()) {
       return { lat: order.riderLat, lng: order.riderLng };
     }
     return { lat: storeLocation.lat, lng: storeLocation.lng };
@@ -373,6 +587,11 @@ export function OrderMap({
         .leaflet-satellite-tiles {
           filter: none;
         }
+        .custom-leaflet-animated-icon {
+          background: transparent !important;
+          border: none !important;
+          overflow: visible !important;
+        }
       `;
       document.head.appendChild(style);
     }
@@ -409,17 +628,133 @@ export function OrderMap({
       document.body.appendChild(script);
     }
 
-    if (!document.getElementById("lottie-player-js")) {
+    if (!document.getElementById("dotlottie-player-js")) {
       const lottieScript = document.createElement("script");
-      lottieScript.id = "lottie-player-js";
+      lottieScript.id = "dotlottie-player-js";
+      lottieScript.type = "module";
       lottieScript.src =
         "https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs";
-      lottieScript.type = "module";
-      document.body.appendChild(lottieScript);
+      document.head.appendChild(lottieScript);
     }
   }, []);
 
-  const createRiderIcon = (zoom: number, rotation: number = 0) => {
+  // Test Drive Animation Loop
+  useEffect(() => {
+    if (!isTestDriving) {
+      if (testDriveAnimationRef.current) {
+        cancelAnimationFrame(testDriveAnimationRef.current);
+        testDriveAnimationRef.current = null;
+      }
+      return;
+    }
+
+    testDriveStartTimeRef.current = performance.now();
+    testDriveStartProgressRef.current = testDriveProgress;
+    const targetProgress = testDriveDirection === "forward" ? 1 : 0;
+    const startProgress = testDriveStartProgressRef.current;
+
+    const animateTestDrive = (currentTime: number) => {
+      const elapsed = currentTime - testDriveStartTimeRef.current;
+      const duration = testDriveDurationRef.current;
+      const progress = Math.min(elapsed / duration, 1);
+
+      const easeInOutCubic = (t: number) => {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      };
+
+      const easedProgress = easeInOutCubic(progress);
+      const newProgress =
+        startProgress + (targetProgress - startProgress) * easedProgress;
+
+      setTestDriveProgress(Math.max(0, Math.min(1, newProgress)));
+
+      if (riderMarkerRef.current && routePointsRef.current) {
+        const pos = getPositionOnRoute(
+          routePointsRef.current,
+          Math.max(0, Math.min(1, newProgress)),
+        );
+        const currentZoom = mapInstanceRef.current?.getZoom() || 15;
+        const angle = pos.angle;
+
+        riderMarkerRef.current.setLatLng([pos.lat, pos.lng]);
+
+        const newIcon = createRiderIcon(currentZoom, angle, pos.lat, pos.lng);
+        if (newIcon) {
+          riderMarkerRef.current.setIcon(newIcon);
+        }
+
+        lastBearingRef.current = angle;
+      }
+
+      if (progress < 1) {
+        testDriveAnimationRef.current = requestAnimationFrame(animateTestDrive);
+      } else {
+        if (testDriveDirection === "forward") {
+          setTestDriveDirection("backward");
+          testDriveStartTimeRef.current = performance.now();
+          testDriveStartProgressRef.current = 1;
+          testDriveAnimationRef.current =
+            requestAnimationFrame(animateTestDrive);
+        } else {
+          setIsTestDriving(false);
+          setTestDriveProgress(0);
+          setTestDriveDirection("forward");
+          if (riderMarkerRef.current && routePointsRef.current) {
+            const storePos = routePointsRef.current[0];
+            riderMarkerRef.current.setLatLng([storePos[0], storePos[1]]);
+          }
+        }
+      }
+    };
+
+    testDriveAnimationRef.current = requestAnimationFrame(animateTestDrive);
+
+    return () => {
+      if (testDriveAnimationRef.current) {
+        cancelAnimationFrame(testDriveAnimationRef.current);
+        testDriveAnimationRef.current = null;
+      }
+    };
+  }, [isTestDriving]);
+
+  const toggleTestDrive = () => {
+    if (isTestDriving) {
+      setIsTestDriving(false);
+      setTestDriveProgress(0);
+      setTestDriveDirection("forward");
+      if (riderMarkerRef.current && routePointsRef.current) {
+        const storePos = routePointsRef.current[0];
+        riderMarkerRef.current.setLatLng([storePos[0], storePos[1]]);
+        const currentZoom = mapInstanceRef.current?.getZoom() || 15;
+        const angle = lastBearingRef.current;
+        const newIcon = createRiderIcon(
+          currentZoom,
+          angle,
+          storePos[0],
+          storePos[1],
+        );
+        if (newIcon) {
+          riderMarkerRef.current.setIcon(newIcon);
+        }
+      }
+    } else {
+      setIsTestDriving(true);
+      setTestDriveDirection("forward");
+      setTestDriveProgress(0);
+      toast.info("🚚 Starting test drive animation...");
+    }
+  };
+
+  const setTestDriveSpeed = (speed: number) => {
+    testDriveDurationRef.current = 5000 / speed;
+  };
+
+  const createRiderIcon = (
+    zoom: number,
+    angle: number = 0,
+    lat?: number,
+    lng?: number,
+  ) => {
     if (!window.L) return null;
 
     const baseSize = 60;
@@ -428,15 +763,14 @@ export function OrderMap({
     const scale = Math.min(Math.max(zoom / 15, 0.6), 1.5);
     const size = Math.min(Math.max(baseSize * scale, minSize), maxSize);
 
-    const isHeadingEast = rotation > 0 && rotation < 180;
-    const scaleX = isHeadingEast ? -1 : 1;
+    let routeAngle = angle;
+    if (lat !== undefined && lng !== undefined && routePointsRef.current) {
+      routeAngle = getRouteAngleAtPosition(lat, lng, routePointsRef.current);
+    }
 
-    let rawPitch = isHeadingEast ? rotation - 90 : 270 - rotation;
-    const correctedPitch = isHeadingEast ? -rawPitch : rawPitch;
-    const clampedPitch = Math.min(Math.max(correctedPitch, -30), 30);
-
-    const offsetX = 0;
-    const offsetY = -17;
+    const shouldFlip = shouldFlipTruck(routeAngle);
+    const scaleX = shouldFlip ? -1 : 1;
+    const pitch = getPitchFromBearing(routeAngle, shouldFlip);
 
     return window.L.divIcon({
       className: "custom-leaflet-animated-icon",
@@ -447,12 +781,13 @@ export function OrderMap({
         display:flex;
         align-items:center;
         justify-content:center;
-        transform: scaleX(${scaleX}) rotate(${clampedPitch}deg);
-        transform-origin: center bottom;
-        transition: transform 0.3s ease-out;
+        transform: scaleX(${scaleX}) rotate(${pitch}deg);
+        transform-origin: center center;
+        overflow: visible;
+        pointer-events: auto;
       ">
         <dotlottie-player
-          src="/animations/truck.json"
+          src="https://lottie.host/67112f1d-6871-491d-b899-f3d4cda896ed/M1KYIBo387.json"
           background="transparent"
           speed="1"
           style="width:${size}px;height:${size}px;"
@@ -462,8 +797,8 @@ export function OrderMap({
       </div>
     `,
       iconSize: [size, size],
-      iconAnchor: [size / 2 + offsetX, size + offsetY],
-      popupAnchor: [0, -size],
+      iconAnchor: [size / 2, size / 2],
+      popupAnchor: [0, -size / 2],
     });
   };
 
@@ -480,14 +815,10 @@ export function OrderMap({
       className: "custom-leaflet-animated-icon",
       html: `
         <div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: all 0.2s ease;">
-          <dotlottie-player
-            src="/animations/location.json"
-            background="transparent"
-            speed="1"
-            style="width:${size}px;height:${size}px;"
-            loop
-            autoplay
-          ></dotlottie-player>
+          <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="#dc2626" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+            <circle cx="12" cy="10" r="3" fill="#ffffff"/>
+          </svg>
         </div>
       `,
       iconSize: [size, size],
@@ -497,12 +828,17 @@ export function OrderMap({
   };
 
   const updateMarkerIcons = (zoom: number) => {
-    if (!window.L) return;
+    if (!window.L || !riderMarkerRef.current) return;
 
-    if (riderMarkerRef.current) {
-      const newIcon = createRiderIcon(zoom, lastBearingRef.current);
-      if (newIcon) riderMarkerRef.current.setIcon(newIcon);
-    }
+    const currentPos = riderMarkerRef.current.getLatLng();
+    const riderIcon = createRiderIcon(
+      zoom,
+      lastBearingRef.current,
+      currentPos.lat,
+      currentPos.lng,
+    );
+    if (riderIcon) riderMarkerRef.current.setIcon(riderIcon);
+
     if (customerMarkerRef.current) {
       const newIcon = createCustomerIcon(zoom);
       if (newIcon) customerMarkerRef.current.setIcon(newIcon);
@@ -535,30 +871,35 @@ export function OrderMap({
   const animateMarkerTo = (
     targetLat: number,
     targetLng: number,
-    duration: number = 1000,
+    duration: number = 500,
   ) => {
     if (!riderMarkerRef.current || !mapInstanceRef.current) return;
 
     const startPos = riderMarkerRef.current.getLatLng();
 
-    // 1. Calculate rotation bearing if movement occurs
-    if (startPos.lat !== targetLat || startPos.lng !== targetLng) {
-      const bearing = calculateBearing(
-        startPos.lat,
-        startPos.lng,
+    let routeAngle = lastBearingRef.current;
+    if (routePointsRef.current) {
+      routeAngle = getRouteAngleAtPosition(
         targetLat,
         targetLng,
+        routePointsRef.current,
       );
-      lastBearingRef.current = bearing;
-
-      const currentZoom = mapInstanceRef.current.getZoom();
-      const rotatedIcon = createRiderIcon(currentZoom, bearing);
-      if (rotatedIcon) {
-        riderMarkerRef.current.setIcon(rotatedIcon);
-      }
     }
 
-    // 2. Animate position smoothly
+    lastBearingRef.current = routeAngle;
+
+    const currentZoom = mapInstanceRef.current.getZoom();
+
+    const newIcon = createRiderIcon(
+      currentZoom,
+      routeAngle,
+      targetLat,
+      targetLng,
+    );
+    if (newIcon) {
+      riderMarkerRef.current.setIcon(newIcon);
+    }
+
     const startTime = performance.now();
     const step = (currentTime: number) => {
       const elapsed = currentTime - startTime;
@@ -674,6 +1015,7 @@ export function OrderMap({
           coordinates,
         );
 
+        routePointsRef.current = routePoints;
         originalRouteRef.current = routePoints;
 
         polylineRef.current = window.L.polyline(routePoints, {
@@ -682,7 +1024,6 @@ export function OrderMap({
           opacity: 0.85,
         }).addTo(map);
 
-        // Initial bearing calculated along the first leg of the route
         if (routePoints.length > 1) {
           lastBearingRef.current = calculateBearing(
             routePoints[0][0],
@@ -697,14 +1038,26 @@ export function OrderMap({
 
         setTimeout(() => {
           const currentZoom = map.getZoom();
+
+          const riderPos = getRiderPosition();
+
+          let initialAngle = lastBearingRef.current;
+          if (routePointsRef.current) {
+            initialAngle = getRouteAngleAtPosition(
+              riderPos.lat,
+              riderPos.lng,
+              routePointsRef.current,
+            );
+          }
+
           const riderIcon = createRiderIcon(
             currentZoom,
-            lastBearingRef.current,
+            initialAngle,
+            riderPos.lat,
+            riderPos.lng,
           );
 
           if (riderIcon) {
-            const riderPos = getRiderPosition();
-
             const riderMarker = window.L.marker([riderPos.lat, riderPos.lng], {
               icon: riderIcon,
               zIndexOffset: 1000,
@@ -756,7 +1109,47 @@ export function OrderMap({
     };
   }, []);
 
-  // Supabase Realtime Subscription
+  // WebSocket Broadcast Listener
+  useEffect(() => {
+    if (!order?.id) return;
+
+    if (order.status !== "OUT_FOR_DELIVERY") {
+      return;
+    }
+
+    const channel = supabase.channel(`rider-location:${order.id}`, {
+      config: {
+        broadcast: { ack: true },
+      },
+    });
+
+    channel
+      .on("broadcast", { event: "location_update" }, (payload) => {
+        const { riderLat, riderLng } = payload.payload;
+
+        if (riderMarkerRef.current && riderLat && riderLng) {
+          const now = Date.now();
+          if (now - lastLocationUpdateRef.current < 100) return;
+          lastLocationUpdateRef.current = now;
+
+          animateMarkerTo(riderLat, riderLng, 300);
+        }
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log(
+            "📍 OrderMap listening to broadcasts for order:",
+            order.id,
+          );
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [order?.id, order?.status]);
+
+  // Supabase Realtime Database Listener (Fallback)
   useEffect(() => {
     if (!order?.id) return;
 
@@ -793,11 +1186,13 @@ export function OrderMap({
 
           if (
             status === "OUT_FOR_DELIVERY" &&
-            riderLat &&
-            riderLng &&
+            riderLat !== null &&
+            riderLat !== undefined &&
+            riderLng !== null &&
+            riderLng !== undefined &&
             riderMarkerRef.current
           ) {
-            animateMarkerTo(riderLat, riderLng, 1000);
+            animateMarkerTo(riderLat, riderLng, 500);
           } else if (status !== "OUT_FOR_DELIVERY" && riderMarkerRef.current) {
             const storePos = {
               lat: storeLocation.lat,
@@ -859,6 +1254,69 @@ export function OrderMap({
           : "h-full min-h-[400px] md:min-h-[500px]",
       )}
     >
+      {/* Test Drive Controls - Left Side */}
+      {routePointsRef.current && routePointsRef.current.length > 1 && (
+        <div className="absolute bottom-20 left-4 z-[1000] flex flex-col gap-2">
+          <div className="bg-background/90 backdrop-blur-md p-2 rounded-lg border border-border shadow-sm flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={isTestDriving ? "destructive" : "default"}
+              onClick={toggleTestDrive}
+              className="h-8 w-8 p-0 flex-shrink-0"
+              title={isTestDriving ? "Stop Test Drive" : "Start Test Drive"}
+            >
+              {isTestDriving ? (
+                <Square className="h-4 w-4" />
+              ) : (
+                <Truck className="h-4 w-4" />
+              )}
+            </Button>
+
+            {isTestDriving && (
+              <>
+                <div className="w-px h-6 bg-border" />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setTestDriveSpeed(0.5)}
+                  className="h-6 w-6 p-0 flex-shrink-0 text-[10px]"
+                  title="Slow Speed (0.5x)"
+                >
+                  <Rewind className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setTestDriveSpeed(1)}
+                  className="h-6 w-6 p-0 flex-shrink-0 text-[10px]"
+                  title="Normal Speed (1x)"
+                >
+                  <Play className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setTestDriveSpeed(2)}
+                  className="h-6 w-6 p-0 flex-shrink-0 text-[10px]"
+                  title="Fast Speed (2x)"
+                >
+                  <FastForward className="h-3 w-3" />
+                </Button>
+              </>
+            )}
+          </div>
+
+          {isTestDriving && (
+            <div className="bg-background/90 backdrop-blur-md px-2 py-1 rounded-lg border border-border shadow-sm text-center">
+              <span className="text-[10px] text-muted-foreground">
+                {Math.round(testDriveProgress * 100)}%
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Map Theme Controls - Top Right */}
       <div className="absolute top-3 right-3 z-[1000] bg-background/90 backdrop-blur-md p-1 rounded-md border border-border shadow-sm flex gap-1">
         <Button
           size="sm"
@@ -904,6 +1362,7 @@ export function OrderMap({
         </Button>
       </div>
 
+      {/* Fullscreen Button - Bottom Right */}
       {canFullscreen() && onFullscreenToggle && (
         <div
           className={cn(
@@ -934,6 +1393,7 @@ export function OrderMap({
         </div>
       )}
 
+      {/* Loading / Error States */}
       {!isLeafletReady && !mapError ? (
         <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
