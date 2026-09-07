@@ -6,19 +6,26 @@ import { cookies } from "next/headers";
 async function getAuthUser() {
   try {
     const cookieStore = await cookies();
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
+          getAll() {
+            return cookieStore.getAll().map((cookie) => ({
+              name: cookie.name,
+              value: cookie.value,
+            }));
           },
-          set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options });
-          },
-          remove(name: string, options: any) {
-            cookieStore.set({ name, value: "", ...options });
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                cookieStore.set(name, value, options);
+              });
+            } catch (error) {
+              // Server component write protection safe-catch
+            }
           },
         },
       },
@@ -28,10 +35,13 @@ async function getAuthUser() {
       data: { user },
       error,
     } = await supabase.auth.getUser();
-    if (error || !user) return null;
+
+    if (error || !user || !user.email) {
+      return null;
+    }
 
     const dbUser = await prisma.user.findUnique({
-      where: { email: user.email! },
+      where: { email: user.email },
       select: { id: true, role: true },
     });
 
@@ -48,50 +58,63 @@ export async function PATCH(
 ) {
   try {
     const user = await getAuthUser();
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ✅ Only RIDER can update their location
     if (user.role !== "RIDER") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Forbidden: Rider access required" },
+        { status: 403 },
+      );
     }
 
     const { id } = await params;
-    const { riderLat, riderLng } = await request.json();
+    const body = await request.json();
+    const riderLat = parseFloat(body.riderLat);
+    const riderLng = parseFloat(body.riderLng);
 
-    if (riderLat === undefined || riderLng === undefined) {
+    if (isNaN(riderLat) || isNaN(riderLng)) {
       return NextResponse.json(
-        { error: "Missing latitude or longitude" },
+        { error: "Invalid or missing latitude/longitude numbers" },
         { status: 400 },
       );
     }
 
-    // Verify the order belongs to this rider
+    // Verify order exists and get current state
     const order = await prisma.order.findUnique({
       where: { id },
-      select: { riderId: true },
+      select: { id: true, riderId: true, status: true },
     });
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (order.riderId !== user.id) {
+    // Check if rider is assigned OR auto-assign
+    if (order.riderId && order.riderId !== user.id) {
       return NextResponse.json(
         { error: "Not your assigned order" },
         { status: 403 },
       );
     }
 
-    // Update the rider location
+    // Perform database update with explicit field names
+    const updateData: any = {
+      riderLat: riderLat,
+      riderLng: riderLng,
+      updatedAt: new Date(),
+    };
+
+    // Auto-bind rider if missing
+    if (!order.riderId) {
+      updateData.riderId = user.id;
+    }
+
     const updatedOrder = await prisma.order.update({
       where: { id },
-      data: {
-        riderLat,
-        riderLng,
-        updatedAt: new Date(),
-      },
+      data: updateData,
     });
 
     return NextResponse.json({

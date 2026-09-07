@@ -177,19 +177,14 @@ export default function DeliveryPage() {
     try {
       const params = new URLSearchParams();
 
+      // ✅ FIX: Riders see ALL their orders (all statuses)
       if (isRider) {
-        params.append(
-          "status",
-          "ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP,DELIVERED",
-        );
+        // Don't filter by status - show all orders assigned to this rider
+        // The API will filter by riderId automatically
       }
 
       if (isAdmin && selectedRiderId !== "all") {
         params.append("riderId", selectedRiderId);
-        params.append(
-          "status",
-          "ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP,DELIVERED",
-        );
       }
 
       if (statusFilter !== "all") {
@@ -230,13 +225,6 @@ export default function DeliveryPage() {
       const res = await fetch(`/api/admin/orders/${orderId}`);
       if (!res.ok) return null;
       const data = await res.json();
-      console.log("📥 Fetched order by ID:", {
-        id: data.id,
-        isPaid: data.isPaid,
-        status: data.status,
-        riderLat: data.riderLat,
-        riderLng: data.riderLng,
-      });
       if (data.address) {
         data.address.lat = cityCoordinates[data.address?.city]?.lat || 13.9411;
         data.address.lng = cityCoordinates[data.address?.city]?.lng || 121.1633;
@@ -298,12 +286,8 @@ export default function DeliveryPage() {
   };
 
   const markAsPaid = async (orderId: string) => {
-    console.log("🚀 markAsPaid called for order:", orderId);
     setIsUpdating(true);
     try {
-      console.log(
-        `📤 Sending PATCH request to /api/admin/orders/${orderId}/payment`,
-      );
       const res = await fetch(`/api/admin/orders/${orderId}/payment`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -311,27 +295,22 @@ export default function DeliveryPage() {
       });
 
       const data = await res.json();
-      console.log("📥 Response:", { status: res.status, data });
 
       if (res.ok) {
         toast.success("Order marked as paid");
-        console.log("🔄 Refreshing delivery orders...");
         await fetchDeliveryOrders();
 
         if (selectedOrder?.id === orderId) {
-          console.log("🔄 Refreshing selected order...");
           const refreshedOrder = await fetchOrderById(orderId);
-          console.log("🔄 Refreshed order:", refreshedOrder);
           if (refreshedOrder) {
             setSelectedOrder(refreshedOrder);
           }
         }
       } else {
-        console.error("❌ Error response:", data);
         toast.error(data.error || "Failed to mark as paid");
       }
     } catch (error) {
-      console.error("❌ Catch error:", error);
+      console.error("Error marking as paid:", error);
       toast.error("Network error");
     } finally {
       setIsUpdating(false);
@@ -362,12 +341,6 @@ export default function DeliveryPage() {
   ) => {
     if (!rider) return "Not assigned";
     return rider.name || rider.email || "Unknown Rider";
-  };
-
-  const truncateText = (text: string | null, maxLength: number = 30) => {
-    if (!text) return "";
-    if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength) + "...";
   };
 
   const renderSkeletonRows = () => {

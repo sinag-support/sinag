@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
 import { useTheme } from "next-themes";
@@ -13,18 +12,11 @@ import { cn } from "@/lib/utils";
 // Import Leaflet CSS
 import "leaflet/dist/leaflet.css";
 
-// Initialize Supabase Client (for realtime subscription only)
+// Initialize Supabase Client
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
-
-// Default fallback location (will be overridden by admin's store location)
-const DEFAULT_STORE_LOCATION = {
-  lat: 14.5995,
-  lng: 120.9842,
-  name: "Store Location (Default)",
-};
 
 export const TILE_LAYERS = {
   street: {
@@ -59,7 +51,6 @@ export const TILE_LAYERS = {
   },
 };
 
-// Calculate compass heading angle (0 to 360 deg) between two coordinates
 function calculateBearing(
   startLat: number,
   startLng: number,
@@ -78,14 +69,11 @@ function calculateBearing(
     Math.cos(lat1) * Math.sin(lat2) -
     Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
 
-  const bearing = (toDeg(Math.atan2(y, x)) + 360) % 360;
-  return bearing;
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
-// Determine if the truck should flip based on angle
 function shouldFlipTruck(angle: number): boolean {
   const normalizedAngle = ((angle % 360) + 360) % 360;
-  // Flip if facing East (0° to 90° or 270° to 360°)
   return normalizedAngle < 90 || normalizedAngle > 270;
 }
 
@@ -100,52 +88,52 @@ export async function getCoordinates(
       "User-Agent": "OrderTrackingApp/1.0",
     };
 
-    const primaryQuery = `${address}, ${city}, ${province}, Philippines`;
+    // ✅ Add null/undefined checks
+    const safeAddress = address || "";
+    const safeCity = city || "";
+    const safeProvince = province || "";
 
-    let response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        primaryQuery,
-      )}&limit=1`,
-      { headers },
-    );
+    // Try with full address first
+    if (safeAddress.trim() && safeCity.trim()) {
+      const primaryQuery = `${safeAddress}, ${safeCity}, ${safeProvince}, Philippines`;
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          primaryQuery,
+        )}&limit=1`,
+        { headers },
+      );
 
-    let data = await response.json();
-
-    if (data && data.length > 0) {
-      return {
-        lat: parseFloat(data[0].lat),
-        lng: parseFloat(data[0].lon),
-      };
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0 && data[0].lat && data[0].lon) {
+          return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        }
+      }
     }
 
-    const fallbackQuery = `${city}, ${province}, Philippines`;
+    // Fallback to city only
+    if (safeCity.trim()) {
+      const fallbackQuery = `${safeCity}, ${safeProvince}, Philippines`;
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          fallbackQuery,
+        )}&limit=1`,
+        { headers },
+      );
 
-    response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        fallbackQuery,
-      )}&limit=1`,
-      { headers },
-    );
-
-    data = await response.json();
-
-    if (data && data.length > 0) {
-      return {
-        lat: parseFloat(data[0].lat),
-        lng: parseFloat(data[0].lon),
-      };
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0 && data[0].lat && data[0].lon) {
+          return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        }
+      }
     }
 
-    return {
-      lat: 13.9419,
-      lng: 121.1644,
-    };
+    // Default fallback (center of Lipa City, Batangas)
+    return { lat: 13.9419, lng: 121.1644 };
   } catch (error) {
     console.error("Geocoding error:", error);
-    return {
-      lat: 13.9419,
-      lng: 121.1644,
-    };
+    return { lat: 13.9419, lng: 121.1644 };
   }
 }
 
@@ -155,7 +143,6 @@ export async function getRouteGeometry(
 ) {
   try {
     const url = `https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`;
-
     const res = await fetch(url);
     const data = await res.json();
 
@@ -165,7 +152,7 @@ export async function getRouteGeometry(
       ) as [number, number][];
     }
   } catch (err) {
-    console.error("OSRM route error, falling back to direct line:", err);
+    console.error("OSRM route error:", err);
   }
 
   return [
@@ -177,40 +164,30 @@ export async function getRouteGeometry(
 async function fetchStoreLocation() {
   try {
     const response = await fetch("/api/admin/profile");
-    if (!response.ok) {
-      console.error("Failed to fetch store location:", response.status);
-      return DEFAULT_STORE_LOCATION;
-    }
+    if (!response.ok) return null;
     const data = await response.json();
 
-    if (
-      data.storeLocation &&
-      data.storeLocation.latitude &&
-      data.storeLocation.longitude
-    ) {
+    if (data.storeLocation?.latitude && data.storeLocation?.longitude) {
       return {
         lat: data.storeLocation.latitude,
         lng: data.storeLocation.longitude,
         name: data.storeLocation.address || "Store Location",
-        address: data.storeLocation,
       };
     }
-
-    return DEFAULT_STORE_LOCATION;
+    return null;
   } catch (error) {
     console.error("Error fetching store location:", error);
-    return DEFAULT_STORE_LOCATION;
+    return null;
   }
 }
 
-// Calculate distance in meters using Haversine formula
 function calculateDistance(
   lat1: number,
   lng1: number,
   lat2: number,
   lng2: number,
 ): number {
-  const R = 6371000; // Earth radius in meters
+  const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
@@ -219,11 +196,9 @@ function calculateDistance(
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-// useRiderLocationTracker with WebSocket broadcasting
 export function useRiderLocationTracker(
   orderId: string | undefined,
   isTrackingActive: boolean,
@@ -232,6 +207,7 @@ export function useRiderLocationTracker(
   const isUpdatingRef = useRef<boolean>(false);
   const lastPositionRef = useRef<{ lat: number; lng: number } | null>(null);
   const channelRef = useRef<any>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!isTrackingActive || !orderId) {
@@ -239,23 +215,12 @@ export function useRiderLocationTracker(
     }
 
     const channel = supabase.channel(`rider-location:${orderId}`, {
-      config: {
-        broadcast: { ack: true },
-      },
+      config: { broadcast: { ack: true } },
     });
 
-    channel.subscribe((status) => {
-      if (status === "SUBSCRIBED") {
-        console.log(
-          "📍 Rider location broadcast channel connected for order:",
-          orderId,
-        );
-      }
-    });
-
+    channel.subscribe();
     channelRef.current = channel;
 
-    let watchId: number;
     let wakeLock: any = null;
 
     const requestWakeLock = async () => {
@@ -264,102 +229,91 @@ export function useRiderLocationTracker(
           wakeLock = await (navigator as any).wakeLock.request("screen");
         }
       } catch (err) {
-        console.warn("Wake Lock request failed:", err);
+        // Wake Lock not supported
       }
     };
 
     requestWakeLock();
 
     if ("geolocation" in navigator) {
-      watchId = navigator.geolocation.watchPosition(
-        async (position) => {
-          if (isUpdatingRef.current) return;
+      const getLocation = () => {
+        if (isUpdatingRef.current) return;
 
-          const now = Date.now();
-          if (now - lastUpdateRef.current < 1000) return;
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            if (isUpdatingRef.current) return;
 
-          const { latitude, longitude, accuracy } = position.coords;
+            const now = Date.now();
+            if (now - lastUpdateRef.current < 1000) return;
 
-          if (accuracy > 50) return;
+            const { latitude, longitude } = position.coords;
 
-          if (lastPositionRef.current) {
-            const distance = calculateDistance(
-              lastPositionRef.current.lat,
-              lastPositionRef.current.lng,
-              latitude,
-              longitude,
-            );
-            if (distance < 5) {
-              return;
+            if (lastPositionRef.current) {
+              const distance = calculateDistance(
+                lastPositionRef.current.lat,
+                lastPositionRef.current.lng,
+                latitude,
+                longitude,
+              );
+              if (distance < 5) return;
             }
-          }
 
-          lastUpdateRef.current = now;
-          lastPositionRef.current = { lat: latitude, lng: longitude };
+            lastUpdateRef.current = now;
+            lastPositionRef.current = { lat: latitude, lng: longitude };
 
-          try {
-            channel.send({
-              type: "broadcast",
-              event: "location_update",
-              payload: {
-                orderId,
-                riderLat: latitude,
-                riderLng: longitude,
-                timestamp: now,
-                accuracy: accuracy,
-              },
-            });
-          } catch (err) {
-            console.error("WebSocket broadcast error:", err);
-          }
-
-          try {
-            isUpdatingRef.current = true;
-            const response = await fetch(
-              `/api/admin/orders/${orderId}/location`,
-              {
-                method: "PATCH",
-                headers: {
-                  "Content-Type": "application/json",
+            try {
+              channel.send({
+                type: "broadcast",
+                event: "location_update",
+                payload: {
+                  orderId,
+                  riderLat: latitude,
+                  riderLng: longitude,
+                  timestamp: now,
                 },
+              });
+            } catch (err) {
+              // Broadcast error
+            }
+
+            try {
+              isUpdatingRef.current = true;
+              await fetch(`/api/admin/orders/${orderId}/location`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   riderLat: latitude,
                   riderLng: longitude,
                 }),
-              },
-            );
-
-            if (!response.ok) {
-              const error = await response.json();
-              console.error(
-                "Failed to update rider location:",
-                error.error || response.statusText,
+              });
+            } catch (err) {
+              // API error
+            } finally {
+              isUpdatingRef.current = false;
+            }
+          },
+          (error) => {
+            if (error.code === error.PERMISSION_DENIED) {
+              toast.error(
+                "Location permissions required for real-time tracking.",
               );
             }
-          } catch (err) {
-            console.error("Error saving location:", err);
-          } finally {
-            isUpdatingRef.current = false;
-          }
-        },
-        (error) => {
-          console.error("Geolocation error:", error);
-          if (error.code === error.PERMISSION_DENIED) {
-            toast.error(
-              "Location permissions required for real-time tracking.",
-            );
-          }
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 10000,
-        },
-      );
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+        );
+      };
+
+      getLocation();
+      intervalRef.current = setInterval(getLocation, 2000);
+    } else {
+      toast.error("Geolocation is not supported by your browser.");
     }
 
     return () => {
-      if (watchId) navigator.geolocation.clearWatch(watchId);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
       if (wakeLock) wakeLock.release().catch(() => {});
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
@@ -390,12 +344,8 @@ export function OrderMap({
   const leafletLoadedRef = useRef(false);
   const lastBearingRef = useRef<number>(0);
   const lastLocationUpdateRef = useRef<number>(0);
-  const routePointsRef = useRef<[number, number][] | null>(null);
   const { role } = useRole();
-
-  // Track initialization state to prevent double loading
-  const mapInitializedRef = useRef(false);
-  const isMountedRef = useRef(true);
+  const isMapCreatedRef = useRef(false);
 
   const { theme, resolvedTheme } = useTheme();
   const [mapTheme, setMapTheme] = useState<"street" | "dark" | "satellite">(
@@ -405,28 +355,27 @@ export function OrderMap({
     lat: number;
     lng: number;
   } | null>(null);
-  const [mapError, setMapError] = useState(false);
   const [isLeafletReady, setIsLeafletReady] = useState(false);
 
   const [storeLocation, setStoreLocation] = useState<{
     lat: number;
     lng: number;
     name: string;
-  }>(DEFAULT_STORE_LOCATION);
-  const [storeLoading, setStoreLoading] = useState(true);
+  } | null>(null);
 
-  const originalRouteRef = useRef<[number, number][] | null>(null);
-  const riderInitializedRef = useRef(false);
-
-  const isRider = role === "RIDER";
-
-  // Track mounted state
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
+  const [currentRiderPos, setCurrentRiderPos] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(() => {
+    if (
+      order?.status === "OUT_FOR_DELIVERY" &&
+      order?.riderLat &&
+      order?.riderLng
+    ) {
+      return { lat: order.riderLat, lng: order.riderLng };
+    }
+    return null;
+  });
 
   const canFullscreen = () => {
     if (role === "ADMIN") return true;
@@ -434,39 +383,27 @@ export function OrderMap({
     return false;
   };
 
-  const shouldUseRealLocation = () => {
-    return (
-      order.status === "OUT_FOR_DELIVERY" &&
-      order?.riderLat !== null &&
-      order?.riderLat !== undefined &&
-      order?.riderLng !== null &&
-      order?.riderLng !== undefined
-    );
-  };
-
   const getRiderPosition = () => {
-    if (shouldUseRealLocation()) {
-      return { lat: order.riderLat, lng: order.riderLng };
+    if (order.status === "OUT_FOR_DELIVERY") {
+      if (currentRiderPos) return currentRiderPos;
+      if (order.riderLat && order.riderLng) {
+        return { lat: order.riderLat, lng: order.riderLng };
+      }
     }
-    return { lat: storeLocation.lat, lng: storeLocation.lng };
+    return storeLocation;
   };
 
   useEffect(() => {
     const loadStoreLocation = async () => {
       const location = await fetchStoreLocation();
       setStoreLocation(location);
-      setStoreLoading(false);
     };
     loadStoreLocation();
   }, []);
 
   useEffect(() => {
     const currentTheme = resolvedTheme || theme || "light";
-    if (currentTheme === "dark") {
-      setMapTheme("dark");
-    } else {
-      setMapTheme("street");
-    }
+    setMapTheme(currentTheme === "dark" ? "dark" : "street");
   }, [theme, resolvedTheme]);
 
   useEffect(() => {
@@ -477,10 +414,7 @@ export function OrderMap({
         .leaflet-dark-tiles {
           filter: invert(1) hue-rotate(180deg) brightness(0.78) contrast(0.9) saturate(0.65);
         }
-        .leaflet-normal-tiles {
-          filter: none;
-        }
-        .leaflet-satellite-tiles {
+        .leaflet-normal-tiles, .leaflet-satellite-tiles {
           filter: none;
         }
       `;
@@ -513,9 +447,6 @@ export function OrderMap({
         leafletLoadedRef.current = true;
         setIsLeafletReady(true);
       };
-      script.onerror = () => {
-        setMapError(true);
-      };
       document.body.appendChild(script);
     }
 
@@ -529,12 +460,8 @@ export function OrderMap({
     }
   }, []);
 
-  // ✅ RIDER MARKER - Flip only (no rotation)
   const createRiderIcon = (zoom: number, angle: number = 0) => {
-    if (!window.L) {
-      console.warn("⚠️ Leaflet not available");
-      return null;
-    }
+    if (!window.L) return null;
 
     const baseSize = 60;
     const minSize = 40;
@@ -542,12 +469,8 @@ export function OrderMap({
     const scale = Math.min(Math.max(zoom / 15, 0.6), 1.5);
     const size = Math.min(Math.max(baseSize * scale, minSize), maxSize);
 
-    // Determine if truck should flip based on angle
     const shouldFlip = shouldFlipTruck(angle);
     const scaleX = shouldFlip ? -1 : 1;
-
-    const offsetX = 0;
-    const offsetY = -17;
 
     return window.L.divIcon({
       className: "custom-leaflet-animated-icon",
@@ -573,12 +496,11 @@ export function OrderMap({
         </div>
       `,
       iconSize: [size, size],
-      iconAnchor: [size / 2 + offsetX, size + offsetY],
+      iconAnchor: [size / 2, size - 17],
       popupAnchor: [0, -size],
     });
   };
 
-  // ✅ CUSTOMER MARKER - uses /animations/location.json
   const createCustomerIcon = (zoom: number) => {
     if (!window.L) return null;
 
@@ -611,8 +533,7 @@ export function OrderMap({
   const updateMarkerIcons = (zoom: number) => {
     if (!window.L || !riderMarkerRef.current) return;
 
-    const angle = lastBearingRef.current;
-    const riderIcon = createRiderIcon(zoom, angle);
+    const riderIcon = createRiderIcon(zoom, lastBearingRef.current);
     if (riderIcon) riderMarkerRef.current.setIcon(riderIcon);
 
     if (customerMarkerRef.current) {
@@ -625,26 +546,30 @@ export function OrderMap({
     if (!order?.address) return;
 
     let isMounted = true;
-
-    const fetchCoordinates = async () => {
-      const coords = await getCoordinates(
-        order.address.address,
-        order.address.city,
-        order.address.province,
-      );
-      if (isMounted) {
-        setCoordinates(coords);
+    const fetchCoords = async () => {
+      try {
+        const coords = await getCoordinates(
+          order.address.address,
+          order.address.city,
+          order.address.province,
+        );
+        if (isMounted && coords) {
+          setCoordinates(coords);
+        }
+      } catch (error) {
+        console.error("Error fetching coordinates:", error);
+        if (isMounted) {
+          setCoordinates({ lat: 13.9419, lng: 121.1644 });
+        }
       }
     };
 
-    fetchCoordinates();
-
+    fetchCoords();
     return () => {
       isMounted = false;
     };
   }, [order]);
 
-  // ✅ animateMarkerTo with smooth animation (flip only, no rotation)
   const animateMarkerTo = (
     targetLat: number,
     targetLng: number,
@@ -653,44 +578,30 @@ export function OrderMap({
     if (!mapInstanceRef.current) return;
 
     if (!riderMarkerRef.current) {
-      console.log("📍 Creating new rider marker at:", { targetLat, targetLng });
       const currentZoom = mapInstanceRef.current.getZoom() || 15;
       const riderIcon = createRiderIcon(currentZoom, lastBearingRef.current);
       if (riderIcon) {
-        const marker = window.L.marker([targetLat, targetLng], {
+        riderMarkerRef.current = window.L.marker([targetLat, targetLng], {
           icon: riderIcon,
           zIndexOffset: 1000,
         }).addTo(mapInstanceRef.current);
-        riderMarkerRef.current = marker;
-        riderInitializedRef.current = true;
       }
       return;
     }
 
     const startPos = riderMarkerRef.current.getLatLng();
-
-    // If distance is huge (> 1km), teleport instantly
     const distance = calculateDistance(
       startPos.lat,
       startPos.lng,
       targetLat,
       targetLng,
     );
+
     if (distance > 1000) {
-      console.log("📍 Teleporting marker (large distance):", {
-        targetLat,
-        targetLng,
-      });
       riderMarkerRef.current.setLatLng([targetLat, targetLng]);
-      const currentZoom = mapInstanceRef.current.getZoom();
-      const newIcon = createRiderIcon(currentZoom, lastBearingRef.current);
-      if (newIcon) {
-        riderMarkerRef.current.setIcon(newIcon);
-      }
       return;
     }
 
-    // Calculate bearing for flip direction only
     const angle = calculateBearing(
       startPos.lat,
       startPos.lng,
@@ -700,20 +611,15 @@ export function OrderMap({
     lastBearingRef.current = angle;
 
     const currentZoom = mapInstanceRef.current.getZoom();
-
-    // Update icon with new flip direction
     const newIcon = createRiderIcon(currentZoom, angle);
     if (newIcon) {
       riderMarkerRef.current.setIcon(newIcon);
     }
 
-    // Smooth animation with easing
     const startTime = performance.now();
     const step = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
-
-      // Ease-in-out for smoother movement
       const eased =
         progress < 0.5
           ? 2 * progress * progress
@@ -723,11 +629,7 @@ export function OrderMap({
       const currentLng = startPos.lng + (targetLng - startPos.lng) * eased;
 
       if (riderMarkerRef.current) {
-        try {
-          riderMarkerRef.current.setLatLng([currentLat, currentLng]);
-        } catch (e) {
-          // Skip this frame if error
-        }
+        riderMarkerRef.current.setLatLng([currentLat, currentLng]);
       }
 
       if (progress < 1) {
@@ -738,50 +640,33 @@ export function OrderMap({
     requestAnimationFrame(step);
   };
 
-  // ✅ Cleanup map with proper reset
   const cleanupMap = () => {
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.off();
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
     }
-    if (tileLayerRef.current) {
-      tileLayerRef.current = null;
-    }
-    if (labelsLayerRef.current) {
-      labelsLayerRef.current = null;
-    }
-    if (riderMarkerRef.current) {
-      riderMarkerRef.current = null;
-    }
-    if (customerMarkerRef.current) {
-      customerMarkerRef.current = null;
-    }
-    if (polylineRef.current) {
-      polylineRef.current = null;
-    }
-    riderInitializedRef.current = false;
-    mapInitializedRef.current = false;
+    tileLayerRef.current = null;
+    labelsLayerRef.current = null;
+    riderMarkerRef.current = null;
+    customerMarkerRef.current = null;
+    polylineRef.current = null;
+    isMapCreatedRef.current = false;
   };
 
-  // ✅ Initialize map with double-load prevention
+  // Initialize map
   useEffect(() => {
-    if (mapInitializedRef.current) return;
-    if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
+    if (!coordinates || !mapRef.current || !isLeafletReady || !storeLocation) {
       return;
-    if (!window.L) return;
+    }
 
-    mapInitializedRef.current = true;
+    if (isMapCreatedRef.current) {
+      return;
+    }
 
-    console.log("🗺️ Initializing map...");
-
-    cleanupMap();
-
-    const timer = setTimeout(async () => {
-      if (!isMountedRef.current) return;
-      if (!mapRef.current || !window.L) return;
-
+    const initMap = async () => {
       try {
+        if (!mapRef.current || !window.L) return;
+
         const customerPos: [number, number] = [
           coordinates.lat,
           coordinates.lng,
@@ -791,11 +676,6 @@ export function OrderMap({
           storeLocation.lng,
         ];
 
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.remove();
-          mapInstanceRef.current = null;
-        }
-
         const map = window.L.map(mapRef.current, {
           zoomControl: true,
           dragging: true,
@@ -804,49 +684,30 @@ export function OrderMap({
         });
 
         const activeConfig = TILE_LAYERS[mapTheme];
-        const tileLayer = window.L.tileLayer(
+        tileLayerRef.current = window.L.tileLayer(
           activeConfig.url,
           activeConfig.options,
         ).addTo(map);
-        tileLayerRef.current = tileLayer;
 
         if (mapTheme === "satellite") {
           const labelsConfig = TILE_LAYERS.satelliteLabels;
-          const labelsLayer = window.L.tileLayer(labelsConfig.url, {
+          labelsLayerRef.current = window.L.tileLayer(labelsConfig.url, {
             ...labelsConfig.options,
             opacity: 0.6,
           }).addTo(map);
-          labelsLayerRef.current = labelsLayer;
         }
 
         const initialZoom = map.getZoom();
 
-        // Customer marker - uses /animations/location.json
         const customerIcon = createCustomerIcon(initialZoom);
         if (customerIcon) {
-          const customerMarker = window.L.marker(customerPos, {
+          customerMarkerRef.current = window.L.marker(customerPos, {
             icon: customerIcon,
           }).addTo(map);
-          customerMarkerRef.current = customerMarker;
-
-          if (order?.address) {
-            customerMarker.bindPopup(`
-              <div style="font-size:13px;">
-                <strong>Delivery Destination</strong><br/>
-                ${order.address.address}<br/>
-                ${order.address.city}, ${order.address.province}
-              </div>
-            `);
-          }
+          customerMarkerRef.current.setZIndexOffset(500);
         }
 
-        const routePoints = await getRouteGeometry(
-          { lat: storeLocation.lat, lng: storeLocation.lng },
-          coordinates,
-        );
-
-        routePointsRef.current = routePoints;
-        originalRouteRef.current = routePoints;
+        const routePoints = await getRouteGeometry(storeLocation, coordinates);
 
         polylineRef.current = window.L.polyline(routePoints, {
           color: "#dc2626",
@@ -867,253 +728,54 @@ export function OrderMap({
         map.fitBounds(bounds, { padding: [50, 50] });
 
         setTimeout(() => {
-          if (!isMountedRef.current) return;
-
           const currentZoom = map.getZoom();
-
-          const riderPos = getRiderPosition();
-
-          console.log("📍 Creating rider marker at:", riderPos);
-
-          // Rider marker - uses /animations/truck.json (flip only)
-          const riderIcon = createRiderIcon(
-            currentZoom,
-            lastBearingRef.current,
-          );
-
-          if (riderIcon) {
-            const riderMarker = window.L.marker([riderPos.lat, riderPos.lng], {
-              icon: riderIcon,
-              zIndexOffset: 1000,
-            }).addTo(map);
-
-            riderMarkerRef.current = riderMarker;
-            riderInitializedRef.current = true;
-
-            riderMarker.bindPopup(
-              `<b>Delivery Rider</b><br/>Status: ${order.status}`,
-            );
-
-            console.log("✅ Rider marker created successfully");
-          } else {
-            console.error("❌ Failed to create rider icon");
-          }
 
           const updatedCustomerIcon = createCustomerIcon(currentZoom);
           if (updatedCustomerIcon && customerMarkerRef.current) {
             customerMarkerRef.current.setIcon(updatedCustomerIcon);
           }
 
-          mapInstanceRef.current = map;
-          map.invalidateSize();
+          const riderPos = getRiderPosition();
 
-          console.log("🗺️ Map initialized successfully");
-        }, 100);
+          if (riderPos) {
+            const riderIcon = createRiderIcon(
+              currentZoom,
+              lastBearingRef.current,
+            );
+
+            if (riderIcon) {
+              riderMarkerRef.current = window.L.marker(
+                [riderPos.lat, riderPos.lng],
+                {
+                  icon: riderIcon,
+                  zIndexOffset: 1000,
+                },
+              ).addTo(map);
+            }
+          }
+
+          mapInstanceRef.current = map;
+          isMapCreatedRef.current = true;
+          map.invalidateSize();
+        }, 150);
 
         map.on("zoomend", () => {
-          const currentZoom = map.getZoom();
-          updateMarkerIcons(currentZoom);
+          updateMarkerIcons(map.getZoom());
         });
       } catch (error) {
         console.error("Map initialization error:", error);
-        setMapError(true);
-        mapInitializedRef.current = false;
-      }
-    }, 100);
-
-    return () => {
-      clearTimeout(timer);
-      if (!isMountedRef.current) {
-        cleanupMap();
+        isMapCreatedRef.current = false;
       }
     };
-  }, [
-    coordinates,
-    order,
-    mapTheme,
-    isLeafletReady,
-    storeLocation,
-    storeLoading,
-  ]);
 
-  // ✅ Reset map when order ID changes
-  useEffect(() => {
-    if (order?.id) {
-      mapInitializedRef.current = false;
-      cleanupMap();
-    }
-  }, [order?.id]);
+    initMap();
 
-  // ✅ Cleanup on unmount
-  useEffect(() => {
     return () => {
       cleanupMap();
     };
-  }, []);
+  }, [coordinates, isLeafletReady, storeLocation]);
 
-  // ✅ Listen for force-move events from parent
-  useEffect(() => {
-    const handleForceMove = (event: CustomEvent) => {
-      console.log("⚡ Force move triggered:", event.detail);
-      if (!riderMarkerRef.current) {
-        console.warn("⚠️ No rider marker to move");
-        return;
-      }
-
-      // Move in a circle pattern
-      let count = 0;
-      const interval = setInterval(() => {
-        count++;
-        const lat = 14.5995 + Math.sin(count * 0.15) * 0.02;
-        const lng = 120.9842 + Math.cos(count * 0.15) * 0.02;
-
-        console.log(`⚡ Force move ${count}:`, { lat, lng });
-
-        try {
-          riderMarkerRef.current.setLatLng([lat, lng]);
-          // Also update the bearing for flip
-          const angle = calculateBearing(
-            riderMarkerRef.current.getLatLng().lat,
-            riderMarkerRef.current.getLatLng().lng,
-            lat,
-            lng,
-          );
-          lastBearingRef.current = angle;
-
-          // Update icon with new flip direction
-          const currentZoom = mapInstanceRef.current?.getZoom() || 15;
-          const newIcon = createRiderIcon(currentZoom, angle);
-          if (newIcon) {
-            riderMarkerRef.current.setIcon(newIcon);
-          }
-        } catch (e) {
-          console.error("❌ Force move error:", e);
-        }
-
-        if (count > 30) clearInterval(interval);
-      }, 500);
-    };
-
-    // Listen for the custom event
-    window.addEventListener(
-      "force-marker-move",
-      handleForceMove as EventListener,
-    );
-
-    return () => {
-      window.removeEventListener(
-        "force-marker-move",
-        handleForceMove as EventListener,
-      );
-    };
-  }, []);
-
-  // WebSocket Broadcast Listener
-  useEffect(() => {
-    if (!order?.id) return;
-
-    if (order.status !== "OUT_FOR_DELIVERY") {
-      return;
-    }
-
-    const channel = supabase.channel(`rider-location:${order.id}`, {
-      config: {
-        broadcast: { ack: true },
-      },
-    });
-
-    channel
-      .on("broadcast", { event: "location_update" }, (payload) => {
-        const { riderLat, riderLng, timestamp } = payload.payload;
-        console.log("📥 Received broadcast:", { riderLat, riderLng });
-
-        if (riderMarkerRef.current && riderLat && riderLng) {
-          const now = Date.now();
-          if (now - lastLocationUpdateRef.current < 100) return;
-          lastLocationUpdateRef.current = now;
-
-          animateMarkerTo(riderLat, riderLng, 300);
-        }
-      })
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          console.log(
-            "📍 OrderMap listening to broadcasts for order:",
-            order.id,
-          );
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [order?.id, order?.status]);
-
-  // Supabase Realtime Database Listener (Fallback)
-  useEffect(() => {
-    if (!order?.id) return;
-
-    if (order.status !== "OUT_FOR_DELIVERY") {
-      if (riderMarkerRef.current) {
-        const storePos = { lat: storeLocation.lat, lng: storeLocation.lng };
-        animateMarkerTo(storePos.lat, storePos.lng, 500);
-      }
-      return;
-    }
-
-    const channelName = `order-realtime-${order.id}`;
-
-    const existingChannel = supabase
-      .getChannels()
-      .find((ch) => ch.topic === `realtime:${channelName}`);
-    if (existingChannel) {
-      supabase.removeChannel(existingChannel);
-    }
-
-    const channel = supabase.channel(channelName);
-
-    channel
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "Order",
-          filter: `id=eq.${order.id}`,
-        },
-        (payload) => {
-          const { riderLat, riderLng, status } = payload.new;
-          console.log("📥 Database update received:", {
-            riderLat,
-            riderLng,
-            status,
-          });
-
-          if (
-            status === "OUT_FOR_DELIVERY" &&
-            riderLat !== null &&
-            riderLat !== undefined &&
-            riderLng !== null &&
-            riderLng !== undefined &&
-            riderMarkerRef.current
-          ) {
-            animateMarkerTo(riderLat, riderLng, 500);
-          } else if (status !== "OUT_FOR_DELIVERY" && riderMarkerRef.current) {
-            const storePos = {
-              lat: storeLocation.lat,
-              lng: storeLocation.lng,
-            };
-            animateMarkerTo(storePos.lat, storePos.lng, 500);
-          }
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [order?.id, coordinates, storeLocation]);
-
+  // Separate effect for theme changes - just updates tiles
   useEffect(() => {
     if (!mapInstanceRef.current || !tileLayerRef.current || !window.L) return;
 
@@ -1123,6 +785,7 @@ export function OrderMap({
     if (tileLayerRef.current) {
       map.removeLayer(tileLayerRef.current);
     }
+
     const newTileLayer = window.L.tileLayer(
       activeConfig.url,
       activeConfig.options,
@@ -1136,11 +799,10 @@ export function OrderMap({
 
     if (mapTheme === "satellite") {
       const labelsConfig = TILE_LAYERS.satelliteLabels;
-      const labelsLayer = window.L.tileLayer(labelsConfig.url, {
+      labelsLayerRef.current = window.L.tileLayer(labelsConfig.url, {
         ...labelsConfig.options,
         opacity: 0.6,
       }).addTo(map);
-      labelsLayerRef.current = labelsLayer;
     }
 
     if (polylineRef.current) {
@@ -1149,6 +811,87 @@ export function OrderMap({
       });
     }
   }, [mapTheme]);
+
+  // Update Rider Marker when position state changes
+  useEffect(() => {
+    const riderPos = getRiderPosition();
+    if (riderPos && riderMarkerRef.current) {
+      animateMarkerTo(riderPos.lat, riderPos.lng, 300);
+    }
+  }, [currentRiderPos, order.status]);
+
+  // WebSocket Broadcast Listener
+  useEffect(() => {
+    if (!order?.id || order.status !== "OUT_FOR_DELIVERY") return;
+
+    const channel = supabase.channel(`rider-location:${order.id}`, {
+      config: { broadcast: { ack: true } },
+    });
+
+    channel
+      .on("broadcast", { event: "location_update" }, (payload) => {
+        const { riderLat, riderLng } = payload.payload;
+        if (riderLat && riderLng) {
+          setCurrentRiderPos({ lat: riderLat, lng: riderLng });
+
+          if (mapInstanceRef.current) {
+            animateMarkerTo(riderLat, riderLng, 300);
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [order?.id, order?.status]);
+
+  // Supabase Realtime Database Listener
+  useEffect(() => {
+    if (!order?.id) return;
+
+    const existingChannel = supabase
+      .getChannels()
+      .find((ch) => ch.topic === `realtime:order-realtime-${order.id}`);
+    if (existingChannel) {
+      supabase.removeChannel(existingChannel);
+    }
+
+    const channelName = `order-realtime-${order.id}`;
+    const channel = supabase.channel(channelName);
+
+    channel.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "Order",
+        filter: `id=eq.${order.id}`,
+      },
+      (payload) => {
+        const { riderLat, riderLng, status } = payload.new;
+
+        if (status === "OUT_FOR_DELIVERY" && riderLat && riderLng) {
+          setCurrentRiderPos({ lat: riderLat, lng: riderLng });
+
+          if (mapInstanceRef.current) {
+            animateMarkerTo(riderLat, riderLng, 500);
+          }
+        } else if (status !== "OUT_FOR_DELIVERY" && storeLocation) {
+          setCurrentRiderPos(null);
+          if (riderMarkerRef.current) {
+            animateMarkerTo(storeLocation.lat, storeLocation.lng, 500);
+          }
+        }
+      },
+    );
+
+    channel.subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [order?.id, storeLocation]);
 
   return (
     <div
@@ -1234,18 +977,9 @@ export function OrderMap({
         </div>
       )}
 
-      {!isLeafletReady && !mapError ? (
+      {!isLeafletReady ? (
         <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : mapError ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted z-10 p-4 text-center">
-          <p className="text-sm text-muted-foreground font-medium">
-            Map unavailable
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {order.address?.address}, {order.address?.city}
-          </p>
         </div>
       ) : (
         <div ref={mapRef} className="w-full h-full z-0" />

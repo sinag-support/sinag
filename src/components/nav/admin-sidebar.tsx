@@ -226,6 +226,13 @@ export default function AdminSidebar() {
   const router = useRouter();
   const { role, loading } = useRole();
 
+  // ✅ FIX: Prevent hydration mismatch
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const getStoredRole = () => {
     if (typeof window === "undefined") return "";
     return sessionStorage.getItem("userRole") || "";
@@ -661,9 +668,11 @@ export default function AdminSidebar() {
     );
   };
 
-  if (loading) {
-    const skeletonCount =
-      normalizedRole === "STAFF" ? 4 : normalizedRole === "RIDER" ? 3 : 5;
+  // ✅ FIXED: Loading skeleton with hydration safety
+  if (loading || !mounted) {
+    // During hydration, always show 5 items (matches server)
+    // After hydration, we can show the correct role-based count
+    const skeletonCount = 5; // Always 5 during initial render to prevent hydration mismatch
 
     return (
       <>

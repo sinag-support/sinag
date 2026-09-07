@@ -102,24 +102,11 @@ export function DeliveryOrderDetail({
   } | null>(null);
   const [currentOrder, setCurrentOrder] = useState<DeliveryOrder | null>(order);
   const [isPaying, setIsPaying] = useState(false);
-  const [isTestMoving, setIsTestMoving] = useState(false);
-  const [testIntervalRef, setTestIntervalRef] = useState<NodeJS.Timeout | null>(
-    null,
-  );
 
-  // Update currentOrder when prop changes
   useEffect(() => {
-    console.log("🔄 DeliveryOrderDetail: order prop changed", {
-      id: order?.id,
-      isPaid: order?.isPaid,
-      status: order?.status,
-      riderLat: order?.riderLat,
-      riderLng: order?.riderLng,
-    });
     setCurrentOrder(order);
   }, [order]);
 
-  // ✅ Only RIDER users track location, and only when OUT_FOR_DELIVERY
   const isRiderTrackingActive =
     role === "RIDER" && currentOrder?.status === "OUT_FOR_DELIVERY";
 
@@ -131,11 +118,6 @@ export function DeliveryOrderDetail({
     await onStatusUpdate(orderId, status);
     if (onRefreshOrder) {
       const refreshedOrder = await onRefreshOrder();
-      console.log("🔄 Status updated, refreshed order:", {
-        id: refreshedOrder?.id,
-        isPaid: refreshedOrder?.isPaid,
-        status: refreshedOrder?.status,
-      });
       if (refreshedOrder) {
         setCurrentOrder(refreshedOrder);
       }
@@ -158,23 +140,17 @@ export function DeliveryOrderDetail({
     setShowFullscreenDialog(true);
   };
 
-  // Handle Mark as Paid - using the prop
   const handleMarkAsPaid = async () => {
     if (!currentOrder || !onMarkAsPaid) {
       toast.error("Payment function not available");
       return;
     }
-    console.log("💰 handleMarkAsPaid called for order:", currentOrder.id);
     setIsPaying(true);
     try {
       await onMarkAsPaid(currentOrder.id);
       setShowMarkPaidDialog(false);
       if (onRefreshOrder) {
         const refreshedOrder = await onRefreshOrder();
-        console.log("🔄 Refreshed order after mark as paid:", {
-          id: refreshedOrder?.id,
-          isPaid: refreshedOrder?.isPaid,
-        });
         if (refreshedOrder) {
           setCurrentOrder(refreshedOrder);
         }
@@ -185,152 +161,6 @@ export function DeliveryOrderDetail({
     } finally {
       setIsPaying(false);
     }
-  };
-
-  // ✅ Diagnostic: Run full system check
-  const runDiagnostic = () => {
-    console.log("🔍 ====== STARTING DIAGNOSTIC ======");
-
-    // 1. Check role
-    console.log("1️⃣ Role:", role);
-
-    // 2. Check order
-    console.log("2️⃣ Order:", {
-      id: currentOrder?.id,
-      status: currentOrder?.status,
-      riderLat: currentOrder?.riderLat,
-      riderLng: currentOrder?.riderLng,
-      isPaid: currentOrder?.isPaid,
-    });
-
-    // 3. Check tracking status
-    const isTracking =
-      role === "RIDER" && currentOrder?.status === "OUT_FOR_DELIVERY";
-    console.log("3️⃣ Is tracking active?", isTracking);
-
-    // 4. Check geolocation
-    console.log("4️⃣ Geolocation:", {
-      available: "geolocation" in navigator,
-    });
-
-    if (navigator.permissions) {
-      navigator.permissions
-        .query({ name: "geolocation" })
-        .then((result) => {
-          console.log("4️⃣ Permission state:", result.state);
-        })
-        .catch((err) => {
-          console.log("4️⃣ Permission query error:", err);
-        });
-    }
-
-    // 5. Check Leaflet
-    console.log("5️⃣ Leaflet loaded?", !!window.L);
-
-    // 6. Check Lottie
-    const lottiePlayer = document.querySelector("dotlottie-player");
-    console.log("6️⃣ Lottie player found?", !!lottiePlayer);
-
-    // 7. Check Supabase
-    console.log("7️⃣ Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-
-    // 8. Check animations
-    fetch("/animations/truck.json")
-      .then((res) => {
-        console.log("8️⃣ Truck animation:", res.ok ? "✅ Loaded" : "❌ Failed");
-        return res.ok;
-      })
-      .catch(() => console.log("8️⃣ Truck animation: ❌ Error"));
-
-    fetch("/animations/location.json")
-      .then((res) => {
-        console.log(
-          "8️⃣ Location animation:",
-          res.ok ? "✅ Loaded" : "❌ Failed",
-        );
-      })
-      .catch(() => console.log("8️⃣ Location animation: ❌ Error"));
-
-    console.log("🔍 ====== DIAGNOSTIC COMPLETE ======");
-    toast.info("Diagnostic complete - Check console");
-  };
-
-  // ✅ Test: Move marker manually via API
-  const testMoveMarker = async () => {
-    if (!currentOrder) {
-      toast.error("No order selected");
-      return;
-    }
-
-    setIsTestMoving(true);
-    let count = 0;
-    const maxMoves = 20;
-
-    toast.info("Starting test movement...");
-
-    const interval = setInterval(async () => {
-      count++;
-      const lat = 14.5995 + Math.sin(count * 0.15) * 0.02;
-      const lng = 120.9842 + Math.cos(count * 0.15) * 0.02;
-
-      console.log(`🎯 Test move ${count}/${maxMoves}:`, { lat, lng });
-
-      try {
-        const response = await fetch(
-          `/api/admin/orders/${currentOrder.id}/location`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ riderLat: lat, riderLng: lng }),
-          },
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log("✅ Location updated:", data);
-
-          // Refresh the order to get updated location
-          if (onRefreshOrder) {
-            const refreshed = await onRefreshOrder();
-            if (refreshed) {
-              setCurrentOrder(refreshed);
-            }
-          }
-        } else {
-          console.error("❌ Failed to update location");
-        }
-      } catch (err) {
-        console.error("❌ Error updating location:", err);
-      }
-
-      if (count >= maxMoves) {
-        clearInterval(interval);
-        setIsTestMoving(false);
-        toast.success("Test movement complete!");
-        console.log("✅ Test movement complete");
-      }
-    }, 800);
-
-    setTestIntervalRef(interval);
-  };
-
-  // ✅ Test: Force marker to move without API (direct map manipulation)
-  const testForceMove = () => {
-    if (!currentOrder) {
-      toast.error("No order selected");
-      return;
-    }
-
-    // This will be handled by the OrderMap component's test mode
-    // We'll pass a prop or use a global event
-    toast.info("Forcing marker movement - check console");
-    console.log("🔄 Forcing marker movement...");
-
-    // Emit a custom event that OrderMap can listen to
-    const event = new CustomEvent("force-marker-move", {
-      detail: { orderId: currentOrder.id },
-    });
-    window.dispatchEvent(event);
   };
 
   const shouldShowActions = () => {
@@ -345,7 +175,6 @@ export function DeliveryOrderDetail({
     return false;
   };
 
-  // Check if Mark as Paid should be shown
   const shouldShowMarkAsPaid = () => {
     if (role !== "RIDER") return false;
     if (currentOrder.isPaid) return false;
@@ -495,43 +324,8 @@ export function DeliveryOrderDetail({
           )}
         >
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold tracking-tight text-foreground flex items-center justify-between">
+            <DialogTitle className="text-xl font-bold tracking-tight text-foreground">
               Delivery Details
-              <div className="flex items-center gap-2">
-                {/* ✅ Diagnostic Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={runDiagnostic}
-                  className="text-xs h-8"
-                >
-                  🔍 Diagnose
-                </Button>
-                {/* ✅ Test Move Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={testMoveMarker}
-                  disabled={isTestMoving}
-                  className="text-xs h-8"
-                >
-                  {isTestMoving ? (
-                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                  ) : (
-                    "▶️"
-                  )}
-                  Test Move
-                </Button>
-                {/* ✅ Force Move Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={testForceMove}
-                  className="text-xs h-8"
-                >
-                  ⚡ Force
-                </Button>
-              </div>
             </DialogTitle>
           </DialogHeader>
 
@@ -584,7 +378,6 @@ export function DeliveryOrderDetail({
                 </div>
               </div>
 
-              {/* Payment Status Badge */}
               <div className="border border-border rounded-lg p-3 !bg-background shadow-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">

@@ -106,7 +106,6 @@ const TILE_LAYERS = {
   },
 };
 
-// ✅ Calculate compass heading angle (0 to 360 deg) between two coordinates
 function calculateBearing(
   startLat: number,
   startLng: number,
@@ -136,36 +135,44 @@ async function getCoordinates(address: string, city: string, province: string) {
       "User-Agent": "OrderTrackingApp/1.0",
     };
 
-    const primaryQuery = `${address}, ${city}, ${province}, Philippines`;
+    const safeAddress = address || "";
+    const safeCity = city || "";
+    const safeProvince = province || "";
 
-    let response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(primaryQuery)}&limit=1`,
-      { headers },
-    );
+    if (safeAddress.trim() && safeCity.trim()) {
+      const primaryQuery = `${safeAddress}, ${safeCity}, ${safeProvince}, Philippines`;
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(primaryQuery)}&limit=1`,
+        { headers },
+      );
 
-    let data = await response.json();
-
-    if (data && data.length > 0) {
-      return {
-        lat: parseFloat(data[0].lat),
-        lng: parseFloat(data[0].lon),
-      };
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0) {
+          return {
+            lat: parseFloat(data[0].lat),
+            lng: parseFloat(data[0].lon),
+          };
+        }
+      }
     }
 
-    const fallbackQuery = `${city}, ${province}, Philippines`;
+    if (safeCity.trim()) {
+      const fallbackQuery = `${safeCity}, ${safeProvince}, Philippines`;
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fallbackQuery)}&limit=1`,
+        { headers },
+      );
 
-    response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fallbackQuery)}&limit=1`,
-      { headers },
-    );
-
-    data = await response.json();
-
-    if (data && data.length > 0) {
-      return {
-        lat: parseFloat(data[0].lat),
-        lng: parseFloat(data[0].lon),
-      };
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0) {
+          return {
+            lat: parseFloat(data[0].lat),
+            lng: parseFloat(data[0].lon),
+          };
+        }
+      }
     }
 
     return {
@@ -225,6 +232,7 @@ function OrderDetailContent({
   const animationFrameRef = useRef<number | null>(null);
   const leafletLoadedRef = useRef(false);
   const lastBearingRef = useRef<number>(0);
+  const isMapInitializedRef = useRef(false);
 
   const { theme, resolvedTheme } = useTheme();
   const [mapTheme, setMapTheme] = useState<"street" | "dark" | "satellite">(
@@ -245,25 +253,19 @@ function OrderDetailContent({
   }>(DEFAULT_STORE_LOCATION);
   const [storeLoading, setStoreLoading] = useState(true);
 
-  // Store the original route (store to customer) - NEVER changes
   const originalRouteRef = useRef<[number, number][] | null>(null);
 
-  // ✅ Helper to determine if rider should use real location or store location
   const shouldUseRealLocation = () => {
     return order.status === "OUT_FOR_DELIVERY";
   };
 
-  // ✅ Helper to get the correct rider position
   const getRiderPosition = () => {
     if (shouldUseRealLocation() && order?.riderLat && order?.riderLng) {
-      // Use real GPS location
       return { lat: order.riderLat, lng: order.riderLng };
     }
-    // Use store location as fallback
     return { lat: storeLocation.lat, lng: storeLocation.lng };
   };
 
-  // ✅ Create rider icon with rotation and tilt
   const createRiderIcon = (zoom: number, rotation: number = 0) => {
     if (!window.L) return null;
 
@@ -354,7 +356,6 @@ function OrderDetailContent({
     }
   };
 
-  // ✅ Animate rider marker with rotation
   const animateMarkerTo = (
     targetLat: number,
     targetLng: number,
@@ -364,7 +365,6 @@ function OrderDetailContent({
 
     const startPos = riderMarkerRef.current.getLatLng();
 
-    // 1. Calculate rotation bearing if movement occurs
     if (startPos.lat !== targetLat || startPos.lng !== targetLng) {
       const bearing = calculateBearing(
         startPos.lat,
@@ -381,7 +381,6 @@ function OrderDetailContent({
       }
     }
 
-    // 2. Animate position smoothly
     const startTime = performance.now();
     const step = (currentTime: number) => {
       const elapsed = currentTime - startTime;
@@ -428,7 +427,6 @@ function OrderDetailContent({
     }
   }, []);
 
-  // Set initial map theme based on device theme
   useEffect(() => {
     const currentTheme = resolvedTheme || theme || "light";
     if (currentTheme === "dark") {
@@ -438,7 +436,6 @@ function OrderDetailContent({
     }
   }, [theme, resolvedTheme]);
 
-  // Load Leaflet scripts
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -489,14 +486,20 @@ function OrderDetailContent({
     let isMounted = true;
 
     const fetchCoordinates = async () => {
-      const coords = await getCoordinates(
-        order.address.address,
-        order.address.city,
-        order.address.province,
-      );
-
-      if (isMounted) {
-        setCoordinates(coords);
+      try {
+        const coords = await getCoordinates(
+          order.address.address,
+          order.address.city,
+          order.address.province,
+        );
+        if (isMounted) {
+          setCoordinates(coords);
+        }
+      } catch (error) {
+        console.error("Error fetching coordinates:", error);
+        if (isMounted) {
+          setCoordinates({ lat: 14.5995, lng: 120.9842 });
+        }
       }
     };
 
@@ -507,7 +510,6 @@ function OrderDetailContent({
     };
   }, [order]);
 
-  // Clean up map function
   const cleanupMap = () => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -533,17 +535,26 @@ function OrderDetailContent({
     }
     originalRouteRef.current = null;
     lastBearingRef.current = 0;
+    isMapInitializedRef.current = false;
   };
 
-  // ✅ Initialize map - uses ORIGINAL route (store to customer)
+  // ✅ FIXED: Initialize map - Add markers immediately like OrderMap
   useEffect(() => {
     if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
       return;
     if (!window.L) return;
 
-    cleanupMap();
+    if (mapInstanceRef.current) {
+      return;
+    }
 
-    const timer = setTimeout(async () => {
+    // ✅ Check if container already has a leaflet map (TypeScript safe)
+    // @ts-ignore - _leaflet_id is added by Leaflet
+    if (mapRef.current._leaflet_id) {
+      return;
+    }
+
+    const initMap = async () => {
       try {
         if (!mapRef.current || !window.L) return;
 
@@ -556,11 +567,6 @@ function OrderDetailContent({
           storeLocation.lat,
           storeLocation.lng,
         ];
-
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.remove();
-          mapInstanceRef.current = null;
-        }
 
         const map = window.L.map(mapRef.current, {
           zoomControl: true,
@@ -587,16 +593,16 @@ function OrderDetailContent({
 
         const initialZoom = map.getZoom();
 
-        // Create customer marker
+        // ✅ Create customer marker IMMEDIATELY
         const customerIcon = createCustomerIcon(initialZoom);
         if (customerIcon) {
-          const customerMarker = window.L.marker(customerPos, {
+          customerMarkerRef.current = window.L.marker(customerPos, {
             icon: customerIcon,
           }).addTo(map);
-          customerMarkerRef.current = customerMarker;
+          customerMarkerRef.current.setZIndexOffset(500);
 
           if (order?.address) {
-            customerMarker.bindPopup(`
+            customerMarkerRef.current.bindPopup(`
               <div style="font-size:13px;">
                 <strong>Delivery Destination</strong><br/>
                 ${order.address.address}<br/>
@@ -606,7 +612,7 @@ function OrderDetailContent({
           }
         }
 
-        // ✅ Get the ORIGINAL route from store to customer (save it in ref)
+        // Get the route
         const routePoints = await getRouteGeometry(
           { lat: storeLocation.lat, lng: storeLocation.lng },
           coordinates,
@@ -619,7 +625,6 @@ function OrderDetailContent({
           opacity: 0.85,
         }).addTo(map);
 
-        // Initial bearing calculated along the first leg of the route
         if (routePoints.length > 1) {
           lastBearingRef.current = calculateBearing(
             routePoints[0][0],
@@ -632,39 +637,37 @@ function OrderDetailContent({
         const bounds = window.L.latLngBounds([storePos, customerPos]);
         map.fitBounds(bounds, { padding: [50, 50] });
 
+        // ✅ Create rider marker after a short delay (like OrderMap)
         setTimeout(() => {
           const currentZoom = map.getZoom();
 
-          // ✅ Get the correct rider position based on status
-          const riderPos = getRiderPosition();
+          // Update customer icon with correct zoom
+          const updatedCustomerIcon = createCustomerIcon(currentZoom);
+          if (updatedCustomerIcon && customerMarkerRef.current) {
+            customerMarkerRef.current.setIcon(updatedCustomerIcon);
+          }
 
-          // Create rider marker with rotation
+          const riderPos = getRiderPosition();
           const riderIcon = createRiderIcon(
             currentZoom,
             lastBearingRef.current,
           );
 
-          console.log(
-            "🚚 Creating rider marker at customer view:",
-            riderPos.lat,
-            riderPos.lng,
-            "Status:",
-            order.status,
-            "Using real location:",
-            shouldUseRealLocation(),
-          );
-
-          const riderMarker = window.L.marker([riderPos.lat, riderPos.lng], {
-            icon: riderIcon,
-            zIndexOffset: 1000,
-          }).addTo(map);
-
-          riderMarkerRef.current = riderMarker;
-          riderMarker.bindPopup(
-            `<b>Delivery Rider</b><br/>Status: ${order.status}`,
-          );
+          if (riderIcon) {
+            riderMarkerRef.current = window.L.marker(
+              [riderPos.lat, riderPos.lng],
+              {
+                icon: riderIcon,
+                zIndexOffset: 1000,
+              },
+            ).addTo(map);
+            riderMarkerRef.current.bindPopup(
+              `<b>Delivery Rider</b><br/>Status: ${order.status}`,
+            );
+          }
 
           mapInstanceRef.current = map;
+          isMapInitializedRef.current = true;
           setMapReady(true);
           map.invalidateSize();
         }, 100);
@@ -676,11 +679,13 @@ function OrderDetailContent({
       } catch (error) {
         console.error("Map initialization error:", error);
         setMapError(true);
+        isMapInitializedRef.current = false;
       }
-    }, 100);
+    };
+
+    initMap();
 
     return () => {
-      clearTimeout(timer);
       cleanupMap();
     };
   }, [
@@ -692,28 +697,17 @@ function OrderDetailContent({
     storeLoading,
   ]);
 
-  // ✅ Real-time subscription - ONLY moves rider marker, DOES NOT update route
+  // ✅ Real-time subscription
   useEffect(() => {
     if (!order?.id) return;
 
-    // Only subscribe if status is OUT_FOR_DELIVERY or ASSIGNED_RIDER
     if (!["OUT_FOR_DELIVERY", "ASSIGNED_RIDER"].includes(order.status)) {
-      console.log(
-        "⚠️ Order status is not OUT_FOR_DELIVERY or ASSIGNED_RIDER, skipping subscription",
-      );
-      // ✅ Move rider back to store if marker exists
       if (riderMarkerRef.current) {
         const storePos = { lat: storeLocation.lat, lng: storeLocation.lng };
-        console.log("🏪 Moving rider back to store location");
         animateMarkerTo(storePos.lat, storePos.lng, 500);
       }
       return;
     }
-
-    console.log(
-      "🔍 Setting up Supabase subscription for customer order:",
-      order.id,
-    );
 
     const channel = supabase
       .channel(`order-realtime-${order.id}`)
@@ -728,36 +722,16 @@ function OrderDetailContent({
         (payload) => {
           const { riderLat, riderLng, status } = payload.new;
 
-          console.log("📩 Customer - Order update received:", {
-            riderLat,
-            riderLng,
-            status,
-          });
-
-          // ✅ ONLY move the rider marker if status is OUT_FOR_DELIVERY
           if (
             status === "OUT_FOR_DELIVERY" &&
             riderLat &&
             riderLng &&
             riderMarkerRef.current
           ) {
-            console.log(
-              "🚚 Customer - Moving rider marker to real location:",
-              riderLat,
-              riderLng,
-            );
             animateMarkerTo(riderLat, riderLng, 1000);
           } else if (status !== "OUT_FOR_DELIVERY" && riderMarkerRef.current) {
-            // ✅ If status changed away from OUT_FOR_DELIVERY, move back to store
             const storePos = { lat: storeLocation.lat, lng: storeLocation.lng };
-            console.log(
-              "🏪 Status changed, moving rider back to store location",
-            );
             animateMarkerTo(storePos.lat, storePos.lng, 500);
-          } else {
-            console.log(
-              "⚠️ Customer - No rider location in update or marker not ready",
-            );
           }
         },
       )
@@ -768,14 +742,12 @@ function OrderDetailContent({
     };
   }, [order?.id, coordinates, storeLocation]);
 
-  // When theme changes, update layers
   useEffect(() => {
     if (!mapInstanceRef.current || !tileLayerRef.current || !window.L) return;
 
     const map = mapInstanceRef.current;
     const activeConfig = TILE_LAYERS[mapTheme];
 
-    // Update base layer
     if (tileLayerRef.current) {
       map.removeLayer(tileLayerRef.current);
     }
@@ -785,7 +757,6 @@ function OrderDetailContent({
     ).addTo(map);
     tileLayerRef.current = newTileLayer;
 
-    // Update labels overlay
     if (labelsLayerRef.current) {
       map.removeLayer(labelsLayerRef.current);
       labelsLayerRef.current = null;
@@ -807,7 +778,6 @@ function OrderDetailContent({
     }
   }, [mapTheme]);
 
-  // Clean up on unmount
   useEffect(() => {
     return () => {
       cleanupMap();
@@ -888,7 +858,6 @@ function OrderDetailContent({
   return (
     <div className="w-full flex flex-col lg:flex-row min-h-0 h-full">
       <div className="relative w-full lg:w-[50%] h-64 lg:h-full lg:min-h-[400px] bg-muted overflow-hidden shrink-0">
-        {/* Theme switcher */}
         <div className="absolute top-3 right-3 z-[1000] bg-background/90 backdrop-blur-md p-1 rounded-md border border-border shadow-sm flex gap-1">
           <Button
             size="sm"
