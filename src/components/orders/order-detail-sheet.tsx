@@ -21,10 +21,13 @@ import {
   Globe,
   Map,
   Flag,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { useMediaQuery } from "react-responsive";
 import { useTheme } from "next-themes";
 import { createClient } from "@supabase/supabase-js";
+import { cn } from "@/lib/utils";
 
 // Initialize Supabase Client
 const supabase = createClient(
@@ -128,6 +131,11 @@ function calculateBearing(
   return bearing;
 }
 
+function shouldFlipTruck(angle: number): boolean {
+  const normalizedAngle = ((angle % 360) + 360) % 360;
+  return normalizedAngle < 90 || normalizedAngle > 270;
+}
+
 async function getCoordinates(address: string, city: string, province: string) {
   try {
     const headers = {
@@ -148,7 +156,7 @@ async function getCoordinates(address: string, city: string, province: string) {
 
       if (response.ok) {
         const data = await response.json();
-        if (data && data.length > 0) {
+        if (data && data.length > 0 && data[0].lat && data[0].lon) {
           return {
             lat: parseFloat(data[0].lat),
             lng: parseFloat(data[0].lon),
@@ -166,7 +174,7 @@ async function getCoordinates(address: string, city: string, province: string) {
 
       if (response.ok) {
         const data = await response.json();
-        if (data && data.length > 0) {
+        if (data && data.length > 0 && data[0].lat && data[0].lon) {
           return {
             lat: parseFloat(data[0].lat),
             lng: parseFloat(data[0].lon),
@@ -213,6 +221,24 @@ async function getRouteGeometry(
   ] as [number, number][];
 }
 
+function calculateDistance(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
 function OrderDetailContent({
   order,
   loading,
@@ -229,12 +255,20 @@ function OrderDetailContent({
   const riderMarkerRef = useRef<any>(null);
   const customerMarkerRef = useRef<any>(null);
   const polylineRef = useRef<any>(null);
+
+  const mapInitializingRef = useRef(false);
+  const mountedRef = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
-  const leafletLoadedRef = useRef(false);
+
   const lastBearingRef = useRef<number>(0);
-  const isMapInitializedRef = useRef(false);
+  const followRiderRef = useRef(true);
+  const userInteractingRef = useRef(false);
+  const routePointsRef = useRef<[number, number][]>([]);
+  const completedRouteRef = useRef<any>(null);
+  const remainingRouteRef = useRef<any>(null);
 
   const { theme, resolvedTheme } = useTheme();
+
   const [mapTheme, setMapTheme] = useState<"street" | "dark" | "satellite">(
     "street",
   );
@@ -253,151 +287,55 @@ function OrderDetailContent({
   }>(DEFAULT_STORE_LOCATION);
   const [storeLoading, setStoreLoading] = useState(true);
 
-  const originalRouteRef = useRef<[number, number][] | null>(null);
+  const [isFollowingRider, setIsFollowingRider] = useState(true);
 
-  const shouldUseRealLocation = () => {
-    return order.status === "OUT_FOR_DELIVERY";
-  };
+  const [riderDistance, setRiderDistance] = useState<number | null>(null);
+  const [etaMinutes, setEtaMinutes] = useState<number | null>(null);
+
+  const [currentRiderPos, setCurrentRiderPos] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(() => {
+    if (
+      order?.status === "OUT_FOR_DELIVERY" &&
+      order?.riderLat &&
+      order?.riderLng
+    ) {
+      return {
+        lat: order.riderLat,
+        lng: order.riderLng,
+      };
+    }
+
+    return null;
+  });
+
+  const isOutForDelivery = order?.status === "OUT_FOR_DELIVERY";
 
   const getRiderPosition = () => {
-    if (shouldUseRealLocation() && order?.riderLat && order?.riderLng) {
-      return { lat: order.riderLat, lng: order.riderLng };
-    }
-    return { lat: storeLocation.lat, lng: storeLocation.lng };
-  };
+    if (isOutForDelivery) {
+      if (currentRiderPos) {
+        return currentRiderPos;
+      }
 
-  const createRiderIcon = (zoom: number, rotation: number = 0) => {
-    if (!window.L) return null;
-
-    const baseSize = 60;
-    const minSize = 40;
-    const maxSize = 120;
-    const scale = Math.min(Math.max(zoom / 15, 0.6), 1.5);
-    const size = Math.min(Math.max(baseSize * scale, minSize), maxSize);
-
-    const isHeadingEast = rotation > 0 && rotation < 180;
-    const scaleX = isHeadingEast ? -1 : 1;
-
-    let rawPitch = isHeadingEast ? rotation - 90 : 270 - rotation;
-    const correctedPitch = isHeadingEast ? -rawPitch : rawPitch;
-    const clampedPitch = Math.min(Math.max(correctedPitch, -30), 30);
-
-    const offsetX = 0;
-    const offsetY = -17;
-
-    return window.L.divIcon({
-      className: "custom-leaflet-animated-icon",
-      html: `
-        <div style="
-          width:${size}px;
-          height:${size}px;
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          transform: scaleX(${scaleX}) rotate(${clampedPitch}deg);
-          transform-origin: center bottom;
-          transition: transform 0.3s ease-out;
-        ">
-          <dotlottie-player
-            src="/animations/truck.json"
-            background="transparent"
-            speed="1"
-            style="width:${size}px;height:${size}px;"
-            loop
-            autoplay
-          ></dotlottie-player>
-        </div>
-      `,
-      iconSize: [size, size],
-      iconAnchor: [size / 2 + offsetX, size + offsetY],
-      popupAnchor: [0, -size],
-    });
-  };
-
-  const createCustomerIcon = (zoom: number) => {
-    if (!window.L) return null;
-
-    const baseSize = 64;
-    const minSize = 32;
-    const maxSize = 96;
-    const scale = Math.min(Math.max(zoom / 15, 0.6), 1.5);
-    const size = Math.min(Math.max(baseSize * scale, minSize), maxSize);
-
-    return window.L.divIcon({
-      className: "custom-leaflet-animated-icon",
-      html: `
-        <div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;transition: all 0.2s ease;">
-          <dotlottie-player
-            src="/animations/location.json"
-            background="transparent"
-            speed="1"
-            style="width:${size}px;height:${size}px;"
-            loop
-            autoplay
-          ></dotlottie-player>
-        </div>
-      `,
-      iconSize: [size, size],
-      iconAnchor: [size / 2, size],
-      popupAnchor: [0, -size],
-    });
-  };
-
-  const updateMarkerIcons = (zoom: number) => {
-    if (!window.L) return;
-
-    if (riderMarkerRef.current) {
-      const newIcon = createRiderIcon(zoom, lastBearingRef.current);
-      if (newIcon) riderMarkerRef.current.setIcon(newIcon);
-    }
-    if (customerMarkerRef.current) {
-      const newIcon = createCustomerIcon(zoom);
-      if (newIcon) customerMarkerRef.current.setIcon(newIcon);
-    }
-  };
-
-  const animateMarkerTo = (
-    targetLat: number,
-    targetLng: number,
-    duration: number = 1000,
-  ) => {
-    if (!riderMarkerRef.current || !mapInstanceRef.current) return;
-
-    const startPos = riderMarkerRef.current.getLatLng();
-
-    if (startPos.lat !== targetLat || startPos.lng !== targetLng) {
-      const bearing = calculateBearing(
-        startPos.lat,
-        startPos.lng,
-        targetLat,
-        targetLng,
-      );
-      lastBearingRef.current = bearing;
-
-      const currentZoom = mapInstanceRef.current.getZoom();
-      const rotatedIcon = createRiderIcon(currentZoom, bearing);
-      if (rotatedIcon) {
-        riderMarkerRef.current.setIcon(rotatedIcon);
+      if (order.riderLat && order.riderLng) {
+        return {
+          lat: order.riderLat,
+          lng: order.riderLng,
+        };
       }
     }
 
-    const startTime = performance.now();
-    const step = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+    return storeLocation;
+  };
 
-      const currentLat = startPos.lat + (targetLat - startPos.lat) * progress;
-      const currentLng = startPos.lng + (targetLng - startPos.lng) * progress;
+  useEffect(() => {
+    mountedRef.current = true;
 
-      riderMarkerRef.current.setLatLng([currentLat, currentLng]);
-
-      if (progress < 1) {
-        requestAnimationFrame(step);
-      }
+    return () => {
+      mountedRef.current = false;
     };
-
-    requestAnimationFrame(step);
-  };
+  }, []);
 
   useEffect(() => {
     const loadStoreLocation = async () => {
@@ -407,6 +345,15 @@ function OrderDetailContent({
     };
     loadStoreLocation();
   }, []);
+
+  useEffect(() => {
+    const currentTheme = resolvedTheme || theme || "light";
+    if (currentTheme === "dark") {
+      setMapTheme("dark");
+    } else {
+      setMapTheme("street");
+    }
+  }, [theme, resolvedTheme]);
 
   useEffect(() => {
     if (!document.getElementById("leaflet-dark-filter")) {
@@ -428,19 +375,9 @@ function OrderDetailContent({
   }, []);
 
   useEffect(() => {
-    const currentTheme = resolvedTheme || theme || "light";
-    if (currentTheme === "dark") {
-      setMapTheme("dark");
-    } else {
-      setMapTheme("street");
-    }
-  }, [theme, resolvedTheme]);
-
-  useEffect(() => {
     if (typeof window === "undefined") return;
 
     if (window.L) {
-      leafletLoadedRef.current = true;
       setIsLeafletReady(true);
       return;
     }
@@ -458,7 +395,6 @@ function OrderDetailContent({
       script.id = "leaflet-js";
       script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
       script.onload = () => {
-        leafletLoadedRef.current = true;
         setIsLeafletReady(true);
       };
       script.onerror = () => {
@@ -510,54 +446,348 @@ function OrderDetailContent({
     };
   }, [order]);
 
-  const cleanupMap = () => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
-    }
-    if (tileLayerRef.current) {
-      tileLayerRef.current = null;
-    }
-    if (labelsLayerRef.current) {
-      labelsLayerRef.current = null;
-    }
-    if (riderMarkerRef.current) {
-      riderMarkerRef.current = null;
-    }
-    if (customerMarkerRef.current) {
-      customerMarkerRef.current = null;
-    }
-    if (polylineRef.current) {
-      polylineRef.current = null;
-    }
-    originalRouteRef.current = null;
-    lastBearingRef.current = 0;
-    isMapInitializedRef.current = false;
+  const createRiderIcon = (zoom: number, angle: number = 0) => {
+    const L = window.L;
+    if (!L) return null;
+
+    const baseSize = 60;
+    const minSize = 40;
+    const maxSize = 120;
+    const scale = Math.min(Math.max(zoom / 15, 0.6), 1.5);
+    const size = Math.min(Math.max(baseSize * scale, minSize), maxSize);
+
+    const shouldFlip = shouldFlipTruck(angle);
+    const scaleX = shouldFlip ? -1 : 1;
+
+    return L.divIcon({
+      className: "custom-leaflet-animated-icon",
+      html: `
+        <div style="
+          width:${size}px;
+          height:${size}px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          transform:scaleX(${scaleX});
+          transform-origin:center;
+          transition:transform 0.3s ease-out;
+        ">
+          <dotlottie-player
+            src="/animations/truck.json"
+            background="transparent"
+            speed="1"
+            style="width:${size}px;height:${size}px;"
+            loop
+            autoplay
+          ></dotlottie-player>
+        </div>
+      `,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size - 17],
+      popupAnchor: [0, -size],
+    });
   };
 
-  // ✅ FIXED: Initialize map - Add markers immediately like OrderMap
+  const createCustomerIcon = (zoom: number) => {
+    const L = window.L;
+    if (!L) return null;
+
+    const baseSize = 64;
+    const minSize = 32;
+    const maxSize = 96;
+    const scale = Math.min(Math.max(zoom / 15, 0.6), 1.5);
+    const size = Math.min(Math.max(baseSize * scale, minSize), maxSize);
+
+    return L.divIcon({
+      className: "custom-leaflet-animated-icon",
+      html: `
+        <div style="
+          width:${size}px;
+          height:${size}px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          transition:all 0.2s ease;
+        ">
+          <dotlottie-player
+            src="/animations/location.json"
+            background="transparent"
+            speed="1"
+            style="width:${size}px;height:${size}px;"
+            loop
+            autoplay
+          ></dotlottie-player>
+        </div>
+      `,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size],
+      popupAnchor: [0, -size],
+    });
+  };
+
+  const updateMarkerIcons = (zoom: number) => {
+    const L = window.L;
+    if (!L) return;
+
+    if (riderMarkerRef.current) {
+      const newIcon = createRiderIcon(zoom, lastBearingRef.current);
+      if (newIcon) riderMarkerRef.current.setIcon(newIcon);
+    }
+    if (customerMarkerRef.current) {
+      const newIcon = createCustomerIcon(zoom);
+      if (newIcon) customerMarkerRef.current.setIcon(newIcon);
+    }
+  };
+
+  const updateRouteProgress = (riderLat: number, riderLng: number) => {
+    const points = routePointsRef.current;
+    if (points.length < 2) return;
+
+    const L = window.L;
+    if (!L) return;
+
+    let nearestIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    for (let i = 0; i < points.length; i++) {
+      const distance = calculateDistance(
+        riderLat,
+        riderLng,
+        points[i][0],
+        points[i][1],
+      );
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = i;
+      }
+    }
+
+    const completed = points.slice(0, Math.max(nearestIndex + 1, 2));
+    const remaining = points.slice(Math.max(nearestIndex, 0));
+
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (completedRouteRef.current) {
+      completedRouteRef.current.setLatLngs(completed);
+    } else if (completed.length > 1) {
+      completedRouteRef.current = L.polyline(completed, {
+        color: "#94a3b8",
+        weight: 5,
+        opacity: 0.55,
+        lineCap: "round",
+        lineJoin: "round",
+      }).addTo(map);
+    }
+
+    if (remainingRouteRef.current) {
+      remainingRouteRef.current.setLatLngs(remaining);
+    } else if (remaining.length > 1) {
+      remainingRouteRef.current = L.polyline(remaining, {
+        color: "#dc2626",
+        weight: 5,
+        opacity: 0.9,
+        lineCap: "round",
+        lineJoin: "round",
+      }).addTo(map);
+    }
+  };
+
+  const updateRiderStats = (lat: number, lng: number) => {
+    if (!coordinates) return;
+
+    const distance = calculateDistance(
+      lat,
+      lng,
+      coordinates.lat,
+      coordinates.lng,
+    );
+
+    setRiderDistance(distance);
+
+    const averageSpeedKmh = 25;
+    const minutes = Math.max(
+      1,
+      Math.round((distance / 1000 / averageSpeedKmh) * 60),
+    );
+    setEtaMinutes(minutes);
+
+    updateRouteProgress(lat, lng);
+  };
+
+  const setFollowRider = (follow: boolean) => {
+    followRiderRef.current = follow;
+    setIsFollowingRider(follow);
+  };
+
+  const centerOnRider = (animate = true) => {
+    const map = mapInstanceRef.current;
+    const rider = getRiderPosition();
+
+    if (!map || !rider) return;
+
+    setFollowRider(true);
+
+    map.setView([rider.lat, rider.lng], Math.max(map.getZoom(), 15), {
+      animate,
+    });
+  };
+
+  const animateMarkerTo = (
+    targetLat: number,
+    targetLng: number,
+    duration: number = 1000,
+  ) => {
+    const L = window.L;
+    if (!L) return;
+
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (!riderMarkerRef.current) {
+      const currentZoom = map.getZoom() || 15;
+      const riderIcon = createRiderIcon(currentZoom, lastBearingRef.current);
+
+      if (riderIcon) {
+        riderMarkerRef.current = L.marker([targetLat, targetLng], {
+          icon: riderIcon,
+          zIndexOffset: 1000,
+        }).addTo(map);
+      }
+
+      return;
+    }
+
+    updateRiderStats(targetLat, targetLng);
+
+    const startPos = riderMarkerRef.current.getLatLng();
+
+    if (followRiderRef.current) {
+      const mapCenter = map.getCenter();
+      const centerDistance = calculateDistance(
+        mapCenter.lat,
+        mapCenter.lng,
+        targetLat,
+        targetLng,
+      );
+
+      if (centerDistance > 25) {
+        map.panTo([targetLat, targetLng], {
+          animate: false,
+        });
+      }
+    }
+
+    const distance = calculateDistance(
+      startPos.lat,
+      startPos.lng,
+      targetLat,
+      targetLng,
+    );
+
+    if (distance > 1000) {
+      riderMarkerRef.current.setLatLng([targetLat, targetLng]);
+      return;
+    }
+
+    const angle = calculateBearing(
+      startPos.lat,
+      startPos.lng,
+      targetLat,
+      targetLng,
+    );
+
+    lastBearingRef.current = angle;
+
+    const currentZoom = map.getZoom();
+
+    const newIcon = createRiderIcon(currentZoom, angle);
+
+    if (newIcon) {
+      riderMarkerRef.current.setIcon(newIcon);
+    }
+
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    const startTime = performance.now();
+
+    const step = (currentTime: number) => {
+      if (!riderMarkerRef.current) return;
+
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      const eased =
+        progress < 0.5
+          ? 2 * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+      const currentLat = startPos.lat + (targetLat - startPos.lat) * eased;
+      const currentLng = startPos.lng + (targetLng - startPos.lng) * eased;
+
+      riderMarkerRef.current.setLatLng([currentLat, currentLng]);
+
+      if (progress < 1) {
+        animationFrameRef.current = requestAnimationFrame(step);
+      } else {
+        animationFrameRef.current = null;
+      }
+    };
+
+    animationFrameRef.current = requestAnimationFrame(step);
+  };
+
+  const cleanupMap = () => {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    if (mapInstanceRef.current) {
+      try {
+        mapInstanceRef.current.off();
+        mapInstanceRef.current.remove();
+      } catch {}
+    }
+
+    mapInstanceRef.current = null;
+    tileLayerRef.current = null;
+    labelsLayerRef.current = null;
+    riderMarkerRef.current = null;
+    customerMarkerRef.current = null;
+    polylineRef.current = null;
+    completedRouteRef.current = null;
+    remainingRouteRef.current = null;
+    routePointsRef.current = [];
+    mapInitializingRef.current = false;
+    setMapReady(false);
+  };
+
+  // Initialize map
   useEffect(() => {
     if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
       return;
     if (!window.L) return;
 
-    if (mapInstanceRef.current) {
+    if (mapInstanceRef.current || mapInitializingRef.current) {
       return;
     }
 
-    // ✅ Check if container already has a leaflet map (TypeScript safe)
-    // @ts-ignore - _leaflet_id is added by Leaflet
-    if (mapRef.current._leaflet_id) {
-      return;
-    }
+    mapInitializingRef.current = true;
+
+    let active = true;
 
     const initMap = async () => {
-      try {
-        if (!mapRef.current || !window.L) return;
+      const L = window.L;
 
+      if (!L || !mapRef.current) {
+        mapInitializingRef.current = false;
+        return;
+      }
+
+      try {
         const customerPos: [number, number] = [
           coordinates.lat,
           coordinates.lng,
@@ -568,35 +798,43 @@ function OrderDetailContent({
           storeLocation.lng,
         ];
 
-        const map = window.L.map(mapRef.current, {
-          zoomControl: true,
+        const map = L.map(mapRef.current, {
+          zoomControl: false,
           dragging: true,
           scrollWheelZoom: true,
           attributionControl: false,
         });
 
+        if (!active) {
+          map.remove();
+          mapInitializingRef.current = false;
+          return;
+        }
+
+        mapInstanceRef.current = map;
+
         const activeConfig = TILE_LAYERS[mapTheme];
-        const tileLayer = window.L.tileLayer(
+
+        tileLayerRef.current = L.tileLayer(
           activeConfig.url,
           activeConfig.options,
         ).addTo(map);
-        tileLayerRef.current = tileLayer;
 
         if (mapTheme === "satellite") {
           const labelsConfig = TILE_LAYERS.satelliteLabels;
-          const labelsLayer = window.L.tileLayer(labelsConfig.url, {
+
+          labelsLayerRef.current = L.tileLayer(labelsConfig.url, {
             ...labelsConfig.options,
             opacity: 0.6,
           }).addTo(map);
-          labelsLayerRef.current = labelsLayer;
         }
 
-        const initialZoom = map.getZoom();
+        const initialZoom = map.getZoom() || 13;
 
-        // ✅ Create customer marker IMMEDIATELY
+        // Create customer marker IMMEDIATELY
         const customerIcon = createCustomerIcon(initialZoom);
         if (customerIcon) {
-          customerMarkerRef.current = window.L.marker(customerPos, {
+          customerMarkerRef.current = L.marker(customerPos, {
             icon: customerIcon,
           }).addTo(map);
           customerMarkerRef.current.setZIndexOffset(500);
@@ -617,13 +855,28 @@ function OrderDetailContent({
           { lat: storeLocation.lat, lng: storeLocation.lng },
           coordinates,
         );
-        originalRouteRef.current = routePoints;
 
-        polylineRef.current = window.L.polyline(routePoints, {
+        if (!active || !mapInstanceRef.current) {
+          return;
+        }
+
+        routePointsRef.current = routePoints;
+
+        polylineRef.current = L.polyline(routePoints, {
           color: "#dc2626",
           weight: 5,
-          opacity: 0.85,
+          opacity: 0.9,
+          lineCap: "round",
+          lineJoin: "round",
         }).addTo(map);
+
+        if (routePoints.length > 1) {
+          const rider = getRiderPosition();
+
+          if (rider && isOutForDelivery) {
+            updateRouteProgress(rider.lat, rider.lng);
+          }
+        }
 
         if (routePoints.length > 1) {
           lastBearingRef.current = calculateBearing(
@@ -634,70 +887,86 @@ function OrderDetailContent({
           );
         }
 
-        const bounds = window.L.latLngBounds([storePos, customerPos]);
-        map.fitBounds(bounds, { padding: [50, 50] });
+        const bounds = L.latLngBounds([storePos, customerPos]);
 
-        // ✅ Create rider marker after a short delay (like OrderMap)
-        setTimeout(() => {
-          const currentZoom = map.getZoom();
+        map.fitBounds(bounds, {
+          padding: [50, 50],
+        });
 
-          // Update customer icon with correct zoom
-          const updatedCustomerIcon = createCustomerIcon(currentZoom);
-          if (updatedCustomerIcon && customerMarkerRef.current) {
-            customerMarkerRef.current.setIcon(updatedCustomerIcon);
-          }
+        const riderPos = getRiderPosition();
 
-          const riderPos = getRiderPosition();
+        if (riderPos) {
+          const currentZoom = map.getZoom() || 15;
+
           const riderIcon = createRiderIcon(
             currentZoom,
             lastBearingRef.current,
           );
 
           if (riderIcon) {
-            riderMarkerRef.current = window.L.marker(
-              [riderPos.lat, riderPos.lng],
-              {
-                icon: riderIcon,
-                zIndexOffset: 1000,
-              },
-            ).addTo(map);
+            riderMarkerRef.current = L.marker([riderPos.lat, riderPos.lng], {
+              icon: riderIcon,
+              zIndexOffset: 1000,
+            }).addTo(map);
             riderMarkerRef.current.bindPopup(
               `<b>Delivery Rider</b><br/>Status: ${order.status}`,
             );
           }
-
-          mapInstanceRef.current = map;
-          isMapInitializedRef.current = true;
-          setMapReady(true);
-          map.invalidateSize();
-        }, 100);
+        }
 
         map.on("zoomend", () => {
-          const currentZoom = map.getZoom();
-          updateMarkerIcons(currentZoom);
+          if (mapInstanceRef.current === map) {
+            updateMarkerIcons(map.getZoom());
+          }
+        });
+
+        map.on("dragstart", () => {
+          userInteractingRef.current = true;
+          setFollowRider(false);
+        });
+
+        map.on("dragend", () => {
+          userInteractingRef.current = false;
+        });
+
+        map.on("zoomstart", () => {
+          if (!userInteractingRef.current) {
+            setFollowRider(false);
+          }
+        });
+
+        requestAnimationFrame(() => {
+          if (active && mapInstanceRef.current === map) {
+            map.invalidateSize();
+            setMapReady(true);
+          }
         });
       } catch (error) {
         console.error("Map initialization error:", error);
         setMapError(true);
-        isMapInitializedRef.current = false;
+        mapInitializingRef.current = false;
+      } finally {
+        if (active) {
+          mapInitializingRef.current = false;
+        }
       }
     };
 
     initMap();
 
     return () => {
-      cleanupMap();
-    };
-  }, [
-    coordinates,
-    order,
-    mapTheme,
-    isLeafletReady,
-    storeLocation,
-    storeLoading,
-  ]);
+      active = false;
 
-  // ✅ Real-time subscription
+      if (mapInstanceRef.current) {
+        cleanupMap();
+      } else {
+        mapInitializingRef.current = false;
+        setMapReady(false);
+      }
+    };
+  }, [coordinates, isLeafletReady, storeLocation, storeLoading]);
+
+  // Real-time subscription
   useEffect(() => {
     if (!order?.id) return;
 
@@ -749,40 +1018,254 @@ function OrderDetailContent({
     const activeConfig = TILE_LAYERS[mapTheme];
 
     if (tileLayerRef.current) {
-      map.removeLayer(tileLayerRef.current);
+      try {
+        map.removeLayer(tileLayerRef.current);
+      } catch {}
     }
-    const newTileLayer = window.L.tileLayer(
+
+    tileLayerRef.current = window.L.tileLayer(
       activeConfig.url,
       activeConfig.options,
     ).addTo(map);
-    tileLayerRef.current = newTileLayer;
 
     if (labelsLayerRef.current) {
-      map.removeLayer(labelsLayerRef.current);
+      try {
+        map.removeLayer(labelsLayerRef.current);
+      } catch {}
+
       labelsLayerRef.current = null;
     }
 
     if (mapTheme === "satellite") {
       const labelsConfig = TILE_LAYERS.satelliteLabels;
-      const labelsLayer = window.L.tileLayer(labelsConfig.url, {
+
+      labelsLayerRef.current = window.L.tileLayer(labelsConfig.url, {
         ...labelsConfig.options,
         opacity: 0.6,
       }).addTo(map);
-      labelsLayerRef.current = labelsLayer;
     }
 
     if (polylineRef.current) {
       polylineRef.current.setStyle({
+        opacity: 0,
+      });
+    }
+
+    if (completedRouteRef.current) {
+      completedRouteRef.current.setStyle({
+        color: "#94a3b8",
+        opacity: 0.55,
+      });
+    }
+
+    if (remainingRouteRef.current) {
+      remainingRouteRef.current.setStyle({
         color: "#dc2626",
+        opacity: 0.9,
       });
     }
   }, [mapTheme]);
+
+  useEffect(() => {
+    const riderPos = getRiderPosition();
+
+    if (riderPos && riderMarkerRef.current && mapInstanceRef.current) {
+      animateMarkerTo(riderPos.lat, riderPos.lng, 300);
+    }
+  }, [currentRiderPos, order.status]);
 
   useEffect(() => {
     return () => {
       cleanupMap();
     };
   }, []);
+
+  // Load Lottie player
+  useEffect(() => {
+    const loadLottie = () => {
+      if (document.getElementById("lottie-player-js")) {
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.id = "lottie-player-js";
+      script.src =
+        "https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs";
+      script.type = "module";
+      document.body.appendChild(script);
+    };
+
+    loadLottie();
+  }, []);
+
+  // Render distance card for customer
+  const renderDistanceCard = () => {
+    if (!isOutForDelivery || !mapReady) return null;
+
+    return (
+      <div className="absolute top-3 left-3 z-[9999] pointer-events-auto">
+        <div className="bg-background/90 backdrop-blur-md border border-border shadow-md rounded-lg px-3 py-2 min-w-[140px]">
+          <div className="text-xs text-muted-foreground">Your Rider</div>
+          <div className="text-sm font-semibold">
+            {riderDistance !== null
+              ? riderDistance >= 1000
+                ? `${(riderDistance / 1000).toFixed(1)}km away`
+                : `${Math.round(riderDistance)}m away`
+              : "Calculating..."}
+          </div>
+          {etaMinutes !== null && (
+            <div className="text-[11px] text-muted-foreground">
+              ETA about {etaMinutes} min
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Render follow button for customer
+  const renderFollowButton = () => {
+    if (!isOutForDelivery || !mapReady) return null;
+    if (!getRiderPosition()) return null;
+
+    return (
+      <div className="absolute bottom-4 left-4 z-[1000] flex flex-col gap-2">
+        {!isFollowingRider && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => centerOnRider(true)}
+            className="bg-background/95 backdrop-blur-md shadow-md border-border gap-2"
+          >
+            <MapPin className="h-4 w-4" />
+            Track Rider
+          </Button>
+        )}
+
+        {isFollowingRider && (
+          <div className="bg-background/90 backdrop-blur-md border border-border shadow-sm rounded-full px-3 py-1.5 text-xs font-medium">
+            Tracking Rider
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render mobile distance card
+  const renderMobileDistanceCard = () => {
+    if (!isOutForDelivery || !mapReady) return null;
+
+    return (
+      <div className="lg:hidden absolute top-3 left-3 z-[9999] pointer-events-auto">
+        <div className="bg-background/90 backdrop-blur-md border border-border shadow-md rounded-lg px-2.5 py-1.5 min-w-[100px]">
+          <div className="text-[10px] text-muted-foreground">Rider</div>
+          <div className="text-sm font-semibold">
+            {riderDistance !== null
+              ? riderDistance >= 1000
+                ? `${(riderDistance / 1000).toFixed(1)}km`
+                : `${Math.round(riderDistance)}m`
+              : "..."}
+          </div>
+          {etaMinutes !== null && (
+            <div className="text-[10px] text-muted-foreground">
+              ETA {etaMinutes}m
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Render zoom controls
+  const renderZoomControls = () => {
+    if (!mapReady) return null;
+
+    return (
+      <div
+        className={cn(
+          "absolute z-[1000] flex gap-1 bg-background/90 backdrop-blur-md p-1 rounded-md border border-border shadow-sm",
+          isOutForDelivery
+            ? "bottom-16 right-4 flex-col"
+            : "bottom-4 right-4 flex-col",
+        )}
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => mapInstanceRef.current?.zoomIn()}
+          className="h-8 w-8 text-foreground hover:bg-accent hover:text-accent-foreground"
+          aria-label="Zoom in"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => mapInstanceRef.current?.zoomOut()}
+          className="h-8 w-8 text-foreground hover:bg-accent hover:text-accent-foreground"
+          aria-label="Zoom out"
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  };
+
+  // Render theme switcher
+  const renderThemeSwitcher = () => {
+    if (!mapReady) return null;
+
+    return (
+      <div className="absolute top-3 right-3 z-[1000] bg-background/90 backdrop-blur-md p-1 rounded-md border border-border shadow-sm flex gap-1">
+        <Button
+          size="sm"
+          variant={mapTheme === "street" ? "default" : "ghost"}
+          onClick={() => setMapTheme("street")}
+          className={cn(
+            "h-7 text-xs font-medium px-2.5 gap-1",
+            mapTheme === "street"
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "text-foreground hover:bg-accent hover:text-accent-foreground",
+          )}
+        >
+          <Map className="w-3.5 h-3.5" />
+          Street
+        </Button>
+
+        <Button
+          size="sm"
+          variant={mapTheme === "dark" ? "default" : "ghost"}
+          onClick={() => setMapTheme("dark")}
+          className={cn(
+            "h-7 text-xs font-medium px-2.5 gap-1",
+            mapTheme === "dark"
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "text-foreground hover:bg-accent hover:text-accent-foreground",
+          )}
+        >
+          <Moon className="w-3.5 h-3.5" />
+          Dark
+        </Button>
+
+        <Button
+          size="sm"
+          variant={mapTheme === "satellite" ? "default" : "ghost"}
+          onClick={() => setMapTheme("satellite")}
+          className={cn(
+            "h-7 text-xs font-medium px-2.5 gap-1",
+            mapTheme === "satellite"
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "text-foreground hover:bg-accent hover:text-accent-foreground",
+          )}
+        >
+          <Globe className="w-3.5 h-3.5" />
+          Satellite
+        </Button>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -858,35 +1341,11 @@ function OrderDetailContent({
   return (
     <div className="w-full flex flex-col lg:flex-row min-h-0 h-full">
       <div className="relative w-full lg:w-[50%] h-64 lg:h-full lg:min-h-[400px] bg-muted overflow-hidden shrink-0">
-        <div className="absolute top-3 right-3 z-[1000] bg-background/90 backdrop-blur-md p-1 rounded-md border border-border shadow-sm flex gap-1">
-          <Button
-            size="sm"
-            variant={mapTheme === "street" ? "default" : "ghost"}
-            onClick={() => setMapTheme("street")}
-            className="h-7 text-xs font-medium px-2.5 gap-1"
-          >
-            <Map className="w-3.5 h-3.5" />
-            Street
-          </Button>
-          <Button
-            size="sm"
-            variant={mapTheme === "dark" ? "default" : "ghost"}
-            onClick={() => setMapTheme("dark")}
-            className="h-7 text-xs font-medium px-2.5 gap-1"
-          >
-            <Moon className="w-3.5 h-3.5" />
-            Dark
-          </Button>
-          <Button
-            size="sm"
-            variant={mapTheme === "satellite" ? "default" : "ghost"}
-            onClick={() => setMapTheme("satellite")}
-            className="h-7 text-xs font-medium px-2.5 gap-1"
-          >
-            <Globe className="w-3.5 h-3.5" />
-            Satellite
-          </Button>
-        </div>
+        {renderThemeSwitcher()}
+        {renderDistanceCard()}
+        {renderMobileDistanceCard()}
+        {renderZoomControls()}
+        {renderFollowButton()}
 
         {!isLeafletReady && !mapError ? (
           <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
