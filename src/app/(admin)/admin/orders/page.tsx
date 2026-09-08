@@ -36,6 +36,8 @@ import {
   User,
   Calendar,
   CreditCard,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -69,7 +71,9 @@ const statusOptions = [
   "OUT_FOR_DELIVERY",
   "DELIVERED",
   "CANCELLED",
+  "RETURN_REQUESTED",
   "RETURNED",
+  "REFUND_REQUESTED",
   "REFUNDED",
 ];
 
@@ -83,7 +87,9 @@ const statusColors: Record<string, string> = {
   OUT_FOR_DELIVERY: "bg-pink-100 text-pink-800",
   DELIVERED: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-800",
+  RETURN_REQUESTED: "bg-amber-100 text-amber-800",
   RETURNED: "bg-gray-100 text-gray-800",
+  REFUND_REQUESTED: "bg-blue-100 text-blue-800",
   REFUNDED: "bg-gray-100 text-gray-800",
 };
 
@@ -157,8 +163,10 @@ export default function OrdersPage() {
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [refundingOrder, setRefundingOrder] = useState<Order | null>(null);
   const [refunding, setRefunding] = useState(false);
+  const [refundAction, setRefundAction] = useState<"approve" | "reject">(
+    "approve",
+  );
 
-  // ✅ Fetch only RIDER users
   const fetchRiders = async () => {
     if (role !== "ADMIN") return;
     setLoadingRiders(true);
@@ -166,7 +174,6 @@ export default function OrdersPage() {
       const res = await fetch("/api/admin/users?role=RIDER");
       if (res.ok) {
         const data = await res.json();
-        // ✅ Filter to only show RIDER role
         const ridersOnly = Array.isArray(data)
           ? data.filter((user: any) => user.role === "RIDER")
           : [];
@@ -256,20 +263,21 @@ export default function OrdersPage() {
 
     setRefunding(true);
     try {
-      const res = await fetch(`/api/admin/orders/${refundingOrder.id}/status`, {
-        method: "PATCH",
+      const res = await fetch(`/api/admin/orders/${refundingOrder.id}/refund`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "REFUNDED" }),
+        body: JSON.stringify({ action: refundAction }),
       });
 
       if (res.ok) {
-        toast.success("Order refunded successfully");
+        const data = await res.json();
+        toast.success(data.message || "Refund processed successfully");
         setRefundDialogOpen(false);
         setRefundingOrder(null);
         fetchOrders();
       } else {
         const err = await res.json();
-        toast.error(err.error || "Failed to refund order");
+        toast.error(err.error || "Failed to process refund");
       }
     } catch {
       toast.error("Network error");
@@ -278,8 +286,12 @@ export default function OrdersPage() {
     }
   };
 
-  const openRefundDialog = (order: Order) => {
+  const openRefundDialog = (
+    order: Order,
+    action: "approve" | "reject" = "approve",
+  ) => {
     setRefundingOrder(order);
+    setRefundAction(action);
     setRefundDialogOpen(true);
   };
 
@@ -510,6 +522,28 @@ export default function OrdersPage() {
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
               )}
+              {(isAdmin || isStaff) && order.status === "REFUND_REQUESTED" && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700 !bg-background"
+                    onClick={() => openRefundDialog(order, "approve")}
+                  >
+                    <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                    Accept
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700 !bg-background"
+                    onClick={() => openRefundDialog(order, "reject")}
+                  >
+                    <XCircle className="h-3.5 w-3.5 mr-1" />
+                    Reject
+                  </Button>
+                </>
+              )}
               {(isAdmin || isStaff) &&
                 order.status === "RETURNED" &&
                 !order.isPaid && (
@@ -517,7 +551,7 @@ export default function OrdersPage() {
                     size="sm"
                     variant="outline"
                     className="h-7 w-7 p-0 text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
-                    onClick={() => openRefundDialog(order)}
+                    onClick={() => openRefundDialog(order, "approve")}
                   >
                     <DollarSign className="h-3.5 w-3.5" />
                   </Button>
@@ -621,7 +655,6 @@ export default function OrdersPage() {
         </Button>
       </div>
 
-      {/* Results count */}
       <div className="text-sm text-muted-foreground">
         {loading ? (
           <Skeleton className="h-4 w-32 inline-block" />
@@ -635,7 +668,6 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* Mobile: Cards View */}
       <div className="md:hidden space-y-2">
         {orders.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
@@ -648,7 +680,6 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* Desktop: Table View */}
       <div className="hidden md:block border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
@@ -684,7 +715,6 @@ export default function OrdersPage() {
                     </TableCell>
                     <TableCell>{order.user.name || order.user.email}</TableCell>
 
-                    {/* Rider Column - Admin only */}
                     {role === "ADMIN" && (
                       <TableCell>
                         <Badge variant="outline" className="text-xs">
@@ -708,7 +738,6 @@ export default function OrdersPage() {
                       {new Date(order.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right space-x-2 whitespace-nowrap">
-                      {/* View Button - Everyone */}
                       <Button
                         size="sm"
                         variant="ghost"
@@ -718,7 +747,6 @@ export default function OrdersPage() {
                         <Eye className="h-4 w-4" />
                       </Button>
 
-                      {/* Edit Button - Admin and Staff */}
                       <Button
                         size="sm"
                         variant="outline"
@@ -728,7 +756,30 @@ export default function OrdersPage() {
                         <Pencil className="h-4 w-4" />
                       </Button>
 
-                      {/* Refund Button - Admin and Staff for RETURNED status only */}
+                      {(role === "ADMIN" || role === "STAFF") &&
+                        order.status === "REFUND_REQUESTED" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700 !bg-background"
+                              onClick={() => openRefundDialog(order, "approve")}
+                            >
+                              <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                              Accept
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700 !bg-background"
+                              onClick={() => openRefundDialog(order, "reject")}
+                            >
+                              <XCircle className="h-3.5 w-3.5 mr-1" />
+                              Reject
+                            </Button>
+                          </>
+                        )}
+
                       {(role === "ADMIN" || role === "STAFF") &&
                         order.status === "RETURNED" &&
                         !order.isPaid && (
@@ -736,14 +787,13 @@ export default function OrdersPage() {
                             size="sm"
                             variant="outline"
                             className="text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
-                            onClick={() => openRefundDialog(order)}
+                            onClick={() => openRefundDialog(order, "approve")}
                           >
                             <DollarSign className="h-3.5 w-3.5 mr-1" />
                             Refund
                           </Button>
                         )}
 
-                      {/* Delete Button - Admin only */}
                       {role === "ADMIN" && (
                         <Button
                           size="sm"
@@ -762,7 +812,6 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-2">
           <div className="text-sm text-muted-foreground order-2 sm:order-1">
@@ -821,7 +870,6 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {/* Edit Order Dialog */}
       <Dialog
         open={editDialogOpen}
         onOpenChange={(open) => {
@@ -842,7 +890,6 @@ export default function OrdersPage() {
 
           {editingOrder && (
             <div className="space-y-4 py-2">
-              {/* Status */}
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <Select value={editStatus} onValueChange={setEditStatus}>
@@ -860,7 +907,6 @@ export default function OrdersPage() {
                 </Select>
               </div>
 
-              {/* Rider Assignment - Admin only */}
               {role === "ADMIN" && (
                 <div className="space-y-2">
                   <Label htmlFor="rider">Assign Rider</Label>
@@ -880,7 +926,6 @@ export default function OrdersPage() {
                 </div>
               )}
 
-              {/* Current Info */}
               <div className="!bg-background border rounded-lg p-3 space-y-1 text-sm">
                 <p>
                   <span className="text-muted-foreground">Customer:</span>{" "}
@@ -896,7 +941,6 @@ export default function OrdersPage() {
                 </p>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   variant="outline"
@@ -925,7 +969,6 @@ export default function OrdersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog - Admin only */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="!bg-background">
           <AlertDialogHeader>
@@ -978,16 +1021,17 @@ export default function OrdersPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Refund Confirmation Dialog */}
       <AlertDialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
         <AlertDialogContent className="!bg-background">
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Refund Order #{refundingOrder?.orderNumber}
+              {refundAction === "approve" ? "Approve" : "Reject"} Refund for
+              Order #{refundingOrder?.orderNumber}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to refund this order? This will mark the
-              order as refunded and process the refund.
+              {refundAction === "approve"
+                ? "Are you sure you want to approve this refund? This will mark the order as refunded."
+                : "Are you sure you want to reject this refund request? The order will remain delivered."}
               {refundingOrder && (
                 <div className="mt-3 p-3 bg-muted/30 rounded-lg text-sm space-y-1">
                   <div>
@@ -995,7 +1039,7 @@ export default function OrdersPage() {
                     {refundingOrder.user.name || refundingOrder.user.email}
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Total:</span> ₱
+                    <span className="text-muted-foreground">Amount:</span> ₱
                     {refundingOrder.payable.toFixed(2)}
                   </div>
                   <div>
@@ -1016,22 +1060,27 @@ export default function OrdersPage() {
             <AlertDialogAction
               onClick={handleRefundOrder}
               disabled={refunding}
-              className="bg-amber-600 text-white hover:bg-amber-700"
+              className={
+                refundAction === "approve"
+                  ? "bg-green-600 text-white hover:bg-green-700"
+                  : "bg-red-600 text-white hover:bg-red-700"
+              }
             >
               {refunding ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Refunding...
+                  Processing...
                 </>
+              ) : refundAction === "approve" ? (
+                "Approve Refund"
               ) : (
-                "Confirm Refund"
+                "Reject Refund"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Order Detail Dialog */}
       <OrderDetailDialog
         open={detailOpen}
         onOpenChange={setDetailOpen}

@@ -19,6 +19,9 @@ import {
   AlertCircle,
   TrendingUp,
   ClipboardList,
+  RotateCcw,
+  AlertTriangle,
+  DollarSign as DollarSignIcon,
 } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import {
@@ -130,7 +133,7 @@ export default function AdminDashboard() {
       if (isRider) {
         try {
           const url =
-            "/api/admin/orders?status=ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP,DELIVERED";
+            "/api/admin/orders?status=ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP,DELIVERED,RETURN_REQUESTED,RETURNED,REFUND_REQUESTED,REFUNDED";
           const riderOrdersRes = await fetch(url);
           if (riderOrdersRes.ok) {
             const riderOrders = await riderOrdersRes.json();
@@ -173,7 +176,7 @@ export default function AdminDashboard() {
       if (isAdmin && activeRole === "RIDER") {
         try {
           const url =
-            "/api/admin/orders?status=ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP,DELIVERED";
+            "/api/admin/orders?status=ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP,DELIVERED,RETURN_REQUESTED,RETURNED,REFUND_REQUESTED,REFUNDED";
           const riderOrdersRes = await fetch(url);
           if (riderOrdersRes.ok) {
             const riderOrders = await riderOrdersRes.json();
@@ -239,7 +242,6 @@ export default function AdminDashboard() {
         monthlyRevenueData: data.monthlyRevenueData ?? [],
         yearlyRevenueData: data.yearlyRevenueData ?? [],
         riderOrders: riderOrdersData,
-        // Provide a fallback empty object so dashboard always has valid numbers
         allRiderStats: allRiderOrdersData || {
           total: 0,
           assigned: 0,
@@ -315,6 +317,12 @@ export default function AdminDashboard() {
       recentOrders.filter((o) => o.status === "OUT_FOR_DELIVERY").length,
     completed: recentOrders.filter((o) => o.status === "DELIVERED").length,
     cancelled: recentOrders.filter((o) => o.status === "CANCELLED").length,
+    returnRequested: recentOrders.filter((o) => o.status === "RETURN_REQUESTED")
+      .length,
+    returned: recentOrders.filter((o) => o.status === "RETURNED").length,
+    refundRequested: recentOrders.filter((o) => o.status === "REFUND_REQUESTED")
+      .length,
+    refunded: recentOrders.filter((o) => o.status === "REFUNDED").length,
   };
 
   const topLowStock = lowStock.slice(0, 3);
@@ -525,8 +533,36 @@ export default function AdminDashboard() {
                 <OrderStatusItem
                   icon={AlertCircle}
                   label="Cancelled"
-                  description="Returned or cancelled"
+                  description="Cancelled orders"
                   count={statusCounts.cancelled}
+                  loading={loading}
+                />
+                <OrderStatusItem
+                  icon={AlertTriangle}
+                  label="Return Requested"
+                  description="Awaiting rider approval"
+                  count={statusCounts.returnRequested}
+                  loading={loading}
+                />
+                <OrderStatusItem
+                  icon={RotateCcw}
+                  label="Returned"
+                  description="Return accepted by rider"
+                  count={statusCounts.returned}
+                  loading={loading}
+                />
+                <OrderStatusItem
+                  icon={DollarSignIcon}
+                  label="Refund Requested"
+                  description="Awaiting admin approval"
+                  count={statusCounts.refundRequested}
+                  loading={loading}
+                />
+                <OrderStatusItem
+                  icon={DollarSignIcon}
+                  label="Refunded"
+                  description="Refund processed"
+                  count={statusCounts.refunded}
                   loading={loading}
                 />
               </CardContent>

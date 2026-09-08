@@ -16,6 +16,9 @@ import {
   ArrowLeft,
   Clock,
   MapPin,
+  AlertTriangle,
+  RotateCcw,
+  DollarSign,
 } from "lucide-react";
 import { OrderDetailSheet } from "@/components/orders/order-detail-sheet";
 import type { Order } from "@/types/order";
@@ -30,6 +33,9 @@ const statusColors: Record<string, string> = {
   OUT_FOR_DELIVERY: "bg-[#8EC801]/10 text-[#429801] border-[#8EC801]/20",
   DELIVERED: "bg-green-500/10 text-green-600 border-green-500/20",
   CANCELLED: "bg-red-500/10 text-red-600 border-red-500/20",
+  RETURN_REQUESTED: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+  RETURNED: "bg-gray-500/10 text-gray-600 border-gray-500/20",
+  REFUND_REQUESTED: "bg-blue-500/10 text-blue-600 border-blue-500/20",
   REFUNDED: "bg-gray-500/10 text-gray-600 border-gray-500/20",
 };
 
@@ -43,6 +49,9 @@ const statusLabels: Record<string, string> = {
   OUT_FOR_DELIVERY: "Out for Delivery",
   DELIVERED: "Delivered",
   CANCELLED: "Cancelled",
+  RETURN_REQUESTED: "Return Requested",
+  RETURNED: "Returned",
+  REFUND_REQUESTED: "Refund Requested",
   REFUNDED: "Refunded",
 };
 
@@ -56,6 +65,9 @@ const statusIcons: Record<string, any> = {
   OUT_FOR_DELIVERY: MapPin,
   DELIVERED: Package,
   CANCELLED: Package,
+  RETURN_REQUESTED: AlertTriangle,
+  RETURNED: RotateCcw,
+  REFUND_REQUESTED: DollarSign,
   REFUNDED: Package,
 };
 
@@ -65,6 +77,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     fetchOrders();
@@ -105,6 +118,12 @@ export default function OrdersPage() {
 
   const formatOrderNumber = (num: number) => {
     return `Order #SNG-${String(num).padStart(4, "0")}`;
+  };
+
+  const handleOrderUpdated = () => {
+    // Refresh the orders list when order status changes
+    fetchOrders();
+    setRefreshKey((prev) => prev + 1);
   };
 
   if (loading) {
@@ -202,7 +221,7 @@ export default function OrdersPage() {
 
           return (
             <Card
-              key={order.id}
+              key={`${order.id}-${refreshKey}`}
               className="hover:shadow-sm hover:border-primary/30 transition-all cursor-pointer group"
               onClick={() => openOrderDetail(order)}
             >
@@ -308,6 +327,7 @@ export default function OrdersPage() {
         order={selectedOrder}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
+        onOrderUpdated={handleOrderUpdated}
       />
     </div>
   );

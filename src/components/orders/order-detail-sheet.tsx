@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -23,11 +28,15 @@ import {
   Flag,
   Plus,
   Minus,
+  RotateCcw,
+  AlertTriangle,
+  DollarSign,
 } from "lucide-react";
 import { useMediaQuery } from "react-responsive";
 import { useTheme } from "next-themes";
 import { createClient } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 // Initialize Supabase Client
 const supabase = createClient(
@@ -243,10 +252,12 @@ function OrderDetailContent({
   order,
   loading,
   onClose,
+  onOrderUpdated,
 }: {
   order: any;
   loading: boolean;
   onClose: () => void;
+  onOrderUpdated?: () => void;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -268,6 +279,7 @@ function OrderDetailContent({
   const remainingRouteRef = useRef<any>(null);
 
   const { theme, resolvedTheme } = useTheme();
+  const isMobile = useMediaQuery({ maxWidth: 1023 });
 
   const [mapTheme, setMapTheme] = useState<"street" | "dark" | "satellite">(
     "street",
@@ -279,6 +291,12 @@ function OrderDetailContent({
   const [mapError, setMapError] = useState(false);
   const [isLeafletReady, setIsLeafletReady] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [isReturning, setIsReturning] = useState(false);
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [returnReason, setReturnReason] = useState("");
+  const [isRefunding, setIsRefunding] = useState(false);
+  const [showRefundDialog, setShowRefundDialog] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
 
   const [storeLocation, setStoreLocation] = useState<{
     lat: number;
@@ -311,6 +329,11 @@ function OrderDetailContent({
   });
 
   const isOutForDelivery = order?.status === "OUT_FOR_DELIVERY";
+  const isDelivered = order?.status === "DELIVERED";
+  const isReturnRequested = order?.status === "RETURN_REQUESTED";
+  const isReturned = order?.status === "RETURNED";
+  const isRefundRequested = order?.status === "REFUND_REQUESTED";
+  const isRefunded = order?.status === "REFUNDED";
 
   const getRiderPosition = () => {
     if (isOutForDelivery) {
@@ -327,6 +350,82 @@ function OrderDetailContent({
     }
 
     return storeLocation;
+  };
+
+  const handleRequestReturn = async () => {
+    if (!order?.id) return;
+
+    if (!returnReason.trim()) {
+      toast.error("Please provide a reason for the return");
+      return;
+    }
+
+    setIsReturning(true);
+    try {
+      const response = await fetch(`/api/orders/${order.id}/return`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ reason: returnReason.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success("Return request submitted successfully");
+        setShowReturnDialog(false);
+        setReturnReason("");
+        if (onOrderUpdated) {
+          onOrderUpdated();
+        }
+      } else {
+        toast.error(data.error || "Failed to submit return request");
+      }
+    } catch (error) {
+      console.error("Error requesting return:", error);
+      toast.error("Network error. Please try again.");
+    } finally {
+      setIsReturning(false);
+    }
+  };
+
+  const handleRequestRefund = async () => {
+    if (!order?.id) return;
+
+    if (!refundReason.trim()) {
+      toast.error("Please provide a reason for the refund");
+      return;
+    }
+
+    setIsRefunding(true);
+    try {
+      const response = await fetch(`/api/orders/${order.id}/refund`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ reason: refundReason.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success("Refund request submitted successfully");
+        setShowRefundDialog(false);
+        setRefundReason("");
+        if (onOrderUpdated) {
+          onOrderUpdated();
+        }
+      } else {
+        toast.error(data.error || "Failed to submit refund request");
+      }
+    } catch (error) {
+      console.error("Error requesting refund:", error);
+      toast.error("Network error. Please try again.");
+    } finally {
+      setIsRefunding(false);
+    }
   };
 
   useEffect(() => {
@@ -1002,6 +1101,11 @@ function OrderDetailContent({
             const storePos = { lat: storeLocation.lat, lng: storeLocation.lng };
             animateMarkerTo(storePos.lat, storePos.lng, 500);
           }
+
+          // Update order status if changed
+          if (status !== order.status && onOrderUpdated) {
+            onOrderUpdated();
+          }
         },
       )
       .subscribe();
@@ -1009,7 +1113,7 @@ function OrderDetailContent({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [order?.id, coordinates, storeLocation]);
+  }, [order?.id, coordinates, storeLocation, onOrderUpdated]);
 
   useEffect(() => {
     if (!mapInstanceRef.current || !tileLayerRef.current || !window.L) return;
@@ -1098,14 +1202,14 @@ function OrderDetailContent({
     loadLottie();
   }, []);
 
-  // Render distance card for customer
+  // Render distance card - "Rider" at top-left
   const renderDistanceCard = () => {
     if (!isOutForDelivery || !mapReady) return null;
 
     return (
       <div className="absolute top-3 left-3 z-[9999] pointer-events-auto">
-        <div className="bg-background/90 backdrop-blur-md border border-border shadow-md rounded-lg px-3 py-2 min-w-[140px]">
-          <div className="text-xs text-muted-foreground">Your Rider</div>
+        <div className="bg-background/90 backdrop-blur-md border border-border shadow-md rounded-lg px-3 py-2 min-w-[130px]">
+          <div className="text-xs text-muted-foreground">Rider</div>
           <div className="text-sm font-semibold">
             {riderDistance !== null
               ? riderDistance >= 1000
@@ -1123,72 +1227,33 @@ function OrderDetailContent({
     );
   };
 
-  // Render follow button for customer
+  // Render follow button - bottom-left (only when not centered)
   const renderFollowButton = () => {
     if (!isOutForDelivery || !mapReady) return null;
     if (!getRiderPosition()) return null;
+    if (isFollowingRider) return null;
 
     return (
-      <div className="absolute bottom-4 left-4 z-[1000] flex flex-col gap-2">
-        {!isFollowingRider && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => centerOnRider(true)}
-            className="bg-background/95 backdrop-blur-md shadow-md border-border gap-2"
-          >
-            <MapPin className="h-4 w-4" />
-            Track Rider
-          </Button>
-        )}
-
-        {isFollowingRider && (
-          <div className="bg-background/90 backdrop-blur-md border border-border shadow-sm rounded-full px-3 py-1.5 text-xs font-medium">
-            Tracking Rider
-          </div>
-        )}
+      <div className="absolute bottom-4 left-4 z-[1000]">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => centerOnRider(true)}
+          className="bg-background/95 backdrop-blur-md shadow-md border-border gap-2"
+        >
+          <MapPin className="h-4 w-4" />
+          Track Rider
+        </Button>
       </div>
     );
   };
 
-  // Render mobile distance card
-  const renderMobileDistanceCard = () => {
-    if (!isOutForDelivery || !mapReady) return null;
-
-    return (
-      <div className="lg:hidden absolute top-3 left-3 z-[9999] pointer-events-auto">
-        <div className="bg-background/90 backdrop-blur-md border border-border shadow-md rounded-lg px-2.5 py-1.5 min-w-[100px]">
-          <div className="text-[10px] text-muted-foreground">Rider</div>
-          <div className="text-sm font-semibold">
-            {riderDistance !== null
-              ? riderDistance >= 1000
-                ? `${(riderDistance / 1000).toFixed(1)}km`
-                : `${Math.round(riderDistance)}m`
-              : "..."}
-          </div>
-          {etaMinutes !== null && (
-            <div className="text-[10px] text-muted-foreground">
-              ETA {etaMinutes}m
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Render zoom controls
+  // Render zoom controls - bottom-right
   const renderZoomControls = () => {
     if (!mapReady) return null;
 
     return (
-      <div
-        className={cn(
-          "absolute z-[1000] flex gap-1 bg-background/90 backdrop-blur-md p-1 rounded-md border border-border shadow-sm",
-          isOutForDelivery
-            ? "bottom-16 right-4 flex-col"
-            : "bottom-4 right-4 flex-col",
-        )}
-      >
+      <div className="absolute bottom-4 right-4 z-[1000] flex flex-col gap-1 bg-background/90 backdrop-blur-md p-1 rounded-md border border-border shadow-sm">
         <Button
           type="button"
           variant="ghost"
@@ -1213,7 +1278,7 @@ function OrderDetailContent({
     );
   };
 
-  // Render theme switcher
+  // Render theme switcher - top-right
   const renderThemeSwitcher = () => {
     if (!mapReady) return null;
 
@@ -1231,7 +1296,7 @@ function OrderDetailContent({
           )}
         >
           <Map className="w-3.5 h-3.5" />
-          Street
+          {!isMobile && "Street"}
         </Button>
 
         <Button
@@ -1246,7 +1311,7 @@ function OrderDetailContent({
           )}
         >
           <Moon className="w-3.5 h-3.5" />
-          Dark
+          {!isMobile && "Dark"}
         </Button>
 
         <Button
@@ -1261,7 +1326,7 @@ function OrderDetailContent({
           )}
         >
           <Globe className="w-3.5 h-3.5" />
-          Satellite
+          {!isMobile && "Satellite"}
         </Button>
       </div>
     );
@@ -1304,6 +1369,9 @@ function OrderDetailContent({
     OUT_FOR_DELIVERY: "Out for Delivery",
     DELIVERED: "Delivered",
     CANCELLED: "Cancelled",
+    RETURN_REQUESTED: "Return Requested",
+    RETURNED: "Returned",
+    REFUND_REQUESTED: "Refund Requested",
     REFUNDED: "Refunded",
   };
 
@@ -1317,6 +1385,9 @@ function OrderDetailContent({
     OUT_FOR_DELIVERY: "bg-green-500/10 text-green-600 border-green-500/20",
     DELIVERED: "bg-green-600/10 text-green-700 border-green-600/20",
     CANCELLED: "bg-red-500/10 text-red-600 border-red-500/20",
+    RETURN_REQUESTED: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    RETURNED: "bg-gray-500/10 text-gray-600 border-gray-500/20",
+    REFUND_REQUESTED: "bg-blue-500/10 text-blue-600 border-blue-500/20",
     REFUNDED: "bg-gray-500/10 text-gray-600 border-gray-500/20",
   };
 
@@ -1330,7 +1401,10 @@ function OrderDetailContent({
     OUT_FOR_DELIVERY: Truck,
     DELIVERED: CheckCircle,
     CANCELLED: XCircle,
-    REFUNDED: XCircle,
+    RETURN_REQUESTED: AlertTriangle,
+    RETURNED: RotateCcw,
+    REFUND_REQUESTED: DollarSign,
+    REFUNDED: DollarSign,
   };
 
   const StatusIcon = statusIcons[order.status] || Clock;
@@ -1343,9 +1417,8 @@ function OrderDetailContent({
       <div className="relative w-full lg:w-[50%] h-64 lg:h-full lg:min-h-[400px] bg-muted overflow-hidden shrink-0">
         {renderThemeSwitcher()}
         {renderDistanceCard()}
-        {renderMobileDistanceCard()}
-        {renderZoomControls()}
         {renderFollowButton()}
+        {renderZoomControls()}
 
         {!isLeafletReady && !mapError ? (
           <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
@@ -1513,12 +1586,258 @@ function OrderDetailContent({
           </div>
         </div>
 
+        {/* Return Button for Customers */}
+        {isDelivered &&
+          !isReturnRequested &&
+          !isReturned &&
+          !isRefundRequested &&
+          !isRefunded && (
+            <>
+              <Separator />
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  className="w-full text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                  onClick={() => setShowReturnDialog(true)}
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Request Return
+                </Button>
+                <p className="text-[10px] text-muted-foreground text-center">
+                  You can request a return within 7 days of delivery
+                </p>
+              </div>
+            </>
+          )}
+
+        {/* Return Requested Status Message */}
+        {isReturnRequested && (
+          <>
+            <Separator />
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                    Return Requested
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400/80">
+                    Your return request has been submitted. Please wait for the
+                    rider to confirm.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Returned Status Message */}
+        {isReturned && !isRefundRequested && !isRefunded && order.isPaid && (
+          <>
+            <Separator />
+            <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                    Return Accepted
+                  </p>
+                  <p className="text-xs text-green-700 dark:text-green-400/80">
+                    Your return has been accepted by the rider.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Refund Button for Customers */}
+        {((isDelivered && order.isPaid) || (isReturned && order.isPaid)) &&
+          !isRefundRequested &&
+          !isRefunded && (
+            <>
+              <Separator />
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  className="w-full text-blue-600 border-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                  onClick={() => setShowRefundDialog(true)}
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Request Refund
+                </Button>
+                <p className="text-[10px] text-muted-foreground text-center">
+                  Request a refund for your paid order
+                </p>
+              </div>
+            </>
+          )}
+
+        {/* Refund Requested Status Message */}
+        {isRefundRequested && (
+          <>
+            <Separator />
+            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                    Refund Requested
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-400/80">
+                    Your refund request has been submitted. Please wait for
+                    admin approval.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Refunded Status Message */}
+        {isRefunded && (
+          <>
+            <Separator />
+            <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                    Refunded
+                  </p>
+                  <p className="text-xs text-green-700 dark:text-green-400/80">
+                    Your refund has been processed successfully.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
         <div className="pt-2 pb-4">
           <Button className="w-full" variant="outline" onClick={onClose}>
             Close
           </Button>
         </div>
       </div>
+
+      {/* Return Request Dialog */}
+      <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
+        <DialogContent className="max-w-md !bg-background">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-amber-600" />
+              Request Return
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Please provide a reason for returning Order #
+              {String(order.orderNumber || 0).padStart(4, "0")}
+            </p>
+            <div className="mt-3">
+              <label className="text-sm font-medium">Reason for return</label>
+              <textarea
+                className="w-full mt-1 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all min-h-[80px] resize-none"
+                placeholder="e.g., Item is damaged, wrong item received, etc."
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+              />
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 !bg-background hover:!bg-accent"
+                onClick={() => {
+                  setShowReturnDialog(false);
+                  setReturnReason("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={handleRequestReturn}
+                disabled={isReturning || !returnReason.trim()}
+              >
+                {isReturning ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Submit Return
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refund Request Dialog */}
+      <Dialog open={showRefundDialog} onOpenChange={setShowRefundDialog}>
+        <DialogContent className="max-w-md !bg-background">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-blue-600" />
+              Request Refund
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Please provide a reason for requesting a refund for Order #
+              {String(order.orderNumber || 0).padStart(4, "0")}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Amount:{" "}
+              <span className="font-bold">
+                ₱{(order.payable || 0).toFixed(2)}
+              </span>
+            </p>
+            <div className="mt-3">
+              <label className="text-sm font-medium">Reason for refund</label>
+              <textarea
+                className="w-full mt-1 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all min-h-[80px] resize-none"
+                placeholder="e.g., Item is damaged, wrong item received, etc."
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+              />
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 !bg-background hover:!bg-accent"
+                onClick={() => {
+                  setShowRefundDialog(false);
+                  setRefundReason("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={handleRequestRefund}
+                disabled={isRefunding || !refundReason.trim()}
+              >
+                {isRefunding ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <DollarSign className="mr-2 h-4 w-4" />
+                    Submit Refund
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1528,39 +1847,26 @@ export function OrderDetailSheet({ order, open, onOpenChange }: any) {
     minWidth: 1024,
   });
 
-  if (!isDesktop) {
-    return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent
-          side="bottom"
-          showCloseButton={false}
-          className="!h-[80vh] !max-h-[80vh] !min-h-0 rounded-t-2xl p-0 gap-0 overflow-hidden"
-        >
-          <div className="h-full min-h-0 overflow-hidden">
-            <OrderDetailContent
-              order={order}
-              loading={false}
-              onClose={() => onOpenChange(false)}
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-xl border-0 shadow-2xl [&>button]:hidden">
-        <div className="relative max-h-[70vh] flex flex-col">
-          <div className="flex-1 overflow-hidden min-h-0">
-            <OrderDetailContent
-              order={order}
-              loading={false}
-              onClose={() => onOpenChange(false)}
-            />
-          </div>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side={isDesktop ? "right" : "bottom"}
+        showCloseButton={false}
+        className={cn(
+          "p-0 gap-0 overflow-hidden",
+          isDesktop
+            ? "w-[80vw] max-w-5xl rounded-l-xl"
+            : "!h-[80vh] !max-h-[80vh] !min-h-0 rounded-t-2xl",
+        )}
+      >
+        <div className="h-full min-h-0 overflow-hidden">
+          <OrderDetailContent
+            order={order}
+            loading={false}
+            onClose={() => onOpenChange(false)}
+          />
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

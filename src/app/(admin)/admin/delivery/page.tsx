@@ -30,6 +30,7 @@ import {
   Ban,
   RotateCcw,
   DollarSign,
+  Undo2,
 } from "lucide-react";
 import {
   Select,
@@ -108,6 +109,7 @@ const statusColors: Record<string, string> = {
   OUT_FOR_DELIVERY: "bg-pink-100 text-pink-800",
   DELIVERED: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-800",
+  RETURN_REQUESTED: "bg-amber-100 text-amber-800",
   RETURNED: "bg-gray-100 text-gray-800",
 };
 
@@ -117,6 +119,7 @@ const deliveryStatusOptions = [
   { value: "OUT_FOR_DELIVERY", label: "Out for Delivery" },
   { value: "DELIVERED", label: "Delivered" },
   { value: "CANCELLED", label: "Cancelled" },
+  { value: "RETURN_REQUESTED", label: "Return Requested" },
   { value: "RETURNED", label: "Returned" },
 ];
 
@@ -177,14 +180,19 @@ export default function DeliveryPage() {
     try {
       const params = new URLSearchParams();
 
-      // ✅ FIX: Riders see ALL their orders (all statuses)
       if (isRider) {
-        // Don't filter by status - show all orders assigned to this rider
-        // The API will filter by riderId automatically
+        params.append(
+          "status",
+          "ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP,DELIVERED,RETURN_REQUESTED,RETURNED",
+        );
       }
 
       if (isAdmin && selectedRiderId !== "all") {
         params.append("riderId", selectedRiderId);
+        params.append(
+          "status",
+          "ASSIGNED_RIDER,OUT_FOR_DELIVERY,READY_FOR_PICKUP,DELIVERED,RETURN_REQUESTED,RETURNED",
+        );
       }
 
       if (statusFilter !== "all") {
@@ -516,6 +524,24 @@ export default function DeliveryPage() {
 
               {isRider && (
                 <>
+                  {order.status === "RETURN_REQUESTED" && (
+                    <Button
+                      size="sm"
+                      className="h-7 px-2 text-xs bg-amber-600 hover:bg-amber-700 text-white font-medium flex-shrink-0"
+                      onClick={() => updateStatus(order.id, "RETURNED")}
+                      disabled={isUpdating}
+                    >
+                      {isUpdating ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <>
+                          <Undo2 className="h-3 w-3 mr-1" />
+                          Accept Return
+                        </>
+                      )}
+                    </Button>
+                  )}
+
                   {order.status === "ASSIGNED_RIDER" && (
                     <Button
                       size="sm"
@@ -568,17 +594,9 @@ export default function DeliveryPage() {
                       >
                         <Ban className="h-3.5 w-3.5" />
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 w-7 p-0 text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background flex-shrink-0"
-                        onClick={() => updateStatus(order.id, "RETURNED")}
-                        disabled={isUpdating}
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      </Button>
                     </>
                   )}
+
                   {order.status === "DELIVERED" && (
                     <>
                       {!order.isPaid && (
@@ -592,15 +610,6 @@ export default function DeliveryPage() {
                           Mark Paid
                         </Button>
                       )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 w-7 p-0 text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background flex-shrink-0"
-                        onClick={() => updateStatus(order.id, "RETURNED")}
-                        disabled={isUpdating}
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      </Button>
                     </>
                   )}
                 </>
@@ -625,7 +634,6 @@ export default function DeliveryPage() {
         </p>
       </div>
 
-      {/* Stats Cards - Admin only */}
       {isAdmin && (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
           {renderStatCard(
@@ -655,7 +663,6 @@ export default function DeliveryPage() {
         </div>
       )}
 
-      {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
         <div className="flex items-center gap-2 sm:hidden flex-1">
           <div className="relative flex-1">
@@ -804,7 +811,6 @@ export default function DeliveryPage() {
         )}
       </div>
 
-      {/* Mobile: Cards View */}
       <div className="md:hidden space-y-2 -mx-4 px-4">
         {loading ? (
           renderSkeletonCards()
@@ -821,7 +827,6 @@ export default function DeliveryPage() {
         )}
       </div>
 
-      {/* Desktop: Table View */}
       <div className="hidden md:block border rounded-lg overflow-hidden w-full">
         <div className="overflow-x-auto">
           <Table>
@@ -918,6 +923,24 @@ export default function DeliveryPage() {
 
                       {isRider && (
                         <>
+                          {order.status === "RETURN_REQUESTED" && (
+                            <Button
+                              size="sm"
+                              className="bg-amber-600 hover:bg-amber-700 text-white font-medium"
+                              onClick={() => updateStatus(order.id, "RETURNED")}
+                              disabled={isUpdating}
+                            >
+                              {isUpdating ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Undo2 className="h-3.5 w-3.5 mr-1" />
+                                  Accept Return
+                                </>
+                              )}
+                            </Button>
+                          )}
+
                           {order.status === "ASSIGNED_RIDER" && (
                             <Button
                               size="sm"
@@ -974,18 +997,6 @@ export default function DeliveryPage() {
                                 <Ban className="h-3.5 w-3.5 mr-1" />
                                 Cancel
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
-                                onClick={() =>
-                                  updateStatus(order.id, "RETURNED")
-                                }
-                                disabled={isUpdating}
-                              >
-                                <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                                Return
-                              </Button>
                             </>
                           )}
 
@@ -1002,18 +1013,6 @@ export default function DeliveryPage() {
                                   Mark Paid
                                 </Button>
                               )}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
-                                onClick={() =>
-                                  updateStatus(order.id, "RETURNED")
-                                }
-                                disabled={isUpdating}
-                              >
-                                <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                                Return
-                              </Button>
                             </>
                           )}
                         </>
@@ -1027,7 +1026,6 @@ export default function DeliveryPage() {
         </div>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-2">
           <div className="text-sm text-muted-foreground order-2 sm:order-1">
@@ -1086,7 +1084,6 @@ export default function DeliveryPage() {
         </div>
       )}
 
-      {/* Order Detail Dialog */}
       <DeliveryOrderDetail
         order={selectedOrder}
         open={detailOpen}

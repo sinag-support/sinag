@@ -76,7 +76,9 @@ const statusColors: Record<string, string> = {
   OUT_FOR_DELIVERY: "text-pink-600",
   DELIVERED: "text-green-600",
   CANCELLED: "text-red-600",
+  RETURN_REQUESTED: "text-amber-600",
   RETURNED: "text-gray-600",
+  REFUND_REQUESTED: "text-blue-600",
   REFUNDED: "text-gray-600",
 };
 

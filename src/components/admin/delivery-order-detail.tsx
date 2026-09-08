@@ -22,6 +22,7 @@ import {
   Truck,
   DollarSign,
   CheckCircle,
+  Undo2,
 } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { cn } from "@/lib/utils";
@@ -168,9 +169,12 @@ export function DeliveryOrderDetail({
       return currentOrder.status === "OUT_FOR_DELIVERY";
     }
     if (role === "RIDER") {
-      return ["ASSIGNED_RIDER", "OUT_FOR_DELIVERY", "DELIVERED"].includes(
-        currentOrder.status,
-      );
+      return [
+        "ASSIGNED_RIDER",
+        "OUT_FOR_DELIVERY",
+        "DELIVERED",
+        "RETURN_REQUESTED",
+      ].includes(currentOrder.status);
     }
     return false;
   };
@@ -201,6 +205,25 @@ export function DeliveryOrderDetail({
     }
 
     if (role === "RIDER") {
+      if (currentOrder.status === "RETURN_REQUESTED") {
+        return (
+          <Button
+            className="w-full font-medium text-sm bg-amber-600 hover:bg-amber-700 text-white"
+            onClick={() => handleStatusUpdate(currentOrder.id, "RETURNED")}
+            disabled={isUpdating}
+          >
+            {isUpdating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <Undo2 className="mr-2 h-4 w-4" />
+                Accept Return
+              </>
+            )}
+          </Button>
+        );
+      }
+
       if (currentOrder.status === "ASSIGNED_RIDER") {
         return (
           <Button
@@ -254,15 +277,6 @@ export function DeliveryOrderDetail({
                 <Ban className="mr-1 h-4 w-4" />
                 Cancel
               </Button>
-              <Button
-                variant="outline"
-                className="flex-1 font-medium text-sm text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
-                onClick={() => handleStatusUpdate(currentOrder.id, "RETURNED")}
-                disabled={isUpdating}
-              >
-                <RotateCcw className="mr-1 h-4 w-4" />
-                Return
-              </Button>
             </div>
           </div>
         );
@@ -282,17 +296,6 @@ export function DeliveryOrderDetail({
                 Mark as Paid
               </Button>
             )}
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1 font-medium text-sm text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 !bg-background"
-                onClick={() => handleStatusUpdate(currentOrder.id, "RETURNED")}
-                disabled={isUpdating}
-              >
-                <RotateCcw className="mr-1 h-4 w-4" />
-                Return
-              </Button>
-            </div>
           </div>
         );
       }
