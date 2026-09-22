@@ -55,7 +55,6 @@ interface CartItem {
   } | null;
 }
 
-// ✅ Add landmark to Address interface
 interface Address {
   id: string;
   address: string;
@@ -95,7 +94,6 @@ export default function CheckoutClient() {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [isBuyNow, setIsBuyNow] = useState(false);
 
-  // ✅ Success dialog states
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
   const [placedOrderNumber, setPlacedOrderNumber] = useState<number | null>(
@@ -299,7 +297,6 @@ export default function CheckoutClient() {
         throw new Error(data.error || "Failed to place order");
       }
 
-      // ✅ Store order info and show success dialog
       setPlacedOrderId(data.orderId);
       setPlacedOrderNumber(data.orderNumber);
       setShowSuccessDialog(true);

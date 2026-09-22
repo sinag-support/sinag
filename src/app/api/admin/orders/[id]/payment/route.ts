@@ -80,7 +80,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ✅ Only RIDER can mark orders as paid
     if (user.role !== "RIDER") {
       return NextResponse.json(
         { error: "Forbidden - Only riders can mark orders as paid" },
@@ -106,7 +105,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // ✅ Verify this order is assigned to the rider
     if (order.riderId !== user.id) {
       return NextResponse.json(
         { error: "This order is not assigned to you" },
@@ -114,7 +112,6 @@ export async function PATCH(
       );
     }
 
-    // ✅ Only allow marking as paid if order is DELIVERED or OUT_FOR_DELIVERY
     if (!["DELIVERED", "OUT_FOR_DELIVERY"].includes(order.status)) {
       return NextResponse.json(
         {
@@ -124,7 +121,6 @@ export async function PATCH(
       );
     }
 
-    // ✅ Check if payment method is COD (only COD orders can be marked as paid by rider)
     const payment = order.payments[0];
     if (!payment || payment.method !== "COD") {
       return NextResponse.json(
@@ -133,19 +129,16 @@ export async function PATCH(
       );
     }
 
-    // ✅ Update order isPaid status
     const updatedOrder = await prisma.order.update({
       where: { id },
       data: { isPaid },
     });
 
-    // ✅ Update payment status
     await prisma.payment.update({
       where: { id: payment.id },
       data: { status: "PAID" },
     });
 
-    // ✅ Create notification for customer
     if (isPaid && order.userId) {
       await createNotification(
         order.userId,

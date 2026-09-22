@@ -19,19 +19,15 @@ export async function GET(request: NextRequest) {
 
   const where: any = {};
 
-  // ✅ FIX: For RIDER, only filter by riderId, NOT by status
   if (role === "RIDER") {
     const userId = await getCurrentUserId();
     where.riderId = userId;
-    // ✅ REMOVED: The automatic status filter
-    // Now riders see ALL their orders regardless of status
   }
 
   if (role === "ADMIN" && riderId) {
     where.riderId = riderId;
   }
 
-  // ✅ Apply status filter only if explicitly provided
   if (status) {
     const statuses = status.split(",").filter(Boolean);
     if (statuses.length > 0) {

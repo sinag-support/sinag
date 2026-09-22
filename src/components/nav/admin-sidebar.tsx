@@ -226,7 +226,6 @@ export default function AdminSidebar() {
   const router = useRouter();
   const { role, loading } = useRole();
 
-  // ✅ FIX: Prevent hydration mismatch
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -668,11 +667,8 @@ export default function AdminSidebar() {
     );
   };
 
-  // ✅ FIXED: Loading skeleton with hydration safety
   if (loading || !mounted) {
-    // During hydration, always show 5 items (matches server)
-    // After hydration, we can show the correct role-based count
-    const skeletonCount = 5; // Always 5 during initial render to prevent hydration mismatch
+    const skeletonCount = 5;
 
     return (
       <>

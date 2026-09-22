@@ -218,7 +218,6 @@ export default function NotificationsPage() {
     }
   };
 
-  // ✅ Handle notification click - ONLY mark as read, NO navigation
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.read) {
       await markAsRead(notification.id);

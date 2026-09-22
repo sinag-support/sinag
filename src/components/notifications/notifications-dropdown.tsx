@@ -179,13 +179,10 @@ export function NotificationsDropdown() {
     }
   };
 
-  // ✅ FIXED: Only mark as read, NO navigation
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.read) {
       markAsRead(notification.id);
     }
-    // ❌ REMOVED all router.push() calls
-    // ❌ REMOVED all navigation
     setOpen(false);
   };
 

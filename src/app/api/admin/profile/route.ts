@@ -46,7 +46,6 @@ async function getAuthUser() {
   }
 }
 
-// ✅ GET - Fetch user profile with store location for ALL authenticated users
 export async function GET() {
   try {
     const user = await getAuthUser();
@@ -54,10 +53,9 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ✅ Always fetch the store location (global setting, not tied to a specific user)
     const storeLocation = await prisma.address.findFirst({
       where: {
-        isStoreLocation: true, // ✅ Just find the store location
+        isStoreLocation: true,
       },
     });
 
@@ -79,7 +77,6 @@ export async function GET() {
   }
 }
 
-// ✅ PUT - Update user profile (only ADMIN can update store location)
 export async function PUT(request: NextRequest) {
   try {
     const user = await getAuthUser();
@@ -97,7 +94,6 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    // ✅ Only ADMIN can update store location
     if (storeLocation && user.role === "ADMIN") {
       // Check if store location already exists
       const existingStore = await prisma.address.findFirst({
@@ -148,7 +144,6 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    // ✅ Always fetch store location (no userId restriction)
     const storeLocationData = await prisma.address.findFirst({
       where: {
         isStoreLocation: true,

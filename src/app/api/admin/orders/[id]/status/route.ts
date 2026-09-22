@@ -5,7 +5,6 @@ import prisma from "@/lib/prisma";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-// ✅ Import the NotificationType enum from Prisma
 import { NotificationType } from "@prisma/client";
 
 async function getAuthUser() {
@@ -47,12 +46,11 @@ async function getAuthUser() {
   }
 }
 
-// ✅ FIXED: Direct database insert for notification (no API call)
 async function createNotification(
   userId: string,
   title: string,
   description: string,
-  type: NotificationType, // ✅ Use the enum type
+  type: NotificationType,
   link?: string,
   metadata?: any,
 ) {
@@ -62,15 +60,15 @@ async function createNotification(
         userId,
         title,
         description,
-        type, // ✅ Now correctly typed
+        type,
         link,
         metadata,
       },
     });
-    console.log("✅ Notification created:", notification.id);
+    console.log("Notification created:", notification.id);
     return notification;
   } catch (error) {
-    console.error("❌ Failed to create notification:", error);
+    console.error("Failed to create notification:", error);
     return null;
   }
 }
@@ -131,7 +129,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // ✅ Update order status
     const updatedOrder = await prisma.order.update({
       where: { id },
       data: { status },
@@ -143,7 +140,6 @@ export async function PATCH(
       userId: order.userId,
     });
 
-    // ✅ Send notification to customer when OUT_FOR_DELIVERY
     if (status === "OUT_FOR_DELIVERY" && order.userId) {
       const riderName = order.rider?.name || "Your rider";
 
@@ -156,7 +152,7 @@ export async function PATCH(
         order.userId,
         `🚚 Your order #${order.orderNumber} is on the way!`,
         `Rider ${riderName} has started your delivery. Track your order in real-time.`,
-        NotificationType.ORDER, // ✅ Use the enum value
+        NotificationType.ORDER,
         `/orders/${order.orderNumber}`,
         {
           orderNumber: order.orderNumber,
@@ -167,7 +163,6 @@ export async function PATCH(
       );
     }
 
-    // ✅ Send notification to customer when DELIVERED
     if (status === "DELIVERED" && order.userId) {
       const riderName = order.rider?.name || "Your rider";
 
@@ -175,9 +170,9 @@ export async function PATCH(
 
       await createNotification(
         order.userId,
-        `✅ Order #${order.orderNumber} delivered!`,
+        `Order #${order.orderNumber} delivered!`,
         `Your order has been successfully delivered by ${riderName}. Thank you for shopping with us!`,
-        NotificationType.ORDER, // ✅ Use the enum value
+        NotificationType.ORDER,
         `/orders/${order.orderNumber}`,
         {
           orderNumber: order.orderNumber,
@@ -187,15 +182,14 @@ export async function PATCH(
       );
     }
 
-    // ✅ Send notification when order is cancelled
     if (status === "CANCELLED" && order.userId) {
       console.log("📤 Creating CANCELLED notification for user:", order.userId);
 
       await createNotification(
         order.userId,
-        `❌ Order #${order.orderNumber} cancelled`,
+        `Order #${order.orderNumber} cancelled`,
         `Your order has been cancelled. If you have any questions, please contact support.`,
-        NotificationType.ORDER, // ✅ Use the enum value
+        NotificationType.ORDER,
         `/orders/${order.orderNumber}`,
         {
           orderNumber: order.orderNumber,

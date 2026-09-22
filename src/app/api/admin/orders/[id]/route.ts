@@ -50,7 +50,6 @@ export async function GET(
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  // ✅ Return order with isPaid
   return NextResponse.json({
     ...order,
     isPaid: order.isPaid,

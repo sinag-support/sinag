@@ -65,6 +65,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
+        <meta
+          name="google-site-verification"
+          content="twYnhV-a2FZVLENBK4qdc8KsoXyx5M6w79SYX_N2EJs"
+        />
       </head>
       <body className={`${inter.className} ${workSans.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
