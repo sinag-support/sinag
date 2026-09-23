@@ -4,8 +4,9 @@ import { getCurrentUserRole } from "@/lib/role";
 
 export async function GET() {
   const role = await getCurrentUserRole();
-  if (role !== "ADMIN")
+  if (!role || !["ADMIN", "STAFF"].includes(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   try {
     const categories = await prisma.category.findMany({

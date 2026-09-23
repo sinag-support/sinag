@@ -4,8 +4,9 @@ import { getCurrentUserRole } from "@/lib/role";
 
 export async function GET() {
   const role = await getCurrentUserRole();
-  if (role !== "ADMIN")
+  if (!role || !["ADMIN", "STAFF"].includes(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const banners = await prisma.banner.findMany({
     orderBy: { order: "asc" },
@@ -24,8 +25,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const role = await getCurrentUserRole();
-  if (role !== "ADMIN")
+  if (!role || !["ADMIN", "STAFF"].includes(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { title, description, image, link, order } = await request.json();
   if (!title || !image)

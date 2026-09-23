@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const role = await getCurrentUserRole();
-  if (role !== "ADMIN") {
+  if (!role || !["ADMIN", "STAFF"].includes(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -37,7 +37,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const role = await getCurrentUserRole();
-  if (role !== "ADMIN") {
+  if (!role || !["ADMIN", "STAFF"].includes(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -90,7 +90,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const role = await getCurrentUserRole();
-  if (role !== "ADMIN") {
+  if (!role || !["ADMIN", "STAFF"].includes(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

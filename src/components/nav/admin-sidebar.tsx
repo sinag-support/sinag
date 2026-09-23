@@ -106,7 +106,7 @@ const navItems: NavItem[] = [
     href: "/admin/reports",
     label: "Reports",
     icon: BarChart3,
-    roles: ["ADMIN"],
+    roles: ["ADMIN", "STAFF"],
   },
   {
     href: "/admin/users",
@@ -177,6 +177,15 @@ const getMobileNavItems = (userRole: string) => {
     });
   }
 
+  if (role === "STAFF") {
+    items.push({
+      href: "/admin/reports",
+      label: "Reports",
+      icon: BarChart3,
+      roles: ["STAFF"],
+    });
+  }
+
   if (role === "ADMIN") {
     items.push({
       label: "Profile",
@@ -187,7 +196,7 @@ const getMobileNavItems = (userRole: string) => {
           href: "/admin/reports",
           label: "Reports",
           icon: BarChart3,
-          roles: ["ADMIN"],
+          roles: ["ADMIN", "STAFF"],
         },
         {
           href: "/admin/users",

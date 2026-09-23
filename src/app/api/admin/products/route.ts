@@ -1,36 +1,38 @@
-import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { getCurrentUserRole } from '@/lib/role'
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { getCurrentUserRole } from "@/lib/role";
 
 export async function GET(request: NextRequest) {
-  const role = await getCurrentUserRole()
-  if (role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const role = await getCurrentUserRole();
+  if (!role || !["ADMIN", "STAFF"].includes(role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
-  const { searchParams } = new URL(request.url)
-  const search = searchParams.get('search') || ''
-  const categoryId = searchParams.get('categoryId') || ''
-  const page = parseInt(searchParams.get('page') || '1')
-  const limit = parseInt(searchParams.get('limit') || '20')
-  const skip = (page - 1) * limit
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get("search") || "";
+  const categoryId = searchParams.get("categoryId") || "";
+  const page = parseInt(searchParams.get("page") || "1");
+  const limit = parseInt(searchParams.get("limit") || "20");
+  const skip = (page - 1) * limit;
 
   // Build where clause
-  const where: any = {}
-  
+  const where: any = {};
+
   // Search filter
   if (search) {
     where.OR = [
-      { title: { contains: search, mode: 'insensitive' } },
-      { description: { contains: search, mode: 'insensitive' } },
-    ]
+      { title: { contains: search, mode: "insensitive" } },
+      { description: { contains: search, mode: "insensitive" } },
+    ];
   }
 
   // Category filter
-  if (categoryId && categoryId !== 'all') {
-    where.categoryId = categoryId
+  if (categoryId && categoryId !== "all") {
+    where.categoryId = categoryId;
   }
 
   // Get total count for pagination
-  const total = await prisma.product.count({ where })
+  const total = await prisma.product.count({ where });
 
   // Get products with pagination
   const products = await prisma.product.findMany({
@@ -44,10 +46,10 @@ export async function GET(request: NextRequest) {
       },
       options: true,
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: "desc" },
     skip,
     take: limit,
-  })
+  });
 
   return NextResponse.json({
     products,
@@ -55,18 +57,33 @@ export async function GET(request: NextRequest) {
     page,
     limit,
     totalPages: Math.ceil(total / limit),
-  })
+  });
 }
 
 export async function POST(request: NextRequest) {
-  const role = await getCurrentUserRole()
-  if (role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const role = await getCurrentUserRole();
+  if (!role || !["ADMIN", "STAFF"].includes(role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
-  const body = await request.json()
-  const { title, description, price, discount, stock, isAvailable, categoryId, images, options } = body
+  const body = await request.json();
+  const {
+    title,
+    description,
+    price,
+    discount,
+    stock,
+    isAvailable,
+    categoryId,
+    images,
+    options,
+  } = body;
 
   if (!title || price == null) {
-    return NextResponse.json({ error: 'Title and price required' }, { status: 400 })
+    return NextResponse.json(
+      { error: "Title and price required" },
+      { status: 400 },
+    );
   }
 
   const product = await prisma.product.create({
@@ -87,7 +104,7 @@ export async function POST(request: NextRequest) {
       category: true,
       options: true,
     },
-  })
+  });
 
-  return NextResponse.json(product, { status: 201 })
+  return NextResponse.json(product, { status: 201 });
 }
