@@ -18,7 +18,6 @@ import {
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
-// Extended CartItem type with option
 interface CartItem {
   id: string;
   productId: string;
@@ -140,7 +139,6 @@ export default function CartPage() {
     }
   };
 
-  // Calculate subtotal – use option price if available, then apply product discount
   const subtotal = cartItems.reduce((sum, item) => {
     const basePrice = item.option ? item.option.price : item.product.price;
     const price =
@@ -154,7 +152,6 @@ export default function CartPage() {
     router.back();
   };
 
-  // --- Skeleton Loading State ---
   if (loading) {
     return (
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl mx-auto min-h-screen pb-28 md:pb-8">
@@ -478,7 +475,6 @@ export default function CartPage() {
   );
 }
 
-// --- Shared helper to compute price ---
 function getEffectivePrice(item: CartItem): number {
   const basePrice = item.option ? item.option.price : item.product.price;
   return item.product.discount > 0
@@ -486,7 +482,6 @@ function getEffectivePrice(item: CartItem): number {
     : basePrice;
 }
 
-// --- Mobile Cart Item ---
 function CartItemMobile({ item, onUpdateQuantity, onRemove, updating }: any) {
   const price = getEffectivePrice(item);
   const imageUrl = item.option?.image || item.product.images?.[0] || "";
@@ -560,7 +555,6 @@ function CartItemMobile({ item, onUpdateQuantity, onRemove, updating }: any) {
   );
 }
 
-// --- Desktop Cart Item ---
 function CartItemDesktop({ item, onUpdateQuantity, onRemove, updating }: any) {
   const price = getEffectivePrice(item);
   const imageUrl = item.option?.image || item.product.images?.[0] || "";
@@ -628,7 +622,6 @@ function CartItemDesktop({ item, onUpdateQuantity, onRemove, updating }: any) {
   );
 }
 
-// --- Tablet Cart Item ---
 function CartItemTablet({ item, onUpdateQuantity, onRemove, updating }: any) {
   const price = getEffectivePrice(item);
   const imageUrl = item.option?.image || item.product.images?.[0] || "";

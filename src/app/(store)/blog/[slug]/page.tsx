@@ -1,19 +1,18 @@
-import { notFound } from 'next/navigation'
-import prisma from '@/lib/prisma'
-import { safeQuery } from '@/lib/safe-query'
-import BlogPostClient from './blog-post-client'
+import { notFound } from "next/navigation";
+import prisma from "@/lib/prisma";
+import { safeQuery } from "@/lib/safe-query";
+import BlogPostClient from "./blog-post-client";
 
-export const dynamic = 'force-dynamic'
-export const fetchCache = 'force-no-store'
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 export default async function BlogPostPage({
   params,
 }: {
-  params: Promise<{ slug: string }>
+  params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params
+  const { slug } = await params;
 
-  // Fetch single blog post from database
   const post = await safeQuery(
     () =>
       prisma.blogPost.findUnique({
@@ -33,18 +32,17 @@ export default async function BlogPostPage({
           author: true,
         },
       }),
-    null
-  )
+    null,
+  );
 
   if (!post) {
-    notFound()
+    notFound();
   }
 
-  // Convert Date to string for client component
   const postWithStringDate = {
     ...post,
     createdAt: post.createdAt.toISOString(),
-  }
+  };
 
-  return <BlogPostClient post={postWithStringDate} />
+  return <BlogPostClient post={postWithStringDate} />;
 }

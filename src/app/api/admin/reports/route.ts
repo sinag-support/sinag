@@ -11,7 +11,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const range = searchParams.get("range") || "30d";
 
-  // Calculate date range
   const now = new Date();
   let startDate = new Date();
   switch (range) {
@@ -31,7 +30,6 @@ export async function GET(request: Request) {
       startDate.setDate(now.getDate() - 30);
   }
 
-  // Get all orders in date range
   const orders = await prisma.order.findMany({
     where: {
       createdAt: { gte: startDate },
@@ -54,11 +52,9 @@ export async function GET(request: Request) {
     orderBy: { createdAt: "asc" },
   });
 
-  // Calculate revenue and orders
   const totalRevenue = orders.reduce((sum, o) => sum + o.payable, 0);
   const totalOrders = orders.length;
 
-  // Daily revenue data
   const dailyRevenue: Record<string, { revenue: number; orders: number }> = {};
   orders.forEach((order) => {
     const date = order.createdAt.toISOString().split("T")[0];
@@ -73,7 +69,6 @@ export async function GET(request: Request) {
     orders: data.orders,
   }));
 
-  // Category sales distribution
   const categorySales: Record<string, number> = {};
   orders.forEach((order) => {
     order.items.forEach((item) => {
@@ -88,7 +83,6 @@ export async function GET(request: Request) {
     .sort((a, b) => b.value - a.value)
     .slice(0, 6);
 
-  // Status distribution
   const statusDistribution = await prisma.order.groupBy({
     by: ["status"],
     _count: { status: true },
@@ -100,7 +94,6 @@ export async function GET(request: Request) {
     value: s._count.status,
   }));
 
-  // Top products
   const productSales: Record<
     string,
     { name: string; sales: number; revenue: number }
@@ -124,7 +117,6 @@ export async function GET(request: Request) {
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5);
 
-  // Calculate growth (compare to previous period)
   const previousStart = new Date(startDate);
   previousStart.setDate(
     previousStart.getDate() - parseInt(range.replace("d", "")),

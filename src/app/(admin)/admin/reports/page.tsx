@@ -67,27 +67,26 @@ interface ReportData {
   topProducts: { name: string; sales: number; revenue: number }[];
 }
 
-// Professional chart colors
 const CHART_COLORS = [
-  "#2563eb", // blue
-  "#7c3aed", // purple
-  "#059669", // emerald
-  "#d97706", // amber
-  "#dc2626", // red
-  "#0891b2", // cyan
-  "#db2777", // pink
+  "#2563eb",
+  "#7c3aed",
+  "#059669",
+  "#d97706",
+  "#dc2626",
+  "#0891b2",
+  "#db2777",
 ];
 
 const PIE_COLORS = [
-  "#2563eb", // blue
-  "#7c3aed", // purple
-  "#059669", // emerald
-  "#d97706", // amber
-  "#dc2626", // red
-  "#0891b2", // cyan
-  "#db2777", // pink
-  "#4f46e5", // indigo
-  "#ea580c", // orange
+  "#2563eb",
+  "#7c3aed",
+  "#059669",
+  "#d97706",
+  "#dc2626",
+  "#0891b2",
+  "#db2777",
+  "#4f46e5",
+  "#ea580c",
 ];
 
 type ViewMode = "admin" | "staff";

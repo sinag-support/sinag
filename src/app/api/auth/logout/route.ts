@@ -53,7 +53,6 @@ export async function POST() {
       response.cookies.delete(name);
     });
 
-    // Also clear specific known cookie names
     const knownCookies = [
       "supabase-auth-token",
       "sb-access-token",

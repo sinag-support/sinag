@@ -1,32 +1,31 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Heart, ShoppingCart, Minus, Plus, Star, X, Check } from 'lucide-react'
-import { useMediaQuery } from 'react-responsive'
-import { supabase } from '@/lib/supabase'
-import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Heart, ShoppingCart, Minus, Plus, Star, X, Check } from "lucide-react";
+import { useMediaQuery } from "react-responsive";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface ProductOption {
-  id: string
-  name: string
-  price: number
-  image?: string
-  stock: number
+  id: string;
+  name: string;
+  price: number;
+  image?: string;
+  stock: number;
 }
 
 interface ProductDetailSheetProps {
-  productId: string | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  productId: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-// Shared content component – with robust null guards
 function ProductDetailContent({
   product,
   quantity,
@@ -53,21 +52,21 @@ function ProductDetailContent({
   isDesktop,
   onClose,
 }: any) {
-  // Early return for loading
   if (loading) {
     return (
-      <div className={cn(
-        "flex-1 overflow-y-auto scrollbar-hide",
-        isDesktop && "flex flex-row"
-      )}>
-        <Skeleton className={cn(
-          "aspect-video w-full rounded-none",
-          isDesktop && "h-full w-1/2"
-        )} />
-        <div className={cn(
-          "p-4 sm:p-6 space-y-3 pb-6",
-          isDesktop && "w-1/2"
-        )}>
+      <div
+        className={cn(
+          "flex-1 overflow-y-auto scrollbar-hide",
+          isDesktop && "flex flex-row",
+        )}
+      >
+        <Skeleton
+          className={cn(
+            "aspect-video w-full rounded-none",
+            isDesktop && "h-full w-1/2",
+          )}
+        />
+        <div className={cn("p-4 sm:p-6 space-y-3 pb-6", isDesktop && "w-1/2")}>
           <Skeleton className="h-7 w-3/4" />
           <Skeleton className="h-4 w-1/3" />
           <Skeleton className="h-4 w-full" />
@@ -83,34 +82,31 @@ function ProductDetailContent({
           </div>
         </div>
       </div>
-    )
+    );
   }
 
-  // Early return if product is null
   if (!product) {
     return (
       <div className="flex items-center justify-center h-full p-6">
         <p className="text-muted-foreground">Product not found</p>
       </div>
-    )
+    );
   }
 
-  // Use selected option image or fallback to product image
-  const imageUrl = currentImage || product.images?.[0] || ''
+  const imageUrl = currentImage || product.images?.[0] || "";
 
   const handleDecrement = () => {
     if (quantity > 1) {
-      setQuantity(quantity - 1)
+      setQuantity(quantity - 1);
     }
-  }
+  };
 
   const handleIncrement = () => {
     if (!isOutOfStock && quantity < currentStock) {
-      setQuantity(quantity + 1)
+      setQuantity(quantity + 1);
     }
-  }
+  };
 
-  // Desktop layout: split into two columns
   if (isDesktop) {
     return (
       <div className="flex flex-row h-full">
@@ -123,12 +119,14 @@ function ProductDetailContent({
               className="w-full h-full object-cover"
               loading="lazy"
               onError={(e) => {
-                e.currentTarget.style.display = 'none'
+                e.currentTarget.style.display = "none";
               }}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gray-200 dark:bg-gray-700">
-              <span className="text-gray-400 dark:text-gray-500 text-sm">No image</span>
+              <span className="text-gray-400 dark:text-gray-500 text-sm">
+                No image
+              </span>
             </div>
           )}
           {hasDiscount && (
@@ -141,16 +139,19 @@ function ProductDetailContent({
         {/* Right: Content - scrollable */}
         <div className="w-1/2 p-6 space-y-4 overflow-y-auto">
           <div>
-            <h2 className="text-2xl font-bold leading-tight">{product.title}</h2>
+            <h2 className="text-2xl font-bold leading-tight">
+              {product.title}
+            </h2>
             <div className="flex items-center gap-2 mt-1">
               <div className="flex items-center gap-0.5">
                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                 <span className="text-sm font-medium">
-                  {product.rating?.toFixed(1) ?? 'N/A'}
+                  {product.rating?.toFixed(1) ?? "N/A"}
                 </span>
               </div>
               <span className="text-xs text-muted-foreground">
-                ({product.reviewCount ?? 0} {product.reviewCount === 1 ? 'review' : 'reviews'})
+                ({product.reviewCount ?? 0}{" "}
+                {product.reviewCount === 1 ? "review" : "reviews"})
               </span>
             </div>
           </div>
@@ -165,13 +166,17 @@ function ProductDetailContent({
           <div className="flex items-center gap-3">
             {hasDiscount ? (
               <>
-                <span className="text-2xl font-bold">₱{finalPrice.toFixed(2)}</span>
+                <span className="text-2xl font-bold">
+                  ₱{finalPrice.toFixed(2)}
+                </span>
                 <span className="text-sm text-muted-foreground line-through">
                   ₱{displayPrice.toFixed(2)}
                 </span>
               </>
             ) : (
-              <span className="text-2xl font-bold">₱{finalPrice.toFixed(2)}</span>
+              <span className="text-2xl font-bold">
+                ₱{finalPrice.toFixed(2)}
+              </span>
             )}
             {!isOutOfStock && (
               <span className="text-xs text-muted-foreground ml-auto">
@@ -186,20 +191,23 @@ function ProductDetailContent({
               <p className="text-sm font-medium">Select Option</p>
               <div className="grid grid-cols-2 gap-2">
                 {options.map((opt: ProductOption) => {
-                  const isSelected = selectedOptionId === opt.id
-                  const isOptOutOfStock = opt.stock === 0
+                  const isSelected = selectedOptionId === opt.id;
+                  const isOptOutOfStock = opt.stock === 0;
 
                   return (
                     <button
                       key={opt.id}
-                      onClick={() => !isOptOutOfStock && setSelectedOptionId(opt.id)}
+                      onClick={() =>
+                        !isOptOutOfStock && setSelectedOptionId(opt.id)
+                      }
                       disabled={isOptOutOfStock}
                       className={cn(
-                        'relative flex flex-col items-start p-3 rounded-lg border-2 transition-all text-left',
+                        "relative flex flex-col items-start p-3 rounded-lg border-2 transition-all text-left",
                         isSelected
-                          ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                          : 'border-border hover:border-primary/50',
-                        isOptOutOfStock && 'opacity-50 cursor-not-allowed bg-muted/30'
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                          : "border-border hover:border-primary/50",
+                        isOptOutOfStock &&
+                          "opacity-50 cursor-not-allowed bg-muted/30",
                       )}
                     >
                       {isSelected && (
@@ -212,7 +220,9 @@ function ProductDetailContent({
                         ₱{opt.price.toFixed(2)}
                       </span>
                       {isOptOutOfStock ? (
-                        <span className="text-xs text-red-500 mt-0.5 font-medium">Out of stock</span>
+                        <span className="text-xs text-red-500 mt-0.5 font-medium">
+                          Out of stock
+                        </span>
                       ) : (
                         opt.stock < 5 && (
                           <span className="text-xs text-orange-500 mt-0.5">
@@ -221,7 +231,7 @@ function ProductDetailContent({
                         )
                       )}
                     </button>
-                  )
+                  );
                 })}
               </div>
             </div>
@@ -241,7 +251,9 @@ function ProductDetailContent({
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
-                <span className="text-sm font-medium w-6 text-center">{quantity}</span>
+                <span className="text-sm font-medium w-6 text-center">
+                  {quantity}
+                </span>
                 <Button
                   size="icon"
                   variant="outline"
@@ -260,7 +272,9 @@ function ProductDetailContent({
               onClick={toggleWishlist}
               disabled={wishlistLoading}
             >
-              <Heart className={`h-5 w-5 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+              <Heart
+                className={`h-5 w-5 ${isWishlisted ? "fill-red-500 text-red-500" : ""}`}
+              />
             </Button>
           </div>
 
@@ -286,10 +300,9 @@ function ProductDetailContent({
           </div>
         </div>
       </div>
-    )
+    );
   }
 
-  // Mobile layout (original)
   return (
     <div className="flex-1 overflow-y-auto scrollbar-hide">
       {/* Image with discount badge */}
@@ -301,12 +314,14 @@ function ProductDetailContent({
             className="w-full h-full object-cover"
             loading="lazy"
             onError={(e) => {
-              e.currentTarget.style.display = 'none'
+              e.currentTarget.style.display = "none";
             }}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gray-200 dark:bg-gray-700">
-            <span className="text-gray-400 dark:text-gray-500 text-sm">No image</span>
+            <span className="text-gray-400 dark:text-gray-500 text-sm">
+              No image
+            </span>
           </div>
         )}
         {hasDiscount && (
@@ -318,16 +333,19 @@ function ProductDetailContent({
 
       <div className="p-4 sm:p-6 space-y-3">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold leading-tight">{product.title}</h2>
+          <h2 className="text-xl sm:text-2xl font-bold leading-tight">
+            {product.title}
+          </h2>
           <div className="flex items-center gap-2 mt-1">
             <div className="flex items-center gap-0.5">
               <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
               <span className="text-sm font-medium">
-                {product.rating?.toFixed(1) ?? 'N/A'}
+                {product.rating?.toFixed(1) ?? "N/A"}
               </span>
             </div>
             <span className="text-xs text-muted-foreground">
-              ({product.reviewCount ?? 0} {product.reviewCount === 1 ? 'review' : 'reviews'})
+              ({product.reviewCount ?? 0}{" "}
+              {product.reviewCount === 1 ? "review" : "reviews"})
             </span>
           </div>
         </div>
@@ -342,13 +360,17 @@ function ProductDetailContent({
         <div className="flex items-center gap-3">
           {hasDiscount ? (
             <>
-              <span className="text-xl sm:text-2xl font-bold">₱{finalPrice.toFixed(2)}</span>
+              <span className="text-xl sm:text-2xl font-bold">
+                ₱{finalPrice.toFixed(2)}
+              </span>
               <span className="text-sm text-muted-foreground line-through">
                 ₱{displayPrice.toFixed(2)}
               </span>
             </>
           ) : (
-            <span className="text-xl sm:text-2xl font-bold">₱{finalPrice.toFixed(2)}</span>
+            <span className="text-xl sm:text-2xl font-bold">
+              ₱{finalPrice.toFixed(2)}
+            </span>
           )}
           {!isOutOfStock && (
             <span className="text-xs text-muted-foreground ml-auto">
@@ -363,20 +385,23 @@ function ProductDetailContent({
             <p className="text-sm font-medium">Select Option</p>
             <div className="grid grid-cols-2 gap-2">
               {options.map((opt: ProductOption) => {
-                const isSelected = selectedOptionId === opt.id
-                const isOptOutOfStock = opt.stock === 0
+                const isSelected = selectedOptionId === opt.id;
+                const isOptOutOfStock = opt.stock === 0;
 
                 return (
                   <button
                     key={opt.id}
-                    onClick={() => !isOptOutOfStock && setSelectedOptionId(opt.id)}
+                    onClick={() =>
+                      !isOptOutOfStock && setSelectedOptionId(opt.id)
+                    }
                     disabled={isOptOutOfStock}
                     className={cn(
-                      'relative flex flex-col items-start p-3 rounded-lg border-2 transition-all text-left',
+                      "relative flex flex-col items-start p-3 rounded-lg border-2 transition-all text-left",
                       isSelected
-                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                        : 'border-border hover:border-primary/50',
-                      isOptOutOfStock && 'opacity-50 cursor-not-allowed bg-muted/30'
+                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                        : "border-border hover:border-primary/50",
+                      isOptOutOfStock &&
+                        "opacity-50 cursor-not-allowed bg-muted/30",
                     )}
                   >
                     {isSelected && (
@@ -389,7 +414,9 @@ function ProductDetailContent({
                       ₱{opt.price.toFixed(2)}
                     </span>
                     {isOptOutOfStock ? (
-                      <span className="text-xs text-red-500 mt-0.5 font-medium">Out of stock</span>
+                      <span className="text-xs text-red-500 mt-0.5 font-medium">
+                        Out of stock
+                      </span>
                     ) : (
                       opt.stock < 5 && (
                         <span className="text-xs text-orange-500 mt-0.5">
@@ -398,7 +425,7 @@ function ProductDetailContent({
                       )
                     )}
                   </button>
-                )
+                );
               })}
             </div>
           </div>
@@ -418,7 +445,9 @@ function ProductDetailContent({
               >
                 <Minus className="h-4 w-4" />
               </Button>
-              <span className="text-sm font-medium w-6 text-center">{quantity}</span>
+              <span className="text-sm font-medium w-6 text-center">
+                {quantity}
+              </span>
               <Button
                 size="icon"
                 variant="outline"
@@ -437,7 +466,9 @@ function ProductDetailContent({
             onClick={toggleWishlist}
             disabled={wishlistLoading}
           >
-            <Heart className={`h-5 w-5 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+            <Heart
+              className={`h-5 w-5 ${isWishlisted ? "fill-red-500 text-red-500" : ""}`}
+            />
           </Button>
         </div>
 
@@ -463,280 +494,290 @@ function ProductDetailContent({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDetailSheetProps) {
-  const router = useRouter()
-  const [product, setProduct] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
-  const [isAdding, setIsAdding] = useState(false)
-  const [quantity, setQuantity] = useState(1)
-  const [isWishlisted, setIsWishlisted] = useState(false)
-  const [wishlistLoading, setWishlistLoading] = useState(false)
-  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null)
-  const [currentImage, setCurrentImage] = useState<string | null>(null)
-  const isDesktop = useMediaQuery({ minWidth: 1024 })
+export function ProductDetailSheet({
+  productId,
+  open,
+  onOpenChange,
+}: ProductDetailSheetProps) {
+  const router = useRouter();
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  const [currentImage, setCurrentImage] = useState<string | null>(null);
+  const isDesktop = useMediaQuery({ minWidth: 1024 });
 
-  // Fetch product data
   useEffect(() => {
     if (productId && open) {
-      setLoading(true)
+      setLoading(true);
       fetch(`/api/products/${productId}`)
         .then((res) => {
-          if (!res.ok) throw new Error('Product not found')
-          return res.json()
+          if (!res.ok) throw new Error("Product not found");
+          return res.json();
         })
         .then((data) => {
-          setProduct(data)
-          setQuantity(1)
+          setProduct(data);
+          setQuantity(1);
 
-          // Create options array with base product as first option
-          let allOptions = []
+          let allOptions = [];
 
-          // Always include base product as the default option
           const baseOption = {
-            id: 'base_' + data.id,
-            name: 'Regular',
+            id: "base_" + data.id,
+            name: "Regular",
             price: data.price,
             image: data.images?.[0] || null,
             stock: data.stock || 0,
             isBase: true,
-          }
-          allOptions.push(baseOption)
+          };
+          allOptions.push(baseOption);
 
-          // Add product options if they exist
           if (data.options && data.options.length > 0) {
-            allOptions = allOptions.concat(data.options)
+            allOptions = allOptions.concat(data.options);
           }
 
-          // Set the product with combined options
           setProduct({
             ...data,
             combinedOptions: allOptions,
-          })
+          });
 
-          // Auto-select base option
-          setSelectedOptionId(baseOption.id)
-          setCurrentImage(data.images?.[0] || null)
-          setLoading(false)
+          setSelectedOptionId(baseOption.id);
+          setCurrentImage(data.images?.[0] || null);
+          setLoading(false);
         })
         .catch((err) => {
-          console.error(err)
-          setProduct(null)
-          setLoading(false)
-        })
+          console.error(err);
+          setProduct(null);
+          setLoading(false);
+        });
     }
-  }, [productId, open])
+  }, [productId, open]);
 
-  // Check wishlist status when product loads
   useEffect(() => {
     if (productId && open && product) {
       const checkWishlist = async () => {
-        const { data: { session } } = await supabase.auth.getSession()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         if (!session) {
-          setIsWishlisted(false)
-          return
+          setIsWishlisted(false);
+          return;
         }
         try {
-          const res = await fetch(`/api/wishlist/check?productId=${productId}`)
+          const res = await fetch(`/api/wishlist/check?productId=${productId}`);
           if (res.ok) {
-            const data = await res.json()
-            setIsWishlisted(data.isWishlisted)
+            const data = await res.json();
+            setIsWishlisted(data.isWishlisted);
           }
         } catch (error) {
-          console.error('Error checking wishlist:', error)
+          console.error("Error checking wishlist:", error);
         }
-      }
-      checkWishlist()
+      };
+      checkWishlist();
     }
-  }, [productId, open, product])
+  }, [productId, open, product]);
 
-  // Update image when selected option changes
   useEffect(() => {
-    if (!product) return
+    if (!product) return;
     if (!selectedOptionId) {
-      setCurrentImage(product.images?.[0] || null)
-      return
+      setCurrentImage(product.images?.[0] || null);
+      return;
     }
 
-    // Check if it's the base option
-    if (selectedOptionId === 'base_' + product.id) {
-      setCurrentImage(product.images?.[0] || null)
-      return
+    if (selectedOptionId === "base_" + product.id) {
+      setCurrentImage(product.images?.[0] || null);
+      return;
     }
 
-    const selectedOpt = product.options?.find((opt: any) => opt.id === selectedOptionId)
+    const selectedOpt = product.options?.find(
+      (opt: any) => opt.id === selectedOptionId,
+    );
     if (selectedOpt?.image) {
-      setCurrentImage(selectedOpt.image)
+      setCurrentImage(selectedOpt.image);
     } else {
-      setCurrentImage(product.images?.[0] || null)
+      setCurrentImage(product.images?.[0] || null);
     }
-  }, [selectedOptionId, product])
+  }, [selectedOptionId, product]);
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
-      router.push('/login')
-      return false
+      router.push("/login");
+      return false;
     }
-    return true
-  }
+    return true;
+  };
 
   const getSelectedOption = () => {
-    if (!product) return null
-    if (!selectedOptionId) return null
+    if (!product) return null;
+    if (!selectedOptionId) return null;
 
-    // Check if it's the base option
-    if (selectedOptionId === 'base_' + product.id) {
+    if (selectedOptionId === "base_" + product.id) {
       return {
         id: selectedOptionId,
-        name: 'Regular',
+        name: "Regular",
         price: product.price,
         image: product.images?.[0] || null,
         stock: product.stock || 0,
         isBase: true,
-      }
+      };
     }
 
-    return product.options?.find((opt: any) => opt.id === selectedOptionId) || null
-  }
+    return (
+      product.options?.find((opt: any) => opt.id === selectedOptionId) || null
+    );
+  };
 
-  // Toggle wishlist
   const toggleWishlist = async () => {
-    // Check authentication first
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
-      toast.error('Please login to add to wishlist')
-      router.push('/login')
-      return
+      toast.error("Please login to add to wishlist");
+      router.push("/login");
+      return;
     }
 
-    if (wishlistLoading) return
-    setWishlistLoading(true)
+    if (wishlistLoading) return;
+    setWishlistLoading(true);
 
     try {
-      const response = await fetch('/api/wishlist', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
+      const response = await fetch("/api/wishlist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ productId }),
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (response.ok) {
-        setIsWishlisted(data.added)
-        toast.success(data.added ? 'Added to wishlist ❤️' : 'Removed from wishlist')
+        setIsWishlisted(data.added);
+        toast.success(
+          data.added ? "Added to wishlist ❤️" : "Removed from wishlist",
+        );
       } else {
-        toast.error(data.error || 'Failed to update wishlist')
+        toast.error(data.error || "Failed to update wishlist");
       }
     } catch (error) {
-      console.error('Wishlist toggle error:', error)
-      toast.error('Failed to update wishlist')
+      console.error("Wishlist toggle error:", error);
+      toast.error("Failed to update wishlist");
     } finally {
-      setWishlistLoading(false)
+      setWishlistLoading(false);
     }
-  }
+  };
 
-  // Prepare computed values for the content component
-  const options = product?.combinedOptions || []
-  const hasOptions = options.length > 1 // More than just the base option
-  const selectedOption = getSelectedOption()
-  const displayPrice = selectedOption ? selectedOption.price : product?.price || 0
-  const hasDiscount = product?.discount && product.discount > 0
+  const options = product?.combinedOptions || [];
+  const hasOptions = options.length > 1;
+  const selectedOption = getSelectedOption();
+  const displayPrice = selectedOption
+    ? selectedOption.price
+    : product?.price || 0;
+  const hasDiscount = product?.discount && product.discount > 0;
   const finalPrice = hasDiscount
     ? displayPrice - (displayPrice * product.discount) / 100
-    : displayPrice
-  const currentStock = selectedOption ? selectedOption.stock : product?.stock || 0
-  const isOutOfStock = currentStock === 0
-  const isMaxQuantity = quantity >= currentStock
+    : displayPrice;
+  const currentStock = selectedOption
+    ? selectedOption.stock
+    : product?.stock || 0;
+  const isOutOfStock = currentStock === 0;
+  const isMaxQuantity = quantity >= currentStock;
 
   const addToCart = async () => {
-    const isAuthenticated = await checkAuth()
-    if (!isAuthenticated) return
+    const isAuthenticated = await checkAuth();
+    if (!isAuthenticated) return;
 
     if (!productId) {
-      toast.error('Product not found')
-      return
+      toast.error("Product not found");
+      return;
     }
 
     if (isOutOfStock) {
-      toast.error('Selected option is out of stock')
-      return
+      toast.error("Selected option is out of stock");
+      return;
     }
 
-    setIsAdding(true)
+    setIsAdding(true);
     try {
       const payload = {
         productId,
         quantity,
-        // Only send optionId if it's not the base option
-        optionId: selectedOptionId && selectedOptionId.startsWith('base_') ? null : selectedOptionId,
-      }
+        optionId:
+          selectedOptionId && selectedOptionId.startsWith("base_")
+            ? null
+            : selectedOptionId,
+      };
 
-      const response = await fetch('/api/cart', {
-        method: 'POST',
+      const response = await fetch("/api/cart", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.error || 'Failed to add to cart')
-        return
+        toast.error(data.error || "Failed to add to cart");
+        return;
       }
 
-      toast.success('Added to cart!')
-      onOpenChange(false)
+      toast.success("Added to cart!");
+      onOpenChange(false);
     } catch (error) {
-      console.error('Add to cart error:', error)
-      toast.error('Failed to add to cart')
+      console.error("Add to cart error:", error);
+      toast.error("Failed to add to cart");
     } finally {
-      setIsAdding(false)
+      setIsAdding(false);
     }
-  }
+  };
 
   const buyNow = async () => {
-    const isAuthenticated = await checkAuth()
-    if (!isAuthenticated) return
+    const isAuthenticated = await checkAuth();
+    if (!isAuthenticated) return;
 
     if (!productId) {
-      toast.error('Product not found')
-      return
+      toast.error("Product not found");
+      return;
     }
 
     if (isOutOfStock) {
-      toast.error('Selected option is out of stock')
-      return
+      toast.error("Selected option is out of stock");
+      return;
     }
 
-    setIsAdding(true)
+    setIsAdding(true);
     try {
-      // Build the checkout URL with product details as query params
       const params = new URLSearchParams({
         productId: productId,
         quantity: quantity.toString(),
-        optionId: selectedOptionId && selectedOptionId.startsWith('base_') ? '' : (selectedOptionId || ''),
-        buyNow: 'true',
-      })
-      
-      // Close the sheet and navigate to checkout with params
-      onOpenChange(false)
-      router.push(`/checkout?${params.toString()}`)
-    } catch (error) {
-      console.error('Buy now error:', error)
-      toast.error('Failed to proceed')
-    } finally {
-      setIsAdding(false)
-    }
-  }
+        optionId:
+          selectedOptionId && selectedOptionId.startsWith("base_")
+            ? ""
+            : selectedOptionId || "",
+        buyNow: "true",
+      });
 
-  if (!productId) return null
+      onOpenChange(false);
+      router.push(`/checkout?${params.toString()}`);
+    } catch (error) {
+      console.error("Buy now error:", error);
+      toast.error("Failed to proceed");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  if (!productId) return null;
 
   const contentProps = {
     product,
@@ -762,14 +803,13 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
     isMaxQuantity,
     currentImage,
     isDesktop,
-  }
+  };
 
-  // Mobile: bottom sheet
   if (!isDesktop) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent 
-          side="bottom" 
+        <SheetContent
+          side="bottom"
           className="h-[70vh] rounded-t-2xl p-0 overflow-hidden [&>button]:hidden"
         >
           <div className="relative h-full flex flex-col">
@@ -780,19 +820,19 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
             >
               <X className="h-5 w-5" />
             </button>
-            <ProductDetailContent {...contentProps} onClose={() => onOpenChange(false)} />
+            <ProductDetailContent
+              {...contentProps}
+              onClose={() => onOpenChange(false)}
+            />
           </div>
         </SheetContent>
       </Sheet>
-    )
+    );
   }
 
-  // Desktop: split layout like OrderDetailSheet
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-5xl p-0 overflow-hidden rounded-xl border-0 shadow-2xl [&>button]:hidden"
-      >
+      <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-xl border-0 shadow-2xl [&>button]:hidden">
         <div className="relative max-h-[85vh] flex flex-col">
           {/* Single close button for desktop */}
           <button
@@ -801,9 +841,12 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
           >
             <X className="h-5 w-5" />
           </button>
-          <ProductDetailContent {...contentProps} onClose={() => onOpenChange(false)} />
+          <ProductDetailContent
+            {...contentProps}
+            onClose={() => onOpenChange(false)}
+          />
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

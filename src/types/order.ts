@@ -70,7 +70,6 @@ export interface Order {
   };
 }
 
-// Status helper functions
 export const orderStatusLabels: Record<OrderStatus, string> = {
   PENDING: "Pending",
   CONFIRMED: "Confirmed",
@@ -119,7 +118,6 @@ export const orderStatusIcons: Record<OrderStatus, any> = {
   REFUNDED: Package,
 };
 
-// Helper function to format status
 export function formatOrderStatus(status: OrderStatus): string {
   return status
     .replace(/_/g, " ")
@@ -127,7 +125,6 @@ export function formatOrderStatus(status: OrderStatus): string {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-// Helper to check if status is a return/refund status
 export function isReturnStatus(status: OrderStatus): boolean {
   return [
     "RETURN_REQUESTED",
@@ -137,12 +134,10 @@ export function isReturnStatus(status: OrderStatus): boolean {
   ].includes(status);
 }
 
-// Helper to check if customer can request return
 export function canRequestReturn(status: OrderStatus): boolean {
   return status === "DELIVERED";
 }
 
-// Helper to check if customer can request refund
 export function canRequestRefund(
   status: OrderStatus,
   isPaid: boolean,
@@ -150,12 +145,10 @@ export function canRequestRefund(
   return (status === "DELIVERED" || status === "RETURNED") && isPaid;
 }
 
-// Helper to check if rider can accept return
 export function canAcceptReturn(status: OrderStatus): boolean {
   return status === "RETURN_REQUESTED";
 }
 
-// Helper to check if admin can process refund
 export function canProcessRefund(
   status: OrderStatus,
   isPaid: boolean,

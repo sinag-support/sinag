@@ -11,7 +11,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    // Check if user exists in database
     const user = await prisma.user.findUnique({
       where: { email },
       select: { id: true, email: true },
@@ -24,13 +23,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate OTP
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const expiresAt = Date.now() + 10 * 60 * 1000;
 
     const cookieStore = await cookies();
 
-    // Store OTP and email in cookies
     const response = NextResponse.json({ success: true });
 
     response.cookies.set("reset_otp", otpCode, {
@@ -52,7 +49,6 @@ export async function POST(request: Request) {
       sameSite: "lax",
     });
 
-    // Send email with OTP
     try {
       const transporter = nodemailer.createTransport({
         service: process.env.MAIL_SMTP_SERVICE || "gmail",

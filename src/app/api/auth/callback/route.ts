@@ -51,7 +51,6 @@ export async function GET(request: Request) {
         if (!existingUser) {
           let role = user.user_metadata?.role || "USER";
 
-          // Create user in database
           newUser = await prisma.user.create({
             data: {
               email: user.email!,
@@ -61,7 +60,6 @@ export async function GET(request: Request) {
             },
           });
 
-          // Create welcome notification
           await prisma.notification.create({
             data: {
               userId: newUser.id,

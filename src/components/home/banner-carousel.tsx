@@ -1,77 +1,76 @@
-'use client'
+"use client";
 
-import { useEffect, useState, TouchEvent } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { useEffect, useState, TouchEvent } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 interface Banner {
-  id: number
-  image: string
-  title: string
-  description: string
-  link: string
+  id: number;
+  image: string;
+  title: string;
+  description: string;
+  link: string;
 }
 
 interface BannerCarouselProps {
-  banners: Banner[]
+  banners: Banner[];
 }
 
 export function BannerCarousel({ banners }: BannerCarouselProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true)
-  const [touchStart, setTouchStart] = useState<number | null>(null)
-  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
-  // Minimum distance in px to register a swipe
-  const minSwipeDistance = 50
+  const minSwipeDistance = 50;
 
   useEffect(() => {
-    if (!isAutoPlaying) return
+    if (!isAutoPlaying) return;
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % banners.length)
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [banners.length, isAutoPlaying])
+      setCurrentIndex((prev) => (prev + 1) % banners.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [banners.length, isAutoPlaying]);
 
   const goToSlide = (index: number) => {
-    setCurrentIndex(index)
-    setIsAutoPlaying(false)
-  }
+    setCurrentIndex(index);
+    setIsAutoPlaying(false);
+  };
 
   const nextSlide = () => {
-    setCurrentIndex((prev) => (prev + 1) % banners.length)
-    setIsAutoPlaying(false)
-  }
+    setCurrentIndex((prev) => (prev + 1) % banners.length);
+    setIsAutoPlaying(false);
+  };
 
   const prevSlide = () => {
-    setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length)
-    setIsAutoPlaying(false)
-  }
+    setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length);
+    setIsAutoPlaying(false);
+  };
 
   const onTouchStart = (e: TouchEvent) => {
-    setTouchEnd(null)
-    setTouchStart(e.targetTouches[0].clientX)
-  }
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
 
   const onTouchMove = (e: TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX)
-  }
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
 
   const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return
-    const distance = touchStart - touchEnd
-    const isLeftSwipe = distance > minSwipeDistance
-    const isRightSwipe = distance < -minSwipeDistance
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
 
     if (isLeftSwipe) {
-      nextSlide()
+      nextSlide();
     } else if (isRightSwipe) {
-      prevSlide()
+      prevSlide();
     }
-  }
+  };
 
-  if (!banners.length) return null
+  if (!banners.length) return null;
 
   return (
     <div
@@ -123,13 +122,13 @@ export function BannerCarousel({ banners }: BannerCarouselProps) {
             onClick={() => goToSlide(index)}
             className={`w-2 h-2 rounded-full transition-all ${
               index === currentIndex
-                ? 'bg-white w-6'
-                : 'bg-white/50 hover:bg-white/80'
+                ? "bg-white w-6"
+                : "bg-white/50 hover:bg-white/80"
             }`}
             aria-label={`Go to slide ${index + 1}`}
           />
         ))}
       </div>
     </div>
-  )
+  );
 }

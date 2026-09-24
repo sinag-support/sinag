@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-// GET - Fetch user's orders
 export async function GET() {
   try {
     const cookieStore = await cookies();
@@ -70,7 +69,6 @@ export async function GET() {
   }
 }
 
-// POST - Create a new order
 export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
@@ -139,9 +137,7 @@ export async function POST(request: Request) {
     let orderItemsData = [];
     let cartId = null;
 
-    // Handle Buy Now flow (does NOT clear cart)
     if (isBuyNow && buyNowItems && buyNowItems.length > 0) {
-      // Process buy now items directly
       for (const item of buyNowItems) {
         const product = await prisma.product.findUnique({
           where: { id: item.productId },
@@ -157,7 +153,6 @@ export async function POST(request: Request) {
           );
         }
 
-        // Check if option exists and has stock
         let option = null;
         let stock = product.stock;
         let price = product.price;
@@ -174,7 +169,6 @@ export async function POST(request: Request) {
           price = option.price;
         }
 
-        // Check stock
         if (stock < item.quantity) {
           return NextResponse.json(
             {
@@ -184,7 +178,6 @@ export async function POST(request: Request) {
           );
         }
 
-        // Reduce stock
         if (option) {
           await prisma.productOption.update({
             where: { id: option.id },
@@ -211,12 +204,7 @@ export async function POST(request: Request) {
           discount: discount,
         });
       }
-
-      // DO NOT clear cart for Buy Now
-    }
-    // Handle regular cart checkout
-    else {
-      // Get the user's cart
+    } else {
       const cart = await prisma.cart.findUnique({
         where: { userId: dbUser.id },
         include: {
@@ -235,7 +223,6 @@ export async function POST(request: Request) {
 
       cartId = cart.id;
 
-      // Verify stock and compute totals
       for (const item of cart.items) {
         const product = item.product;
         const option = item.option;
@@ -254,7 +241,6 @@ export async function POST(request: Request) {
           );
         }
 
-        // Reduce stock
         if (option) {
           await prisma.productOption.update({
             where: { id: option.id },
@@ -281,7 +267,6 @@ export async function POST(request: Request) {
 
     const total = subtotal + shipping + vat;
 
-    // Create address with landmark
     const addressRecord = await prisma.address.create({
       data: {
         userId: dbUser.id,
@@ -295,7 +280,6 @@ export async function POST(request: Request) {
       },
     });
 
-    // Create order
     const order = await prisma.order.create({
       data: {
         userId: dbUser.id,
@@ -335,7 +319,6 @@ export async function POST(request: Request) {
       },
     });
 
-    // Only clear cart for regular checkout (not Buy Now)
     if (!isBuyNow && cartId) {
       await prisma.cartItem.deleteMany({
         where: { cartId: cartId },

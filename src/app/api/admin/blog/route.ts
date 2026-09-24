@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Check if slug already exists
   const existing = await prisma.blogPost.findUnique({
     where: { slug },
   });

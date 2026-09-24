@@ -18,7 +18,6 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
-// Types
 type NotificationType = "ORDER" | "PRODUCT" | "SALE" | "DEFAULT";
 
 interface Notification {
@@ -70,7 +69,6 @@ function groupNotifications(notifs: Notification[]) {
     groups[groupKey].push(n);
   });
 
-  // Sort groups: Today > Yesterday > Earlier
   const ordered: { [key: string]: Notification[] } = {};
   if (groups.Today) ordered.Today = groups.Today;
   if (groups.Yesterday) ordered.Yesterday = groups.Yesterday;
@@ -102,7 +100,6 @@ function formatTime(dateString: string) {
   });
 }
 
-// Helper function to check if notification is delivery-related
 function isDeliveryNotification(notification: Notification): boolean {
   return (
     notification.metadata?.status === "OUT_FOR_DELIVERY" ||
@@ -230,7 +227,6 @@ export default function NotificationsPage() {
   const grouped = groupNotifications(filtered);
   const groupKeys = Object.keys(grouped);
 
-  // Loading state
   if (loading) {
     return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 md:pb-12 max-w-3xl">
@@ -257,7 +253,6 @@ export default function NotificationsPage() {
     );
   }
 
-  // Not authenticated state
   if (isAuthenticated === false) {
     return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 md:pb-12 max-w-3xl">

@@ -17,7 +17,6 @@ export async function PUT(
     const body = await request.json();
     const { name, email, phone, role: newRole, password } = body;
 
-    // Get the current user to check old email
     const currentUser = await prisma.user.findUnique({
       where: { id },
       select: { email: true },
@@ -27,7 +26,6 @@ export async function PUT(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // If email is being changed, update in Supabase Auth first
     if (email && email !== currentUser.email) {
       try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -74,11 +72,9 @@ export async function PUT(
         }
       } catch (authError) {
         console.error("Auth operation error:", authError);
-        // Continue with Prisma update
       }
     }
 
-    // Update user in Prisma
     const user = await prisma.user.update({
       where: { id },
       data: {
@@ -89,7 +85,6 @@ export async function PUT(
       },
     });
 
-    // If password is provided, update in Supabase Auth
     if (password) {
       try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -146,7 +141,6 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Get user first to get email
     const user = await prisma.user.findUnique({
       where: { id },
     });
@@ -155,7 +149,6 @@ export async function DELETE(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Try to delete from Supabase Auth (if exists) - but DON'T fail if it doesn't
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

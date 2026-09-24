@@ -90,7 +90,6 @@ export async function PATCH(
     const { id } = await params;
     const { isPaid } = await request.json();
 
-    // Get the order with rider info
     const order = await prisma.order.findUnique({
       where: { id },
       include: {

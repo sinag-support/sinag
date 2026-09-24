@@ -53,7 +53,6 @@ export async function PUT(
     );
   }
 
-  // Check if slug already exists (excluding current post)
   const existing = await prisma.blogPost.findFirst({
     where: {
       slug,
@@ -96,7 +95,6 @@ export async function DELETE(
 
   const { id } = await params;
 
-  // Delete all comments and likes first (cascade should handle this, but just in case)
   await prisma.blogComment.deleteMany({
     where: { blogPostId: id },
   });

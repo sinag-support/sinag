@@ -4,7 +4,6 @@ import prisma from "@/lib/prisma";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://sinag-store.vercel.app";
 
-  // Static routes
   const staticRoutes: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
@@ -86,7 +85,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  // Dynamic blog posts with slug
   const blogPosts = await prisma.blogPost.findMany({
     where: { published: true },
     select: { slug: true, updatedAt: true },

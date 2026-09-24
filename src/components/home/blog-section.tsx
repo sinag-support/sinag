@@ -1,25 +1,32 @@
-import Image from 'next/image'
-import Link from 'next/link'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Calendar, Clock, ArrowUpRight, BookOpen, Heart, MessageCircle } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import Image from "next/image";
+import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Calendar,
+  Clock,
+  ArrowUpRight,
+  BookOpen,
+  Heart,
+  MessageCircle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface BlogPost {
-  id: number | string
-  title: string
-  excerpt: string
-  image: string
-  date: string
-  slug: string
-  category?: string
-  readTime?: string
-  likeCount?: number
-  commentCount?: number
+  id: number | string;
+  title: string;
+  excerpt: string;
+  image: string;
+  date: string;
+  slug: string;
+  category?: string;
+  readTime?: string;
+  likeCount?: number;
+  commentCount?: number;
 }
 
 interface BlogSectionProps {
-  posts: BlogPost[]
+  posts: BlogPost[];
 }
 
 export function BlogSection({ posts }: BlogSectionProps) {
@@ -31,21 +38,20 @@ export function BlogSection({ posts }: BlogSectionProps) {
           No blog posts available right now.
         </p>
       </div>
-    )
+    );
   }
 
-  // Limit to 3 posts max for desktop & mobile view
-  const displayPosts = posts.slice(0, 3)
+  const displayPosts = posts.slice(0, 3);
 
   const renderCard = (post: BlogPost) => {
-    const formattedDate = new Date(post.date).toLocaleDateString('en-PH', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
+    const formattedDate = new Date(post.date).toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
 
-    const likeCount = post.likeCount || 0
-    const commentCount = post.commentCount || 0
+    const likeCount = post.likeCount || 0;
+    const commentCount = post.commentCount || 0;
 
     return (
       <Card
@@ -65,7 +71,9 @@ export function BlogSection({ posts }: BlogSectionProps) {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-              <span className="text-gray-400 dark:text-gray-500 text-sm">No image</span>
+              <span className="text-gray-400 dark:text-gray-500 text-sm">
+                No image
+              </span>
             </div>
           )}
           {post.category && (
@@ -94,10 +102,14 @@ export function BlogSection({ posts }: BlogSectionProps) {
           {/* Like & Comment Count */}
           <div className="flex items-center gap-4 mt-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Heart className={cn(
-                "h-3.5 w-3.5",
-                likeCount > 0 ? "fill-red-500 text-red-500" : "text-muted-foreground"
-              )} />
+              <Heart
+                className={cn(
+                  "h-3.5 w-3.5",
+                  likeCount > 0
+                    ? "fill-red-500 text-red-500"
+                    : "text-muted-foreground",
+                )}
+              />
               <span>{likeCount}</span>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -114,13 +126,13 @@ export function BlogSection({ posts }: BlogSectionProps) {
 
             <div className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5 text-primary/70" />
-              <span>{post.readTime || '5 min read'}</span>
+              <span>{post.readTime || "5 min read"}</span>
             </div>
           </div>
         </CardContent>
       </Card>
-    )
-  }
+    );
+  };
 
   return (
     <>
@@ -133,18 +145,15 @@ export function BlogSection({ posts }: BlogSectionProps) {
       <div className="lg:hidden">
         <div
           className="flex gap-4 overflow-x-auto scroll-smooth pb-4 -mx-4 px-4 sm:mx-0 sm:px-0"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {displayPosts.map((post) => (
-            <div
-              key={post.id}
-              className="flex-shrink-0 w-[280px] sm:w-[320px]"
-            >
+            <div key={post.id} className="flex-shrink-0 w-[280px] sm:w-[320px]">
               {renderCard(post)}
             </div>
           ))}
         </div>
       </div>
     </>
-  )
+  );
 }

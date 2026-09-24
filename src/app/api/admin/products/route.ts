@@ -15,10 +15,8 @@ export async function GET(request: NextRequest) {
   const limit = parseInt(searchParams.get("limit") || "20");
   const skip = (page - 1) * limit;
 
-  // Build where clause
   const where: any = {};
 
-  // Search filter
   if (search) {
     where.OR = [
       { title: { contains: search, mode: "insensitive" } },
@@ -26,15 +24,12 @@ export async function GET(request: NextRequest) {
     ];
   }
 
-  // Category filter
   if (categoryId && categoryId !== "all") {
     where.categoryId = categoryId;
   }
 
-  // Get total count for pagination
   const total = await prisma.product.count({ where });
 
-  // Get products with pagination
   const products = await prisma.product.findMany({
     where,
     include: {

@@ -209,7 +209,6 @@ export async function POST(request: Request) {
         response.cookies.delete("reset_email");
         return response;
       } else {
-        // Signup flow
         const supabaseAdmin = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.SUPABASE_SERVICE_ROLE_KEY!,

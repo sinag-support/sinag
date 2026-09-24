@@ -16,16 +16,12 @@ export async function getCurrentUserRole() {
           set(name: string, value: string, options: any) {
             try {
               cookieStore.set({ name, value, ...options });
-            } catch (error) {
-              // Cookie setting might fail in some contexts
-            }
+            } catch (error) {}
           },
           remove(name: string, options: any) {
             try {
               cookieStore.set({ name, value: "", ...options });
-            } catch (error) {
-              // Cookie removal might fail in some contexts
-            }
+            } catch (error) {}
           },
         },
       },

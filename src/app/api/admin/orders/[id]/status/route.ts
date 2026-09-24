@@ -1,5 +1,3 @@
-// app/api/admin/orders/[id]/status/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createServerClient } from "@supabase/ssr";
@@ -83,7 +81,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Only ADMIN, STAFF, and RIDER can update order status
     if (
       user.role !== "ADMIN" &&
       user.role !== "STAFF" &&
@@ -95,7 +92,6 @@ export async function PATCH(
     const { id } = await params;
     const { status } = await request.json();
 
-    // Validate status
     const validStatuses = [
       "PENDING",
       "CONFIRMED",
@@ -112,7 +108,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
-    // Get the order with user and rider info
     const order = await prisma.order.findUnique({
       where: { id },
       include: {

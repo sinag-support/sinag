@@ -102,7 +102,6 @@ export default function DashboardClient({
   const isRider = role === "RIDER";
   const activeRole = isAdmin ? viewRole : role;
 
-  // No API call — data comes from server
   const stats = initialStats;
 
   useEffect(() => {
@@ -154,7 +153,6 @@ export default function DashboardClient({
 
   const topLowStock = stats.lowStock.slice(0, 3);
 
-  // Rider stats (own data if RIDER, aggregated if ADMIN)
   const riderOrders = stats.riderOrdersData;
   const riderStats = {
     total: riderOrders.length,
@@ -167,7 +165,6 @@ export default function DashboardClient({
     recentOrders: riderOrders.slice(0, 5),
   };
 
-  // Staff stats (aggregated)
   const staffStats = {
     total: stats.orders,
     pending: stats.pendingOrders,

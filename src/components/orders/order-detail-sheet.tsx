@@ -38,7 +38,6 @@ import { createClient } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-// Initialize Supabase Client
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -50,7 +49,6 @@ declare global {
   }
 }
 
-// Default fallback location
 const DEFAULT_STORE_LOCATION = {
   lat: 14.5995,
   lng: 120.9842,
@@ -864,7 +862,6 @@ function OrderDetailContent({
     setMapReady(false);
   };
 
-  // Initialize map
   useEffect(() => {
     if (!coordinates || !mapRef.current || !isLeafletReady || storeLoading)
       return;
@@ -930,7 +927,6 @@ function OrderDetailContent({
 
         const initialZoom = map.getZoom() || 13;
 
-        // Create customer marker IMMEDIATELY
         const customerIcon = createCustomerIcon(initialZoom);
         if (customerIcon) {
           customerMarkerRef.current = L.marker(customerPos, {
@@ -949,7 +945,6 @@ function OrderDetailContent({
           }
         }
 
-        // Get the route
         const routePoints = await getRouteGeometry(
           { lat: storeLocation.lat, lng: storeLocation.lng },
           coordinates,
@@ -1065,7 +1060,6 @@ function OrderDetailContent({
     };
   }, [coordinates, isLeafletReady, storeLocation, storeLoading]);
 
-  // Real-time subscription
   useEffect(() => {
     if (!order?.id) return;
 
@@ -1102,7 +1096,6 @@ function OrderDetailContent({
             animateMarkerTo(storePos.lat, storePos.lng, 500);
           }
 
-          // Update order status if changed
           if (status !== order.status && onOrderUpdated) {
             onOrderUpdated();
           }
@@ -1184,7 +1177,6 @@ function OrderDetailContent({
     };
   }, []);
 
-  // Load Lottie player
   useEffect(() => {
     const loadLottie = () => {
       if (document.getElementById("lottie-player-js")) {
@@ -1202,7 +1194,6 @@ function OrderDetailContent({
     loadLottie();
   }, []);
 
-  // Render distance card - "Rider" at top-left
   const renderDistanceCard = () => {
     if (!isOutForDelivery || !mapReady) return null;
 
@@ -1227,7 +1218,6 @@ function OrderDetailContent({
     );
   };
 
-  // Render follow button - bottom-left (only when not centered)
   const renderFollowButton = () => {
     if (!isOutForDelivery || !mapReady) return null;
     if (!getRiderPosition()) return null;
@@ -1248,7 +1238,6 @@ function OrderDetailContent({
     );
   };
 
-  // Render zoom controls - bottom-right
   const renderZoomControls = () => {
     if (!mapReady) return null;
 
@@ -1278,7 +1267,6 @@ function OrderDetailContent({
     );
   };
 
-  // Render theme switcher - top-right
   const renderThemeSwitcher = () => {
     if (!mapReady) return null;
 

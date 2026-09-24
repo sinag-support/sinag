@@ -24,7 +24,6 @@ export function useRole() {
         if (response.ok) {
           const data = await response.json();
           setRole(data.role);
-          // Save to sessionStorage for use during loading
           if (data.role) {
             sessionStorage.setItem("userRole", data.role.toUpperCase());
           }

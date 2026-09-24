@@ -260,7 +260,7 @@ export function useRiderLocationTracker(
             latitude,
             longitude,
           );
-          if (distance < 3) return; // Trigger update if rider moved 3+ meters
+          if (distance < 3) return;
         }
 
         lastUpdateRef.current = now;
@@ -1068,17 +1068,14 @@ export function OrderMap({
     }
   }, [mapTheme]);
 
-  // Real-Time Location Listener (Broadcasts + Database Fallback)
   useEffect(() => {
     if (!order?.id || !isOutForDelivery) return;
 
-    // Use unique channel topic names per hook instance to prevent collision during toggles/re-mounts
     const broadcastTopic = `rider-location:${order.id}:${Math.random().toString(36).substring(2, 7)}`;
     const dbTopic = `order-db-changes:${order.id}:${Math.random().toString(36).substring(2, 7)}`;
 
     let isSubscribed = true;
 
-    // 1. Listen via WebSockets (Instant High Frequency)
     const broadcastChannel = supabase
       .channel(broadcastTopic)
       .on("broadcast", { event: "location_update" }, (payload) => {
@@ -1089,7 +1086,6 @@ export function OrderMap({
       })
       .subscribe();
 
-    // 2. Fallback: Listen directly to Database Updates (Postgres Changes)
     const dbChannel = supabase
       .channel(dbTopic)
       .on(
@@ -1141,7 +1137,6 @@ export function OrderMap({
           <div
             className={cn(
               "pointer-events-auto transition-all duration-200",
-              // Mobile + Not Fullscreen: expand card width to prevent text overflow
               !isFullscreen
                 ? "w-[calc(100%-3.5rem)] sm:w-auto sm:max-w-xs"
                 : "max-w-[60%] sm:max-w-xs",

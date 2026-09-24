@@ -100,18 +100,14 @@ export default function CheckoutClient() {
     null,
   );
 
-  // Selected address
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
 
-  // Saved addresses
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [addressesLoaded, setAddressesLoaded] = useState(false);
 
-  // Payment - Only COD for now
   const [paymentMethod, setPaymentMethod] = useState<"COD">("COD");
 
-  // Check if this is a buy now purchase
   useEffect(() => {
     const isBuyNowParam = searchParams.get("buyNow");
     const productId = searchParams.get("productId");
@@ -308,7 +304,6 @@ export default function CheckoutClient() {
     }
   };
 
-  // --- Skeleton Loading State ---
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl pb-24 md:pb-8">
@@ -383,7 +378,6 @@ export default function CheckoutClient() {
     );
   }
 
-  // --- Empty checkout ---
   if (checkoutItems.length === 0) {
     return (
       <div className="container mx-auto px-4 py-12 max-w-4xl text-center">
@@ -398,7 +392,6 @@ export default function CheckoutClient() {
     );
   }
 
-  // --- No saved addresses ---
   if (addressesLoaded && savedAddresses.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl pb-24 md:pb-8">

@@ -1,317 +1,332 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Calendar, Clock, Share2, User, Heart, MessageCircle, ThumbsUp, Reply, Trash2, ArrowLeft } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Textarea } from '@/components/ui/textarea'
-import { BackButton } from '@/components/ui/back-button'
-import { supabase } from '@/lib/supabase'
-import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  Calendar,
+  Clock,
+  Share2,
+  User,
+  Heart,
+  MessageCircle,
+  ThumbsUp,
+  Reply,
+  Trash2,
+  ArrowLeft,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
+import { BackButton } from "@/components/ui/back-button";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Comment {
-  id: string
-  content: string
-  userId: string
-  createdAt: string
+  id: string;
+  content: string;
+  userId: string;
+  createdAt: string;
   user: {
-    id: string
-    name: string | null
-    email: string
-    avatar: string | null
-  }
-  replies?: Comment[]
+    id: string;
+    name: string | null;
+    email: string;
+    avatar: string | null;
+  };
+  replies?: Comment[];
 }
 
-// Update the BlogPost interface
 interface BlogPost {
-  id: string
-  title: string
-  slug: string
-  excerpt: string | null
-  content: string | null
-  coverImage: string | null
-  createdAt: string
-  tags: string[]
-  author: string
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  content: string | null;
+  coverImage: string | null;
+  createdAt: string;
+  tags: string[];
+  author: string;
 }
 
 interface BlogPostClientProps {
-  post: BlogPost
+  post: BlogPost;
 }
 
 export default function BlogPostClient({ post }: BlogPostClientProps) {
-  const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [comments, setComments] = useState<Comment[]>([])
-  const [newComment, setNewComment] = useState('')
-  const [replyTo, setReplyTo] = useState<string | null>(null)
-  const [replyContent, setReplyContent] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [likeCount, setLikeCount] = useState(0)
-  const [userLiked, setUserLiked] = useState(false)
-  const [liking, setLiking] = useState(false)
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [userLiked, setUserLiked] = useState(false);
+  const [liking, setLiking] = useState(false);
 
-  // Check authentication
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user || null)
-    }
-    checkAuth()
-  }, [])
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUser(session?.user || null);
+    };
+    checkAuth();
+  }, []);
 
-  // Fetch comments and likes
   useEffect(() => {
-    fetchComments()
-    fetchLikes()
-  }, [post.slug])
+    fetchComments();
+    fetchLikes();
+  }, [post.slug]);
 
   const fetchComments = async () => {
     try {
-      const response = await fetch(`/api/blog/${post.slug}/comments`)
+      const response = await fetch(`/api/blog/${post.slug}/comments`);
       if (response.ok) {
-        const data = await response.json()
-        setComments(data)
+        const data = await response.json();
+        setComments(data);
       }
     } catch (error) {
-      console.error('Error fetching comments:', error)
+      console.error("Error fetching comments:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchLikes = async () => {
     try {
-      const response = await fetch(`/api/blog/${post.slug}/like`)
+      const response = await fetch(`/api/blog/${post.slug}/like`);
       if (response.ok) {
-        const data = await response.json()
-        setLikeCount(data.likeCount)
-        setUserLiked(data.userLiked)
+        const data = await response.json();
+        setLikeCount(data.likeCount);
+        setUserLiked(data.userLiked);
       }
     } catch (error) {
-      console.error('Error fetching likes:', error)
+      console.error("Error fetching likes:", error);
     }
-  }
+  };
 
   const handleLike = async () => {
     if (!user) {
-      toast.error('Please login to like this post')
-      router.push('/login')
-      return
+      toast.error("Please login to like this post");
+      router.push("/login");
+      return;
     }
 
-    if (liking) return
-    setLiking(true)
+    if (liking) return;
+    setLiking(true);
 
     try {
       const response = await fetch(`/api/blog/${post.slug}/like`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
 
       if (response.ok) {
-        const data = await response.json()
-        setLikeCount(data.likeCount)
-        setUserLiked(data.liked)
-        toast.success(data.liked ? 'Liked!' : 'Unliked')
+        const data = await response.json();
+        setLikeCount(data.likeCount);
+        setUserLiked(data.liked);
+        toast.success(data.liked ? "Liked!" : "Unliked");
       }
     } catch (error) {
-      console.error('Error toggling like:', error)
-      toast.error('Failed to update like')
+      console.error("Error toggling like:", error);
+      toast.error("Failed to update like");
     } finally {
-      setLiking(false)
+      setLiking(false);
     }
-  }
+  };
 
   const handleAddComment = async () => {
     if (!user) {
-      toast.error('Please login to comment')
-      router.push('/login')
-      return
+      toast.error("Please login to comment");
+      router.push("/login");
+      return;
     }
 
     if (!newComment.trim()) {
-      toast.error('Please enter a comment')
-      return
+      toast.error("Please enter a comment");
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
     try {
       const response = await fetch(`/api/blog/${post.slug}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: newComment.trim() }),
-      })
+      });
 
       if (response.ok) {
-        const comment = await response.json()
-        setComments([comment, ...comments])
-        setNewComment('')
-        toast.success('Comment added!')
+        const comment = await response.json();
+        setComments([comment, ...comments]);
+        setNewComment("");
+        toast.success("Comment added!");
       } else {
-        const data = await response.json()
-        toast.error(data.error || 'Failed to add comment')
+        const data = await response.json();
+        toast.error(data.error || "Failed to add comment");
       }
     } catch (error) {
-      console.error('Error adding comment:', error)
-      toast.error('Failed to add comment')
+      console.error("Error adding comment:", error);
+      toast.error("Failed to add comment");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleAddReply = async (parentId: string) => {
     if (!user) {
-      toast.error('Please login to reply')
-      router.push('/login')
-      return
+      toast.error("Please login to reply");
+      router.push("/login");
+      return;
     }
 
     if (!replyContent.trim()) {
-      toast.error('Please enter a reply')
-      return
+      toast.error("Please enter a reply");
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
     try {
       const response = await fetch(`/api/blog/${post.slug}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content: replyContent.trim(),
           parentId,
         }),
-      })
+      });
 
       if (response.ok) {
-        const reply = await response.json()
-        // Add reply to the parent comment
-        setComments(prev =>
-          prev.map(comment =>
+        const reply = await response.json();
+        setComments((prev) =>
+          prev.map((comment) =>
             comment.id === parentId
               ? { ...comment, replies: [...(comment.replies || []), reply] }
-              : comment
-          )
-        )
-        setReplyContent('')
-        setReplyTo(null)
-        toast.success('Reply added!')
+              : comment,
+          ),
+        );
+        setReplyContent("");
+        setReplyTo(null);
+        toast.success("Reply added!");
       } else {
-        const data = await response.json()
-        toast.error(data.error || 'Failed to add reply')
+        const data = await response.json();
+        toast.error(data.error || "Failed to add reply");
       }
     } catch (error) {
-      console.error('Error adding reply:', error)
-      toast.error('Failed to add reply')
+      console.error("Error adding reply:", error);
+      toast.error("Failed to add reply");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleDeleteComment = async (commentId: string) => {
-    if (!user) return
+    if (!user) return;
 
-    if (!confirm('Delete this comment?')) return
+    if (!confirm("Delete this comment?")) return;
 
     try {
-      const response = await fetch(`/api/blog/${post.slug}/comments?id=${commentId}`, {
-        method: 'DELETE',
-      })
+      const response = await fetch(
+        `/api/blog/${post.slug}/comments?id=${commentId}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       if (response.ok) {
-        setComments(prev => prev.filter(c => c.id !== commentId))
-        toast.success('Comment deleted')
+        setComments((prev) => prev.filter((c) => c.id !== commentId));
+        toast.success("Comment deleted");
       } else {
-        const data = await response.json()
-        toast.error(data.error || 'Failed to delete comment')
+        const data = await response.json();
+        toast.error(data.error || "Failed to delete comment");
       }
     } catch (error) {
-      console.error('Error deleting comment:', error)
-      toast.error('Failed to delete comment')
+      console.error("Error deleting comment:", error);
+      toast.error("Failed to delete comment");
     }
-  }
+  };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-PH', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
+    return new Date(dateString).toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   const getInitials = (name: string | null) => {
-    if (!name) return 'U'
+    if (!name) return "U";
     return name
-      .split(' ')
+      .split(" ")
       .map((n) => n[0])
-      .join('')
+      .join("")
       .toUpperCase()
-      .slice(0, 2)
-  }
+      .slice(0, 2);
+  };
 
   const renderContent = (content: string | null) => {
-    if (!content) return null
+    if (!content) return null;
 
-    const lines = content.split('\n').filter((line) => line.trim())
+    const lines = content.split("\n").filter((line) => line.trim());
 
     return lines.map((line, index) => {
-      const trimmed = line.trim()
+      const trimmed = line.trim();
 
-      if (trimmed.startsWith('### ')) {
+      if (trimmed.startsWith("### ")) {
         return (
           <h3 key={index} className="text-lg font-bold mt-6 mb-3">
-            {trimmed.replace('### ', '')}
+            {trimmed.replace("### ", "")}
           </h3>
-        )
+        );
       }
-      if (trimmed.startsWith('## ')) {
+      if (trimmed.startsWith("## ")) {
         return (
           <h2 key={index} className="text-xl font-bold mt-6 mb-3">
-            {trimmed.replace('## ', '')}
+            {trimmed.replace("## ", "")}
           </h2>
-        )
+        );
       }
-      if (trimmed.startsWith('# ')) {
+      if (trimmed.startsWith("# ")) {
         return (
           <h1 key={index} className="text-2xl font-bold mt-6 mb-3">
-            {trimmed.replace('# ', '')}
+            {trimmed.replace("# ", "")}
           </h1>
-        )
+        );
       }
-      if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+      if (trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
         return (
           <li key={index} className="ml-4 mb-1 text-muted-foreground">
-            {trimmed.replace(/^[-•]\s*/, '')}
+            {trimmed.replace(/^[-•]\s*/, "")}
           </li>
-        )
+        );
       }
       if (/^\d+\.\s/.test(trimmed)) {
         return (
-          <li key={index} className="ml-4 mb-1 text-muted-foreground list-decimal list-inside">
-            {trimmed.replace(/^\d+\.\s*/, '')}
+          <li
+            key={index}
+            className="ml-4 mb-1 text-muted-foreground list-decimal list-inside"
+          >
+            {trimmed.replace(/^\d+\.\s*/, "")}
           </li>
-        )
+        );
       }
       if (trimmed) {
         return (
           <p key={index} className="mb-4 leading-relaxed text-muted-foreground">
             {trimmed}
           </p>
-        )
+        );
       }
-      return null
-    })
-  }
+      return null;
+    });
+  };
 
   const goBack = () => {
-    router.back()
-  }
+    router.back();
+  };
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 max-w-4xl">
@@ -340,12 +355,11 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
               {formatDate(post.createdAt)}
             </span>
             <span className="flex items-center gap-1.5">
-              <Clock className="h-4 w-4" />
-              5 min read
+              <Clock className="h-4 w-4" />5 min read
             </span>
             <span className="flex items-center gap-1.5">
               <User className="h-4 w-4" />
-              {post.author || 'SINAG Editorial'}
+              {post.author || "SINAG Editorial"}
             </span>
           </div>
         </div>
@@ -362,13 +376,15 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
         )}
 
         {/* Content */}
-        <div className="prose prose-sm sm:prose lg:prose-lg dark:prose-invert max-w-none
+        <div
+          className="prose prose-sm sm:prose lg:prose-lg dark:prose-invert max-w-none
           prose-headings:font-bold prose-headings:tracking-tight
           prose-h2:text-xl prose-h2:mt-6 prose-h2:mb-3
           prose-p:text-muted-foreground prose-p:leading-relaxed
           prose-strong:text-foreground prose-ul:list-disc prose-ul:pl-6
-          prose-li:mb-1">
-          {renderContent(post.content || post.excerpt || '')}
+          prose-li:mb-1"
+        >
+          {renderContent(post.content || post.excerpt || "")}
         </div>
 
         {/* Tags at bottom */}
@@ -385,7 +401,9 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
 
         {/* Share */}
         <div className="flex items-center gap-3 mt-6 pt-6 border-t">
-          <span className="text-sm text-muted-foreground">Share this article</span>
+          <span className="text-sm text-muted-foreground">
+            Share this article
+          </span>
           <Button variant="outline" size="sm" className="gap-2">
             <Share2 className="h-4 w-4" />
             Share
@@ -398,20 +416,17 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
         {/* Like Button */}
         <div className="flex items-center gap-4 mb-8">
           <Button
-            variant={userLiked ? 'default' : 'outline'}
+            variant={userLiked ? "default" : "outline"}
             size="lg"
             className={cn(
               "gap-2",
-              userLiked && "bg-red-500 hover:bg-red-600 text-white"
+              userLiked && "bg-red-500 hover:bg-red-600 text-white",
             )}
             onClick={handleLike}
             disabled={liking}
           >
-            <Heart className={cn(
-              "h-5 w-5",
-              userLiked && "fill-white"
-            )} />
-            {likeCount} {likeCount === 1 ? 'Like' : 'Likes'}
+            <Heart className={cn("h-5 w-5", userLiked && "fill-white")} />
+            {likeCount} {likeCount === 1 ? "Like" : "Likes"}
           </Button>
           <Button variant="outline" size="lg" className="gap-2">
             <MessageCircle className="h-5 w-5" />
@@ -426,7 +441,11 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
               <Avatar className="h-10 w-10">
                 <AvatarImage src={user.user_metadata?.avatar_url} />
                 <AvatarFallback>
-                  {getInitials(user.user_metadata?.full_name || user.user_metadata?.name || user.email)}
+                  {getInitials(
+                    user.user_metadata?.full_name ||
+                      user.user_metadata?.name ||
+                      user.email,
+                  )}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 space-y-2">
@@ -441,13 +460,15 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                   disabled={submitting || !newComment.trim()}
                   className="gap-2"
                 >
-                  {submitting ? 'Posting...' : 'Post Comment'}
+                  {submitting ? "Posting..." : "Post Comment"}
                 </Button>
               </div>
             </div>
           ) : (
             <div className="text-center p-6 bg-muted/30 rounded-lg">
-              <p className="text-muted-foreground mb-2">Sign in to join the conversation</p>
+              <p className="text-muted-foreground mb-2">
+                Sign in to join the conversation
+              </p>
               <Link href="/login">
                 <Button variant="outline">Sign In</Button>
               </Link>
@@ -458,7 +479,9 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
         {/* Comments List */}
         <div className="space-y-6">
           {loading ? (
-            <div className="text-center py-4 text-muted-foreground">Loading comments...</div>
+            <div className="text-center py-4 text-muted-foreground">
+              Loading comments...
+            </div>
           ) : comments.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -489,7 +512,9 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                         variant="ghost"
                         size="sm"
                         className="h-7 px-2 text-xs text-muted-foreground gap-1"
-                        onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
+                        onClick={() =>
+                          setReplyTo(replyTo === comment.id ? null : comment.id)
+                        }
                       >
                         <Reply className="h-3 w-3" />
                         Reply
@@ -513,7 +538,11 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={user?.user_metadata?.avatar_url} />
                           <AvatarFallback>
-                            {getInitials(user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email)}
+                            {getInitials(
+                              user?.user_metadata?.full_name ||
+                                user?.user_metadata?.name ||
+                                user?.email,
+                            )}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 space-y-2">
@@ -529,14 +558,14 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                               onClick={() => handleAddReply(comment.id)}
                               disabled={submitting || !replyContent.trim()}
                             >
-                              {submitting ? 'Posting...' : 'Post Reply'}
+                              {submitting ? "Posting..." : "Post Reply"}
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={() => {
-                                setReplyTo(null)
-                                setReplyContent('')
+                                setReplyTo(null);
+                                setReplyContent("");
                               }}
                             >
                               Cancel
@@ -552,9 +581,13 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                         {comment.replies.map((reply) => (
                           <div key={reply.id} className="flex gap-3">
                             <Avatar className="h-8 w-8">
-                              <AvatarImage src={reply.user.avatar || undefined} />
+                              <AvatarImage
+                                src={reply.user.avatar || undefined}
+                              />
                               <AvatarFallback>
-                                {getInitials(reply.user.name || reply.user.email)}
+                                {getInitials(
+                                  reply.user.name || reply.user.email,
+                                )}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
@@ -591,5 +624,5 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

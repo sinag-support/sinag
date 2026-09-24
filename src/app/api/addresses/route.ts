@@ -41,7 +41,6 @@ async function getUserId() {
   }
 }
 
-// GET - Fetch all addresses for the user (excluding store location)
 export async function GET() {
   try {
     const userId = await getUserId();
@@ -67,7 +66,6 @@ export async function GET() {
   }
 }
 
-// POST - Create a new address
 export async function POST(request: Request) {
   try {
     const userId = await getUserId();
@@ -94,7 +92,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // If setting as default, unset other defaults
     if (isDefault) {
       await prisma.address.updateMany({
         where: { userId, isDefault: true },

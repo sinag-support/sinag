@@ -55,7 +55,6 @@ export default async function AdminPage() {
 
   const userId = await getCurrentUserId();
 
-  // ============ CORE STATS (for all roles) ============
   const [
     revenueAgg,
     totalOrders,
@@ -105,13 +104,9 @@ export default async function AdminPage() {
     prisma.order.count({ where: { status: "REFUNDED" } }),
   ]);
 
-  // ============ RIDER DATA ============
-  // For RIDER: only THEIR assigned orders
-  // For ADMIN: ALL riders' orders (aggregated)
   let riderOrdersData: any[] = [];
 
   if (role === "RIDER" && userId) {
-    // Own rider data only
     const orders = await prisma.order.findMany({
       where: { riderId: userId },
       include: {
@@ -132,7 +127,6 @@ export default async function AdminPage() {
       user: o.user,
     }));
   } else if (role === "ADMIN") {
-    // Aggregated across ALL riders
     const orders = await prisma.order.findMany({
       where: {
         status: {
@@ -169,7 +163,6 @@ export default async function AdminPage() {
     }));
   }
 
-  // ============ REVENUE CHART DATA ============
   const now = new Date();
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - 6);
@@ -199,7 +192,6 @@ export default async function AdminPage() {
     }),
   ]);
 
-  // Weekly (7 days)
   const revenueData: { date: string; revenue: number }[] = [];
   for (let i = 6; i >= 0; i--) {
     const date = new Date(now);
@@ -211,7 +203,6 @@ export default async function AdminPage() {
     revenueData.push({ date: dateKey, revenue: dayRevenue });
   }
 
-  // Monthly (30 days)
   const monthlyRevenueData: { date: string; revenue: number }[] = [];
   for (let i = 29; i >= 0; i--) {
     const date = new Date(now);
@@ -223,7 +214,6 @@ export default async function AdminPage() {
     monthlyRevenueData.push({ date: dateKey, revenue: dayRevenue });
   }
 
-  // Yearly (12 months)
   const yearlyRevenueData: { date: string; revenue: number }[] = [];
   for (let i = 11; i >= 0; i--) {
     const date = new Date(now);

@@ -42,7 +42,6 @@ async function getUserId() {
   }
 }
 
-// DELETE - Remove a wishlist item by its ID
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -55,7 +54,6 @@ export async function DELETE(
 
     const { id: wishlistItemId } = await params;
 
-    // Verify the item belongs to the user
     const item = await prisma.wishlistItem.findUnique({
       where: { id: wishlistItemId },
       select: { userId: true },

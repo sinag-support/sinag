@@ -56,7 +56,6 @@ export default function Header() {
   const mobileSearchRef = useRef<HTMLDivElement>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Detect mobile viewport
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -64,13 +63,11 @@ export default function Header() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Fetch unread count
   const fetchUnreadCount = async () => {
     if (!user) return;
     try {
       const response = await fetch("/api/notifications?unreadOnly=true");
       if (response.ok) {
-        // API returns just the count as a number
         const count = await response.json();
         setUnreadCount(count);
       }
@@ -79,7 +76,6 @@ export default function Header() {
     }
   };
 
-  // Fetch count when user changes
   useEffect(() => {
     if (user) {
       fetchUnreadCount();
@@ -88,14 +84,12 @@ export default function Header() {
     }
   }, [user]);
 
-  // Refetch when pathname changes (after reading notifications)
   useEffect(() => {
     if (user) {
       fetchUnreadCount();
     }
   }, [pathname]);
 
-  // Outside click handler
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -109,7 +103,6 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Debounced search
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (searchQuery.trim().length >= 2) {
@@ -234,7 +227,6 @@ export default function Header() {
     }
   };
 
-  // Hide on admin
   if (pathname?.startsWith("/admin")) return null;
 
   const getInitials = (name: string) => {
@@ -253,7 +245,6 @@ export default function Header() {
     { href: "/blog", label: "Blog" },
   ];
 
-  // Mobile visibility rules
   const isProfileRoot = pathname === "/profile";
   const isProfileSubpage = pathname?.startsWith("/profile/");
   const isNotificationsPage = pathname === "/notifications";
@@ -279,7 +270,6 @@ export default function Header() {
   const hideTopHeader = hideBothOnMobile || hideTopOnly || hideCartHeader;
   const hideBottomNav = hideBothOnMobile || hideCartHeader;
 
-  // Loading skeleton
   if (loading) {
     return (
       <>

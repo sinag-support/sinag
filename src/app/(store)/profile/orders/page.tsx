@@ -121,7 +121,6 @@ export default function OrdersPage() {
   };
 
   const handleOrderUpdated = () => {
-    // Refresh the orders list when order status changes
     fetchOrders();
     setRefreshKey((prev) => prev + 1);
   };
@@ -215,7 +214,6 @@ export default function OrdersPage() {
           const items = order.items;
           const itemCount = items.length;
 
-          // Get up to 3 items for stacking
           const displayItems = items.slice(0, 3);
           const remainingCount = itemCount - 3;
 

@@ -167,29 +167,24 @@ export default function ProfilePage() {
 
   const handleLogout = async () => {
     try {
-      // Call logout API first
       const response = await fetch("/api/auth/logout", { method: "POST" });
 
-      // Sign out from Supabase client
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error("Supabase signout error:", error);
       }
 
-      // Clear any client-side auth data
       localStorage.removeItem("supabase-auth-token");
       localStorage.removeItem("sb-access-token");
       localStorage.removeItem("sb-refresh-token");
       sessionStorage.clear();
 
-      // Clear all cookies manually (client-side)
       document.cookie.split(";").forEach((c) => {
         document.cookie = c
           .replace(/^ +/, "")
           .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
 
-      // Force hard navigation
       window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);

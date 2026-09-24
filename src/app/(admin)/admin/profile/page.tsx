@@ -64,7 +64,6 @@ export default function AdminProfilePage() {
   const [name, setName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
-  // Store location states - only for ADMIN
   const [storeDialogOpen, setStoreDialogOpen] = useState(false);
   const [storeFormData, setStoreFormData] = useState({
     address: "",
@@ -96,7 +95,6 @@ export default function AdminProfilePage() {
       setProfile(data);
       setName(data.name || "");
 
-      // Populate store form data if exists (only for admin)
       if (data.storeLocation) {
         setStoreFormData({
           address: data.storeLocation.address,
@@ -153,7 +151,7 @@ export default function AdminProfilePage() {
   };
 
   const handleUpdateStoreLocation = async () => {
-    if (!isAdmin) return; // Only admin can update store location
+    if (!isAdmin) return;
 
     const { address, city, province, postalCode, latitude, longitude } =
       storeFormData;

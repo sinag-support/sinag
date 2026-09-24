@@ -132,7 +132,6 @@ export function UserManagement() {
     }
   }
 
-  // Filter users based on search and role
   const filteredUsers = users.filter((user) => {
     const searchLower = search.toLowerCase();
     const matchesSearch =

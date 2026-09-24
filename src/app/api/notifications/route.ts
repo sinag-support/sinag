@@ -42,7 +42,6 @@ async function getAuthUser() {
   }
 }
 
-// GET - Fetch all notifications for the authenticated user
 export async function GET(request: NextRequest) {
   try {
     const userId = await getAuthUser();
@@ -77,8 +76,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create a new notification
-// Can be called internally or by authenticated users
 export async function POST(request: NextRequest) {
   try {
     const {
@@ -101,7 +98,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the target user exists
     const targetUser = await prisma.user.findUnique({
       where: { id: targetUserId },
       select: { id: true },
@@ -135,7 +131,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH - Mark notifications as read
 export async function PATCH(request: NextRequest) {
   try {
     const userId = await getAuthUser();

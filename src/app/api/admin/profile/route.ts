@@ -1,5 +1,3 @@
-// app/api/admin/profile/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createServerClient } from "@supabase/ssr";
@@ -86,7 +84,6 @@ export async function PUT(request: NextRequest) {
 
     const { name, storeLocation } = await request.json();
 
-    // Update user name if provided
     if (name !== undefined) {
       await prisma.user.update({
         where: { id: user.id },
@@ -95,7 +92,6 @@ export async function PUT(request: NextRequest) {
     }
 
     if (storeLocation && user.role === "ADMIN") {
-      // Check if store location already exists
       const existingStore = await prisma.address.findFirst({
         where: {
           isStoreLocation: true,
@@ -103,7 +99,6 @@ export async function PUT(request: NextRequest) {
       });
 
       if (existingStore) {
-        // Update existing store location
         await prisma.address.update({
           where: { id: existingStore.id },
           data: {
@@ -118,7 +113,6 @@ export async function PUT(request: NextRequest) {
           },
         });
       } else {
-        // Create new store location
         await prisma.address.create({
           data: {
             userId: user.id,
@@ -136,7 +130,6 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Fetch updated user
     const updatedUser = await prisma.user.findUnique({
       where: { id: user.id },
       include: {

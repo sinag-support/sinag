@@ -89,7 +89,7 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { action } = body; // "approve" or "reject"
+    const { action } = body;
 
     if (!action || !["approve", "reject"].includes(action)) {
       return NextResponse.json(
@@ -131,7 +131,6 @@ export async function POST(
         },
       });
 
-      // Update payment status to REFUNDED
       await prisma.payment.updateMany({
         where: { orderId: id },
         data: { status: "REFUNDED" },
@@ -141,7 +140,7 @@ export async function POST(
 
       await createNotification(
         order.userId,
-        `✅ Refund approved for order #${order.orderNumber}`,
+        `Refund approved for order #${order.orderNumber}`,
         `Your refund of ₱${order.payable.toFixed(2)} has been approved and processed.`,
         NotificationType.ORDER,
         `/profile/orders/${order.id}`,
@@ -163,7 +162,7 @@ export async function POST(
 
       await createNotification(
         order.userId,
-        `❌ Refund request rejected for order #${order.orderNumber}`,
+        `Refund request rejected for order #${order.orderNumber}`,
         `Your refund request has been rejected. Please contact support for more information.`,
         NotificationType.ORDER,
         `/profile/orders/${order.id}`,

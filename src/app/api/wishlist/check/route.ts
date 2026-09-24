@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 async function getUserId() {
   try {
@@ -11,33 +11,36 @@ async function getUserId() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name: string) { return cookieStore.get(name)?.value },
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
           set(name: string, value: string, options: any) {
             cookieStore.set({ name, value, ...options });
           },
           remove(name: string, options: any) {
-            cookieStore.set({ name, value: '', ...options });
+            cookieStore.set({ name, value: "", ...options });
           },
         },
-      }
+      },
     );
-    
-    const { data: { user } } = await supabase.auth.getUser();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return null;
-    
+
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email! },
       select: { id: true },
     });
-    
+
     return dbUser?.id || null;
   } catch (error) {
-    console.error('Error in getUserId:', error);
+    console.error("Error in getUserId:", error);
     return null;
   }
 }
 
-// GET - Check if a specific product is in the user's wishlist
 export async function GET(request: NextRequest) {
   try {
     const userId = await getUserId();
@@ -45,7 +48,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ isWishlisted: false });
     }
 
-    const productId = request.nextUrl.searchParams.get('productId');
+    const productId = request.nextUrl.searchParams.get("productId");
     if (!productId) {
       return NextResponse.json({ isWishlisted: false });
     }
@@ -61,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ isWishlisted: !!existing });
   } catch (error) {
-    console.error('GET /api/wishlist/check error:', error);
+    console.error("GET /api/wishlist/check error:", error);
     return NextResponse.json({ isWishlisted: false });
   }
 }

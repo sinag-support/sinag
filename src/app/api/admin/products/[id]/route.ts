@@ -25,7 +25,6 @@ export async function PUT(
     options,
   } = body;
 
-  // First, update the product
   const product = await prisma.product.update({
     where: { id },
     data: {
@@ -40,14 +39,11 @@ export async function PUT(
     },
   });
 
-  // Then handle options (if provided)
   if (options !== undefined) {
-    // Delete existing options
     await prisma.productOption.deleteMany({
       where: { productId: id },
     });
 
-    // Create new options
     if (options.length > 0) {
       await prisma.productOption.createMany({
         data: options.map((opt: any) => ({
@@ -61,7 +57,6 @@ export async function PUT(
     }
   }
 
-  // Return updated product with options
   const updatedProduct = await prisma.product.findUnique({
     where: { id },
     include: {
@@ -84,12 +79,10 @@ export async function DELETE(
 
   const { id } = await params;
 
-  // First delete all options
   await prisma.productOption.deleteMany({
     where: { productId: id },
   });
 
-  // Then delete the product
   await prisma.product.delete({ where: { id } });
 
   return NextResponse.json({ success: true });

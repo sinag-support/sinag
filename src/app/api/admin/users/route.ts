@@ -28,25 +28,20 @@ export async function GET(request: NextRequest) {
 
     const where: any = {};
 
-    // Filter by email
     if (email) {
       where.email = email;
     }
 
-    // Filter by role
     if (userRole) {
       where.role = userRole;
     }
 
-    // Exclude ADMIN users from the list (for user management)
-    // But if we're looking for a specific user by email, don't exclude ADMIN
     if (!email) {
       where.role = {
         not: "ADMIN",
       };
     }
 
-    // Search filter
     if (search && !email) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
@@ -102,7 +97,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already exists in Prisma
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -114,7 +108,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if phone already exists (if provided)
     if (phone) {
       const existingPhone = await prisma.user.findUnique({
         where: { phone },
@@ -127,7 +120,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create in Supabase Auth
     try {
       const supabaseAdmin = getSupabaseAdmin();
 
@@ -149,7 +141,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create in Prisma
     const newUser = await prisma.user.create({
       data: {
         email,
@@ -160,7 +151,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create welcome notification for the new user
     try {
       await prisma.notification.create({
         data: {

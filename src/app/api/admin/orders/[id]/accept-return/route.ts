@@ -1,4 +1,3 @@
-// app/api/admin/orders/[id]/accept-return/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createServerClient } from "@supabase/ssr";

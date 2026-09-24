@@ -66,7 +66,6 @@ export async function DELETE(
       );
     }
 
-    // Only the owner can delete their notification
     if (notification.userId !== userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }

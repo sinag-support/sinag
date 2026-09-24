@@ -1,30 +1,29 @@
-import Link from 'next/link'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Calendar, Clock, Search, Heart, MessageCircle } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import prisma from '@/lib/prisma'
-import { safeQuery } from '@/lib/safe-query'
-import { BackButton } from '@/components/ui/back-button'
-import { cn } from '@/lib/utils'
+import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, Clock, Search, Heart, MessageCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import prisma from "@/lib/prisma";
+import { safeQuery } from "@/lib/safe-query";
+import { BackButton } from "@/components/ui/back-button";
+import { cn } from "@/lib/utils";
 
 export const metadata = {
-  title: 'Blog - SINAG',
-  description: 'Read the latest articles and updates from SINAG.',
-}
+  title: "Blog - SINAG",
+  description: "Read the latest articles and updates from SINAG.",
+};
 
-export const dynamic = 'force-dynamic'
-export const fetchCache = 'force-no-store'
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 export default async function BlogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string }>
+  searchParams: Promise<{ search?: string }>;
 }) {
-  const params = await searchParams
-  const searchQuery = params.search || ''
+  const params = await searchParams;
+  const searchQuery = params.search || "";
 
-  // Fetch blog posts from database with search filter and include likes/comments count
   const blogPosts = await safeQuery(
     () =>
       prisma.blogPost.findMany({
@@ -33,17 +32,17 @@ export default async function BlogPage({
           ...(searchQuery
             ? {
                 OR: [
-                  { title: { contains: searchQuery, mode: 'insensitive' } },
-                  { excerpt: { contains: searchQuery, mode: 'insensitive' } },
-                  { content: { contains: searchQuery, mode: 'insensitive' } },
-                  { author: { contains: searchQuery, mode: 'insensitive' } },
+                  { title: { contains: searchQuery, mode: "insensitive" } },
+                  { excerpt: { contains: searchQuery, mode: "insensitive" } },
+                  { content: { contains: searchQuery, mode: "insensitive" } },
+                  { author: { contains: searchQuery, mode: "insensitive" } },
                   { tags: { has: searchQuery } },
                 ],
               }
             : {}),
         },
         orderBy: {
-          createdAt: 'desc',
+          createdAt: "desc",
         },
         select: {
           id: true,
@@ -62,23 +61,22 @@ export default async function BlogPage({
           },
         },
       }),
-    []
-  )
+    [],
+  );
 
-  // Map posts to the format expected by the component
   const posts = blogPosts.map((post: any) => ({
     id: post.id,
     title: post.title,
-    excerpt: post.excerpt || '',
-    image: post.coverImage || '',
+    excerpt: post.excerpt || "",
+    image: post.coverImage || "",
     date: post.createdAt.toISOString(),
     slug: post.slug,
     readTime: 5,
     tags: post.tags || [],
-    author: post.author || 'SINAG Editorial',
+    author: post.author || "SINAG Editorial",
     likeCount: post._count.likes || 0,
     commentCount: post._count.comments || 0,
-  }))
+  }));
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 max-w-6xl">
@@ -122,12 +120,12 @@ export default async function BlogPage({
         <div className="text-center py-16">
           <div className="text-4xl mb-4">📝</div>
           <h3 className="text-lg font-medium">
-            {searchQuery ? 'No matching articles found' : 'No blog posts yet'}
+            {searchQuery ? "No matching articles found" : "No blog posts yet"}
           </h3>
           <p className="text-muted-foreground text-sm mt-1">
             {searchQuery
-              ? 'Try adjusting your search terms'
-              : 'Check back later for new articles.'}
+              ? "Try adjusting your search terms"
+              : "Check back later for new articles."}
           </p>
           {searchQuery && (
             <Link
@@ -142,7 +140,7 @@ export default async function BlogPage({
         <>
           {/* Results count */}
           <p className="text-sm text-muted-foreground mb-6">
-            {posts.length} {posts.length === 1 ? 'article' : 'articles'} found
+            {posts.length} {posts.length === 1 ? "article" : "articles"} found
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -161,7 +159,9 @@ export default async function BlogPage({
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                        <span className="text-gray-400 dark:text-gray-500 text-sm">No image</span>
+                        <span className="text-gray-400 dark:text-gray-500 text-sm">
+                          No image
+                        </span>
                       </div>
                     )}
                     {post.tags && post.tags.length > 0 && (
@@ -175,10 +175,10 @@ export default async function BlogPage({
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
-                      {new Date(post.date).toLocaleDateString('en-PH', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
+                      {new Date(post.date).toLocaleDateString("en-PH", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
                       })}
                     </span>
                     <span className="flex items-center gap-1">
@@ -198,10 +198,14 @@ export default async function BlogPage({
                   {/* Like & Comment Count */}
                   <div className="flex items-center gap-4 pt-2">
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Heart className={cn(
-                        "h-3.5 w-3.5",
-                        post.likeCount > 0 ? "fill-red-500 text-red-500" : "text-muted-foreground"
-                      )} />
+                      <Heart
+                        className={cn(
+                          "h-3.5 w-3.5",
+                          post.likeCount > 0
+                            ? "fill-red-500 text-red-500"
+                            : "text-muted-foreground",
+                        )}
+                      />
                       <span>{post.likeCount}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -211,7 +215,9 @@ export default async function BlogPage({
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between pt-2 gap-2">
-                    <span className="text-xs text-muted-foreground">By {post.author}</span>
+                    <span className="text-xs text-muted-foreground">
+                      By {post.author}
+                    </span>
                     <Link
                       href={`/blog/${post.slug}`}
                       className="inline-flex items-center text-sm font-medium text-primary hover:underline"
@@ -226,5 +232,5 @@ export default async function BlogPage({
         </>
       )}
     </div>
-  )
+  );
 }

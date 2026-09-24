@@ -41,7 +41,6 @@ async function getUserId() {
   }
 }
 
-// PUT - Update an address
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -72,7 +71,6 @@ export async function PUT(
       );
     }
 
-    // Check if address belongs to user
     const existing = await prisma.address.findUnique({
       where: { id },
       select: { userId: true, isStoreLocation: true },
